@@ -45,7 +45,9 @@ class SourceHealthModel(BaseModel):
     last_success_timestamp: str | None = None
     detail: str
     source_run_id: str | None = None
+    last_observation_period: str | None = None
     age_days: int | None = None
+    run_age_hours: float | None = None
     updated_days_ago: str = "unknown"
 
 
@@ -68,6 +70,11 @@ class HeadlineModel(BaseModel):
     nowcast_mom_pct: float | None = None
     confidence: Literal["high", "medium", "low"]
     coverage_ratio: float
+    signal_quality_score: int = 0
+    lead_signal: Literal["up", "down", "flat", "insufficient_data"] = "insufficient_data"
+    next_release_at_utc: datetime | None = None
+    consensus_yoy: float | None = None
+    consensus_spread_yoy: float | None = None
     method_label: str
 
 
@@ -90,4 +97,5 @@ class NowcastSnapshot(BaseModel):
     source_health: list[SourceHealthModel]
     notes: list[str]
     meta: dict
+    performance_ref: dict | None = None
     release: ReleaseMeta

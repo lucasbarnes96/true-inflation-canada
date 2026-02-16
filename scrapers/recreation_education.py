@@ -1,9 +1,4 @@
-"""Transport category scraper — StatCan monthly gasoline prices.
-
-Uses StatCan table 18-10-0001-01 (Monthly average retail prices for
-gasoline and fuel oil) as a CSV download. This replaces the CAA
-web scrape that was returning 403 Forbidden.
-"""
+"""Recreation and education category scraper using StatCan CPI table 18-10-0004."""
 from __future__ import annotations
 
 import csv
@@ -12,50 +7,31 @@ import urllib.request
 import zipfile
 from datetime import datetime, timezone
 
-from .common import utc_now_iso, USER_AGENT
+from .common import USER_AGENT, utc_now_iso
 from .types import Quote, SourceHealth
 
-# StatCan table for monthly gasoline/fuel prices
-STATCAN_GAS_URL = "https://www150.statcan.gc.ca/n1/tbl/csv/18100001-eng.zip"
-
-# Target product types — use substring matching since names vary
-TARGET_KEYWORDS = [
-    "regular unleaded gasoline",
-    "premium unleaded gasoline",
-    "diesel",
-    "furnace oil",
-    "fuel oil",
-]
+STATCAN_CPI_URL = "https://www150.statcan.gc.ca/n1/tbl/csv/18100004-eng.zip"
+TARGET_KEYWORDS = ["recreation, education and reading", "education", "recreation"]
 
 
-def scrape_transport() -> tuple[list[Quote], list[SourceHealth]]:
+def scrape_recreation_education() -> tuple[list[Quote], list[SourceHealth]]:
     quotes: list[Quote] = []
     health: list[SourceHealth] = []
-
     try:
-        req = urllib.request.Request(
-            STATCAN_GAS_URL,
-            headers={"User-Agent": USER_AGENT},
-        )
+        req = urllib.request.Request(STATCAN_CPI_URL, headers={"User-Agent": USER_AGENT})
         with urllib.request.urlopen(req, timeout=30) as response:
             data = response.read()
-
         with zipfile.ZipFile(io.BytesIO(data)) as zf:
-            csv_name = next(
-                name for name in zf.namelist() if name.endswith(".csv")
-            )
+            csv_name = next(name for name in zf.namelist() if name.endswith(".csv"))
             with zf.open(csv_name) as handle:
-                decoded = io.TextIOWrapper(
-                    handle, encoding="utf-8-sig", errors="ignore"
-                )
+                decoded = io.TextIOWrapper(handle, encoding="utf-8-sig", errors="ignore")
                 rows = list(csv.DictReader(decoded))
 
-        # Find the latest fuel prices for Canada
         latest_by_product: dict[str, tuple[str, float]] = {}
         for row in rows:
             if row.get("GEO") != "Canada":
                 continue
-            product = (row.get("Type of fuel") or row.get("Products") or "").strip()
+            product = (row.get("Products and product groups") or "").strip()
             product_lower = product.lower()
             if not any(kw in product_lower for kw in TARGET_KEYWORDS):
                 continue
@@ -75,38 +51,32 @@ def scrape_transport() -> tuple[list[Quote], list[SourceHealth]]:
         latest_period = None
         for product, (period, value) in latest_by_product.items():
             latest_period = period if latest_period is None or period > latest_period else latest_period
-            # Convert product name to a clean item_id
-            item_id = product.lower()
-            for remove in [" at self service filling stations", "gasoline", "fuel"]:
-                item_id = item_id.replace(remove, "")
-            item_id = "_".join(item_id.split()).strip("_")
-
             quotes.append(
                 Quote(
-                    category="transport",
-                    item_id=item_id or "fuel",
+                    category="recreation_education",
+                    item_id=product.lower().replace(" ", "_"),
                     value=value,
                     observed_at=observed,
-                    source="statcan_gas_csv",
+                    source="statcan_cpi_csv",
                 )
             )
 
         health.append(
             SourceHealth(
-                source="statcan_gas_csv",
-                category="transport",
+                source="statcan_cpi_csv",
+                category="recreation_education",
                 tier=1,
                 status="stale" if quotes else "missing",
                 last_success_timestamp=utc_now_iso() if quotes else None,
-                detail=f"Collected {len(quotes)} fuel price observations from StatCan.",
+                detail=f"Collected {len(quotes)} recreation/education CPI proxies from StatCan CSV.",
                 last_observation_period=latest_period,
             )
         )
     except Exception as err:
         health.append(
             SourceHealth(
-                source="statcan_gas_csv",
-                category="transport",
+                source="statcan_cpi_csv",
+                category="recreation_education",
                 tier=1,
                 status="missing",
                 last_success_timestamp=None,
@@ -114,5 +84,4 @@ def scrape_transport() -> tuple[list[Quote], list[SourceHealth]]:
                 last_observation_period=None,
             )
         )
-
     return quotes, health

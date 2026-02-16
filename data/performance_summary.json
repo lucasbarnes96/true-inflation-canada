@@ -1,0 +1,9 @@
+{
+  "method_version": "v1.5.0",
+  "window_days": 120,
+  "evaluated_points": 1,
+  "mae_mom_pct": null,
+  "directional_accuracy_pct": null,
+  "lead_time_score_pct": null,
+  "generated_at": "2026-02-16T20:30:04+00:00"
+}

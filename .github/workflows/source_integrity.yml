@@ -1,0 +1,59 @@
+name: Weekly Source Integrity Report
+
+on:
+  schedule:
+    - cron: "0 12 * * 1"
+  workflow_dispatch:
+
+jobs:
+  integrity:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run source integrity probe
+        run: python process.py || true
+
+      - name: Publish integrity summary
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          latest = Path("data/latest.json")
+          if not latest.exists():
+            raise SystemExit("data/latest.json not found")
+
+          payload = json.loads(latest.read_text())
+          source_health = payload.get("source_health", [])
+          blocked = payload.get("release", {}).get("blocked_conditions", [])
+
+          summary_path = os.environ["GITHUB_STEP_SUMMARY"]
+          with open(summary_path, "a", encoding="utf-8") as f:
+            f.write("## Source Integrity Report\\n")
+            f.write(f"- Run status: **{payload.get('release', {}).get('status', '--')}**\\n")
+            f.write(f"- Confidence: **{payload.get('headline', {}).get('confidence', '--')}**\\n")
+            f.write(f"- Signal quality: **{payload.get('headline', {}).get('signal_quality_score', '--')}/100**\\n")
+            f.write("\\n### Source Health\\n")
+            for row in source_health:
+              f.write(
+                f"- `{row.get('source')}` ({row.get('category')}): {row.get('status')}"
+                f" | {row.get('updated_days_ago', 'unknown')}\\n"
+              )
+            if blocked:
+              f.write("\\n### Gate Failures\\n")
+              for item in blocked:
+                f.write(f"- {item}\\n")
+          PY

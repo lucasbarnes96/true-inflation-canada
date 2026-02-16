@@ -1,6 +1,6 @@
 # True Inflation Canada
 
-Real-time Canadian inflation nowcast with strict publish gates and transparent source health.
+Real-time Canadian inflation nowcast with strict publish gates, explicit source run timestamps, release intelligence, and published performance metrics.
 
 ## What changed
 - API-first architecture (`FastAPI + Pydantic`).
@@ -63,6 +63,10 @@ Endpoints:
 - `GET /v1/sources/health`
 - `GET /v1/releases/latest`
 - `GET /v1/methodology`
+- `GET /v1/performance/summary`
+- `GET /v1/sources/catalog`
+- `GET /v1/releases/upcoming`
+- `GET /v1/consensus/latest`
 
 ## Dashboard
 Serve static UI and point it to API:
@@ -80,6 +84,21 @@ A run is blocked (`failed_gate`) if any condition fails:
 3. Snapshot schema validation fails.
 4. Category point minimums fail.
 5. Official CPI metadata missing (`latest_release_month`).
+6. Representativeness ratio below 85% fresh basket coverage.
+
+## Methodology v1.5 confidence rubric
+- Inputs: release gate status, weighted coverage ratio, anomaly counts, and source diversity.
+- `high`: no gate failures, high coverage, low anomalies, and no diversity penalty.
+- `medium`: adequate coverage with anomaly or diversity penalties.
+- `low`: gate failure, or low weighted coverage.
+
+Additional headline and metadata fields:
+- `headline.signal_quality_score` (0-100)
+- `headline.lead_signal` (`up`, `down`, `flat`, `insufficient_data`)
+- `headline.next_release_at_utc`
+- `headline.consensus_yoy`
+- `headline.consensus_spread_yoy`
+- `meta.method_version` (`v1.6.0`)
 
 ## CI
 GitHub Actions (`.github/workflows/scrape.yml`):

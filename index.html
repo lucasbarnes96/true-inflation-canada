@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TrueNorth Index - Easy & Expert Inflation Dashboard</title>
+  <title>True Inflation Canada - Inflation Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
@@ -178,10 +178,10 @@
       font-size: 0.94rem;
     }
 
-    .trust-strip {
+    .release-grid {
       display: grid;
       gap: 0.6rem;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     .chip {
@@ -199,27 +199,12 @@
       margin-bottom: 0.35rem;
     }
 
-    .status-pill {
-      font-size: 0.72rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      border-radius: 999px;
-      padding: 0.2rem 0.45rem;
-      white-space: nowrap;
-    }
-
-    .status-pill.fresh { color: #0f6f48; background: rgba(31, 155, 101, 0.16); }
-    .status-pill.stale { color: #805100; background: rgba(204, 140, 26, 0.18); }
-    .status-pill.missing { color: #8f2631; background: rgba(195, 63, 79, 0.18); }
-
     .chip-age {
       color: var(--muted);
       font-size: 0.85rem;
     }
 
-    .mode { display: none; }
-    .mode.active { display: grid; gap: 1rem; }
+    .mode { display: grid; gap: 1rem; }
 
     .panel-title {
       margin: 0 0 0.65rem;
@@ -300,16 +285,14 @@
     @media (max-width: 960px) {
       .hero { grid-template-columns: 1fr; }
       .grid-3 { grid-template-columns: 1fr; }
-      .trust-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .release-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .expert-grid { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 560px) {
       body { padding: 0.7rem; }
       .header-card { grid-template-columns: 1fr; }
-      .trust-strip { grid-template-columns: 1fr; }
-      .segment { width: 100%; justify-content: space-between; }
-      .segment button { flex: 1; }
+      .release-grid { grid-template-columns: 1fr; }
       th:nth-child(3), td:nth-child(3), th:nth-child(5), td:nth-child(5) { display: none; }
     }
   </style>
@@ -318,15 +301,9 @@
   <main class="wrap" id="app">
     <section class="card header-card">
       <div>
-        <h1 class="title">TrueNorth Inflation Dashboard</h1>
-        <p class="subtitle">Canada inflation signal with `Easy` clarity and `Expert` diagnostics.</p>
+        <h1 class="title">True Inflation Canada Dashboard</h1>
+        <p class="subtitle">Finance-first Canadian inflation nowcast with transparent source diagnostics.</p>
         <div class="small-note" id="asof">as of --</div>
-      </div>
-      <div>
-        <div class="segment" role="tablist" aria-label="View mode">
-          <button id="mode-easy" role="tab" aria-selected="true">Easy</button>
-          <button id="mode-expert" role="tab" aria-selected="false">Expert</button>
-        </div>
       </div>
     </section>
 
@@ -345,91 +322,76 @@
           <div class="small-note" id="hero-divergence">vs Official MoM: --</div>
         </div>
         <div class="stat-box">
-          <div class="kicker">Official Release</div>
+          <div class="kicker">Official Release Month</div>
           <div id="hero-release" class="stat-value">--</div>
-          <div class="small-note" id="hero-confidence">Confidence: --</div>
+          <div class="small-note" id="hero-confidence">Confidence: -- | Signal quality: --</div>
         </div>
       </aside>
     </section>
 
-    <section id="easy-mode" class="mode active" aria-labelledby="mode-easy">
-      <section class="grid-3">
-        <article class="card info-card">
-          <div class="kicker">Food Pressure</div>
-          <h3 id="card-food-title">--</h3>
-          <p id="card-food-body">--</p>
-        </article>
-        <article class="card info-card">
-          <div class="kicker">Shelter Signal</div>
-          <h3 id="card-shelter-title">--</h3>
-          <p id="card-shelter-body">--</p>
-        </article>
-        <article class="card info-card">
-          <div class="kicker">Purchasing Power</div>
-          <h3 id="card-power-title">--</h3>
-          <p id="card-power-body">--</p>
-        </article>
-      </section>
-
-      <section class="card">
-        <h2 class="panel-title">Nowcast Trend</h2>
-        <div class="controls-inline">
-          <label class="checkbox"><input type="checkbox" id="overlay-official" /> Show official MoM overlay</label>
-        </div>
-        <canvas id="easyTrendChart"></canvas>
-      </section>
-
-      <section class="card">
-        <h2 class="panel-title">Data Freshness</h2>
-        <div id="trust-strip" class="trust-strip"></div>
-      </section>
-
-      <details class="card" id="easy-caveats">
-        <summary>Methodology and caveats</summary>
-        <ul id="easy-notes" class="meta-list"></ul>
-      </details>
+    <section class="card info-card">
+      <div class="kicker">Purchasing Power</div>
+      <h3 id="card-power-title">--</h3>
+      <p id="card-power-body">--</p>
     </section>
 
-    <section id="expert-mode" class="mode" aria-labelledby="mode-expert">
+    <section class="card">
+      <h2 class="panel-title">How To Read This Dashboard</h2>
+      <ul id="explain-list" class="meta-list"></ul>
+    </section>
+
+    <section id="main-mode" class="mode">
       <section class="card">
-        <h2 class="panel-title">Official vs Nowcast Divergence (MoM)</h2>
+        <h2 class="panel-title">Release Intelligence</h2>
+        <div id="release-grid" class="release-grid"></div>
+      </section>
+
+      <section class="card">
+        <h2 class="panel-title">Nowcast vs Official CPI (Month Over Month)</h2>
         <canvas id="divergenceChart"></canvas>
       </section>
 
       <section class="expert-grid">
         <article class="card">
-          <h2 class="panel-title">Category Drivers</h2>
+          <h2 class="panel-title">What Is Driving Prices Right Now</h2>
           <canvas id="categoryChart"></canvas>
         </article>
         <article class="card">
-          <h2 class="panel-title">Methodology Snapshot</h2>
+          <h2 class="panel-title">Methodology In Plain Language</h2>
           <ul id="methodology-list" class="meta-list"></ul>
         </article>
       </section>
 
       <section class="card">
-        <h2 class="panel-title">Source Diagnostics</h2>
+        <h2 class="panel-title">Signal Performance (How Well It Tracked CPI)</h2>
+        <ul id="performance-list" class="meta-list"></ul>
+      </section>
+
+      <section class="card">
+        <h2 class="panel-title">Data Source Diagnostics</h2>
         <table>
           <thead>
             <tr>
-              <th>Source</th>
+              <th>Data Source</th>
               <th>Category</th>
-              <th>Tier</th>
-              <th>Status</th>
-              <th>Age</th>
-              <th>Detail</th>
+              <th>Last Successful Run</th>
+              <th>Observation Period</th>
+              <th>Run Age (hrs)</th>
+              <th>Notes</th>
             </tr>
           </thead>
           <tbody id="source-health-body"></tbody>
         </table>
       </section>
+      <details class="card">
+        <summary>Methodology notes and caveats</summary>
+        <ul id="notes-list" class="meta-list"></ul>
+      </details>
     </section>
   </main>
 
   <script>
     const UI_MODE_V2 = new URLSearchParams(window.location.search).get("ui_v2") !== "0";
-    const MODE_KEY = "truenorth_mode";
-    let easyTrendChart = null;
     let divergenceChart = null;
     let categoryChart = null;
 
@@ -449,100 +411,29 @@
       return "tone-bad";
     }
 
-    function statusClass(status) {
-      return status || "missing";
-    }
-
     function fetchJsonWithFallback(primary, fallback) {
+      const toJsonOrThrow = (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.text().then((text) => {
+          try {
+            return JSON.parse(text);
+          } catch {
+            throw new Error(`Invalid JSON from ${r.url}`);
+          }
+        });
+      };
       return fetch(primary)
-        .then(r => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.json();
-        })
-        .catch(() => fetch(fallback).then(r => r.json()));
-    }
-
-    function setMode(mode) {
-      const easy = document.getElementById("easy-mode");
-      const expert = document.getElementById("expert-mode");
-      const easyBtn = document.getElementById("mode-easy");
-      const expertBtn = document.getElementById("mode-expert");
-
-      const isEasy = mode !== "expert";
-      easy.classList.toggle("active", isEasy);
-      expert.classList.toggle("active", !isEasy);
-      easyBtn.classList.toggle("active", isEasy);
-      expertBtn.classList.toggle("active", !isEasy);
-      easyBtn.setAttribute("aria-selected", isEasy ? "true" : "false");
-      expertBtn.setAttribute("aria-selected", !isEasy ? "true" : "false");
-      localStorage.setItem(MODE_KEY, isEasy ? "easy" : "expert");
-    }
-
-    function deriveCategoryFreshness(sourceHealth) {
-      const categories = ["food", "housing", "transport", "energy"];
-      const result = {};
-      for (const cat of categories) {
-        const rows = sourceHealth.filter(s => s.category === cat);
-        let status = "missing";
-        if (rows.some(r => r.status === "fresh")) status = "fresh";
-        else if (rows.some(r => r.status === "stale")) status = "stale";
-        const ages = rows.map(r => r.age_days).filter(v => Number.isInteger(v));
-        const minAge = ages.length ? Math.min(...ages) : null;
-        result[cat] = {
-          status,
-          updated: rows.find(r => r.age_days === minAge)?.updated_days_ago || (minAge === null ? "unknown" : `updated ${minAge} days ago`),
-        };
-      }
-      return result;
+        .then(toJsonOrThrow)
+        .catch(() =>
+          fetch(fallback)
+            .then(toJsonOrThrow)
+            .catch(() => ({}))
+        );
     }
 
     function safeHistoryItems(historical) {
       if (Array.isArray(historical.items)) return historical.items;
       return Object.keys(historical || {}).sort().map(day => ({ date: day, ...(historical[day] || {}) }));
-    }
-
-    function renderEasyTrend(items, showOfficialOverlay) {
-      const days = items.map(d => d.date);
-      const nowcastVals = items.map(d => d.headline?.nowcast_mom_pct ?? null);
-      const officialVals = items.map(d => d.official_cpi?.mom_pct ?? null);
-      const datasets = [
-        {
-          label: "Nowcast MoM",
-          data: nowcastVals,
-          borderColor: "#2b8f6f",
-          backgroundColor: "rgba(43, 143, 111, 0.15)",
-          fill: true,
-          tension: 0.25,
-          borderWidth: 2,
-        },
-      ];
-      if (showOfficialOverlay) {
-        datasets.push({
-          label: "Official CPI MoM",
-          data: officialVals,
-          borderColor: "#cc8c1a",
-          backgroundColor: "rgba(204, 140, 26, 0)",
-          borderDash: [6, 5],
-          fill: false,
-          tension: 0.2,
-          borderWidth: 2,
-        });
-      }
-
-      if (easyTrendChart) easyTrendChart.destroy();
-      easyTrendChart = new Chart(document.getElementById("easyTrendChart"), {
-        type: "line",
-        data: { labels: days, datasets },
-        options: {
-          responsive: true,
-          interaction: { mode: "index", intersect: false },
-          plugins: { legend: { labels: { color: "#204133" } } },
-          scales: {
-            y: { ticks: { color: "#4f6658" }, grid: { color: "rgba(16,32,25,0.08)" } },
-            x: { ticks: { color: "#4f6658" }, grid: { color: "rgba(16,32,25,0.08)" } },
-          },
-        },
-      });
     }
 
     function renderDivergence(items) {
@@ -629,14 +520,21 @@
         data: {
           labels: sorted.map(s => `${s.key} (${s.points})`),
           datasets: [{
-            label: "Weighted contribution",
+            label: "Weighted contribution (percentage points to MoM nowcast)",
             data: sorted.map(s => s.contribution),
             backgroundColor: sorted.map(s => (s.contribution >= 0 ? "rgba(43, 143, 111, 0.55)" : "rgba(195, 63, 79, 0.55)")),
           }],
         },
         options: {
           responsive: true,
-          plugins: { legend: { labels: { color: "#204133" } } },
+          plugins: {
+            legend: { labels: { color: "#204133" } },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.parsed.y || 0).toFixed(3)} pp`,
+              },
+            },
+          },
           scales: {
             y: { ticks: { color: "#4f6658" }, grid: { color: "rgba(16,32,25,0.08)" } },
             x: { ticks: { color: "#4f6658" }, grid: { color: "rgba(16,32,25,0.08)" } },
@@ -648,36 +546,92 @@
     function renderSourceTable(sourceHealth) {
       const tbody = document.getElementById("source-health-body");
       tbody.innerHTML = "";
+      const sourceName = {
+        openfoodfacts_api: "OpenFoodFacts (crowd prices)",
+        statcan_food_prices: "Statistics Canada food prices",
+        apify_loblaws: "Loblaws web scrape (Apify)",
+        statcan_gas_csv: "Statistics Canada fuel prices",
+        statcan_cpi_csv: "Statistics Canada CPI table",
+        oeb_scrape: "Ontario Energy Board rates",
+        statcan_energy_cpi_csv: "Statistics Canada energy CPI",
+      };
+      const categoryName = {
+        food: "Food",
+        housing: "Housing / shelter",
+        transport: "Transport / fuel",
+        energy: "Energy / utilities",
+        communication: "Phone / internet",
+        health_personal: "Health / personal care",
+        recreation_education: "Recreation / education",
+      };
       sourceHealth.forEach(row => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${row.source}</td>
-          <td>${row.category}</td>
-          <td>${row.tier}</td>
-          <td><span class="status-pill ${statusClass(row.status)}">${row.status}</span></td>
-          <td>${row.updated_days_ago || "--"}</td>
-          <td title="${(row.detail || "").replace(/"/g, '&quot;')}">${(row.detail || "--").slice(0, 80)}${(row.detail || "").length > 80 ? "..." : ""}</td>
+          <td>${sourceName[row.source] || row.source}</td>
+          <td>${categoryName[row.category] || row.category}</td>
+          <td>${row.last_success_timestamp || "No successful run"}</td>
+          <td>${row.last_observation_period || "--"}</td>
+          <td>${row.run_age_hours ?? "--"}</td>
+          <td>${row.detail || "--"}</td>
         `;
         tbody.appendChild(tr);
       });
     }
 
-    function renderTrustStrip(sourceHealth) {
-      const map = deriveCategoryFreshness(sourceHealth);
-      const strip = document.getElementById("trust-strip");
-      strip.innerHTML = "";
-      ["food", "housing", "transport", "energy"].forEach(category => {
-        const item = map[category];
-        const chip = document.createElement("article");
-        chip.className = "chip";
-        chip.innerHTML = `
-          <div class="chip-head">
-            <strong>${category[0].toUpperCase() + category.slice(1)}</strong>
-            <span class="status-pill ${statusClass(item.status)}">${item.status}</span>
-          </div>
-          <div class="chip-age">${item.updated}</div>
-        `;
-        strip.appendChild(chip);
+    function formatCountdown(seconds) {
+      if (seconds === null || seconds === undefined) return "--";
+      const s = Math.max(0, Number(seconds));
+      const d = Math.floor(s / 86400);
+      const h = Math.floor((s % 86400) / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      return `${d}d ${h}h ${m}m`;
+    }
+
+    function renderReleaseIntel(latest, upcomingRelease, consensus) {
+      const grid = document.getElementById("release-grid");
+      const official = latest.official_cpi || {};
+      const consensusYoy = consensus?.headline_yoy ?? latest.headline?.consensus_yoy;
+      const consensusMom = consensus?.headline_mom ?? null;
+      const surprise = latest.headline?.consensus_spread_yoy;
+      const nextRelease = upcomingRelease?.next_release || latest.meta?.release_intelligence || {};
+      const cards = [
+        {
+          title: "Next CPI Release (ET)",
+          value: nextRelease.release_at_et || "--",
+          note: `Source: StatCan calendar`,
+        },
+        {
+          title: "Countdown",
+          value: formatCountdown(nextRelease.countdown_seconds),
+          note: `Until next publication`,
+        },
+        {
+          title: "Consensus YoY (Unofficial)",
+          value: consensusYoy === null || consensusYoy === undefined ? "--" : `${Number(consensusYoy).toFixed(2)}%`,
+          note: `Free-source estimate`,
+        },
+        {
+          title: "Consensus MoM (Unofficial)",
+          value: consensusMom === null || consensusMom === undefined ? "--" : `${Number(consensusMom).toFixed(2)}%`,
+          note: `Free-source estimate`,
+        },
+        {
+          title: "Last Actual CPI",
+          value: `${pct(official.yoy_pct)} YoY / ${pct(official.mom_pct)} MoM`,
+          note: `Release month: ${official.latest_release_month || "--"}`,
+        },
+        {
+          title: "Surprise vs Consensus",
+          value: surprise === null || surprise === undefined ? "--" : `${Number(surprise).toFixed(2)} pp`,
+          note: `Actual YoY - consensus YoY`,
+        },
+      ];
+      grid.innerHTML = "";
+      cards.forEach((card) => {
+        const el = document.createElement("article");
+        el.className = "chip";
+        el.innerHTML = `<div class="kicker">${card.title}</div><div class="stat-value">${card.value}</div><div class="chip-age">${card.note}</div>`;
+        grid.appendChild(el);
       });
     }
 
@@ -695,28 +649,20 @@
 
       let summary = "Official CPI is unavailable right now.";
       if (yoy !== null && yoy !== undefined) {
-        if (yoy < 2) summary = "Inflation looks contained versus last year. Price pressure is relatively mild.";
-        else if (yoy <= 4) summary = "Inflation is in a moderate zone. Households may still feel selective pressure.";
-        else summary = "Inflation is elevated. Budget pressure is likely broad across essentials.";
+        if (yoy < 2) summary = "Prices are rising slowly compared with last year. Day-to-day budget pressure is usually lighter.";
+        else if (yoy <= 4) summary = "Prices are rising at a moderate pace. Many households still feel pressure on essentials.";
+        else summary = "Prices are rising quickly. Most households are likely feeling broad budget strain.";
       }
       document.getElementById("hero-summary").textContent = summary;
       document.getElementById("hero-nowcast").textContent = pct(nowcast, 3);
-      document.getElementById("hero-divergence").textContent = `vs Official MoM: ${pct(divergence, 3)}`;
+      document.getElementById("hero-divergence").textContent = `Spread vs official month-over-month CPI: ${pct(divergence, 3)}`;
       document.getElementById("hero-release").textContent = maybe(latest.official_cpi?.latest_release_month);
-      document.getElementById("hero-confidence").textContent = `Confidence: ${(latest.headline?.confidence || "--").toUpperCase()}`;
+      const quality = latest.headline?.signal_quality_score;
+      document.getElementById("hero-confidence").textContent = `Confidence: ${(latest.headline?.confidence || "--").toUpperCase()} | Data quality score: ${quality ?? "--"}/100`;
     }
 
-    function renderEasyCards(latest) {
-      const categories = latest.categories || {};
-      const food = categories.food || {};
-      const shelter = categories.housing || {};
+    function renderPurchasingPowerCard(latest) {
       const topDriver = latest.meta?.top_driver || { category: null, contribution_pct: null };
-
-      document.getElementById("card-food-title").textContent = `Food basket status: ${(food.status || "missing").toUpperCase()}`;
-      document.getElementById("card-food-body").textContent = `Food proxy level is ${maybe(food.proxy_level)} from ${food.points || 0} tracked points.`;
-
-      document.getElementById("card-shelter-title").textContent = `Shelter pressure: ${(shelter.status || "missing").toUpperCase()}`;
-      document.getElementById("card-shelter-body").textContent = `Housing proxy level is ${maybe(shelter.proxy_level)} with ${shelter.points || 0} data points.`;
 
       const yoy = latest.official_cpi?.yoy_pct;
       const purchasingPower = yoy === null || yoy === undefined ? null : (100 / (1 + (Number(yoy) / 100)));
@@ -724,13 +670,13 @@
         ? "Purchasing power: unavailable"
         : `$100 buys about $${purchasingPower.toFixed(2)} of last year's basket`;
       const topText = topDriver.category
-        ? `${topDriver.category} is currently the strongest driver (${pct(topDriver.contribution_pct, 3)} weighted impact).`
+        ? `${topDriver.category} is currently the strongest driver (${pct(topDriver.contribution_pct, 3)} weighted impact on this month).`
         : "Top category driver will appear once enough daily history accumulates.";
       document.getElementById("card-power-body").textContent = topText;
     }
 
     function renderNotes(latest) {
-      const ul = document.getElementById("easy-notes");
+      const ul = document.getElementById("notes-list");
       ul.innerHTML = "";
       (latest.notes || []).forEach(note => {
         const li = document.createElement("li");
@@ -745,11 +691,12 @@
       const gate = methodology?.gate_policy || {};
       const topDriver = latest.meta?.top_driver || {};
       const rows = [
-        `APIFY freshness gate: <= ${gate.apify_max_age_days ?? "--"} days`,
-        `Required sources: ${(gate.required_sources || []).join(", ") || "--"}`,
-        `Energy source requirement: ${(gate.energy_required_any_of || []).join(" or ") || "--"}`,
-        `Coverage ratio: ${(100 * (latest.headline?.coverage_ratio || 0)).toFixed(1)}%`,
-        `Top driver: ${topDriver.category || "--"} (${pct(topDriver.contribution_pct, 3)})`,
+        `Method version: ${latest.meta?.method_version || methodology?.method_version || "--"} (how this nowcast is calculated).`,
+        `Coverage ratio: ${(100 * (latest.headline?.coverage_ratio || 0)).toFixed(1)}% of the planned basket had usable data today.`,
+        `Lead signal: ${(latest.headline?.lead_signal || "--").toUpperCase()} means this model currently points to prices moving ${latest.headline?.lead_signal || "--"}.`,
+        `Province overlays available: ${(latest.meta?.province_overlays || ["ON", "QC", "BC"]).join(", ")}.`,
+        `Top driver right now: ${topDriver.category || "--"} (${pct(topDriver.contribution_pct, 3)} contribution to month-over-month nowcast).`,
+        `Last-successful-run rule: APIFY grocery data must be within ${gate.apify_max_age_days ?? "--"} days.`,
       ];
       rows.forEach(text => {
         const li = document.createElement("li");
@@ -761,47 +708,72 @@
     function applyReleaseBanner(latest) {
       const release = latest.release || {};
       const banner = document.getElementById("release-banner");
+      banner.style.display = "block";
       if (release.status && release.status !== "published") {
-        banner.style.display = "block";
         banner.textContent = `Release status: ${release.status}. ${(release.blocked_conditions || []).join(" | ")}`;
-      } else {
-        banner.style.display = "none";
+        return;
       }
+      banner.textContent = `Release status: published. Run ID: ${release.run_id || "--"}.`;
     }
 
-    function wireModeToggle() {
-      document.getElementById("mode-easy").addEventListener("click", () => setMode("easy"));
-      document.getElementById("mode-expert").addEventListener("click", () => setMode("expert"));
-      const initial = localStorage.getItem(MODE_KEY) || "easy";
-      setMode(initial);
+    function renderPerformance(performance) {
+      const ul = document.getElementById("performance-list");
+      ul.innerHTML = "";
+      const rows = [
+        `Evaluation window: last ${performance?.window_days ?? "--"} days`,
+        `Evaluated points: ${performance?.evaluated_points ?? "--"}`,
+        `MAE (MoM): ${performance?.mae_mom_pct ?? "--"} percentage points`,
+        `Directional accuracy: ${performance?.directional_accuracy_pct ?? "--"}%`,
+        `Lead-time score: ${performance?.lead_time_score_pct ?? "--"}%`,
+      ];
+      rows.forEach(text => {
+        const li = document.createElement("li");
+        li.textContent = text;
+        ul.appendChild(li);
+      });
+    }
+
+    function renderExplainers() {
+      const ul = document.getElementById("explain-list");
+      ul.innerHTML = "";
+      const rows = [
+        "Official CPI (YoY): year-over-year inflation from Statistics Canada.",
+        "Nowcast Signal (MoM): model-implied monthly inflation move ahead of official release.",
+        "Spread and Surprise metrics: monitor deviation from official prints and consensus.",
+        "Data quality score reflects source coverage, recency, anomaly filtering, and source diversity.",
+      ];
+      rows.forEach((text) => {
+        const li = document.createElement("li");
+        li.textContent = text;
+        ul.appendChild(li);
+      });
     }
 
     if (!UI_MODE_V2) {
-      document.getElementById("app").innerHTML = "<section class='card'><h2>UI v2 is disabled</h2><p>Append <code>?ui_v2=1</code> to enable the Easy/Expert dashboard.</p></section>";
+      document.getElementById("app").innerHTML = "<section class='card'><h2>UI v2 is disabled</h2><p>Append <code>?ui_v2=1</code> to enable the dashboard.</p></section>";
     } else {
-      wireModeToggle();
+      renderExplainers();
       Promise.all([
         fetchJsonWithFallback("/v1/nowcast/latest", "data/latest.json"),
         fetchJsonWithFallback("/v1/nowcast/history", "data/historical.json"),
         fetchJsonWithFallback("/v1/methodology", "data/latest.json"),
-      ]).then(([latest, historical, methodology]) => {
+        fetchJsonWithFallback("/v1/performance/summary", "data/performance_summary.json"),
+        fetchJsonWithFallback("/v1/releases/upcoming", "data/release_events.json"),
+        fetchJsonWithFallback("/v1/consensus/latest", "data/consensus_latest.json"),
+      ]).then(([latest, historical, methodology, performance, upcomingRelease, consensus]) => {
         document.getElementById("asof").textContent = `as of ${latest.as_of_date || "--"}`;
         applyReleaseBanner(latest);
         renderHero(latest);
-        renderEasyCards(latest);
+        renderReleaseIntel(latest, upcomingRelease, consensus);
+        renderPurchasingPowerCard(latest);
         renderNotes(latest);
-        renderTrustStrip(latest.source_health || []);
         renderSourceTable(latest.source_health || []);
         renderMethodology(methodology, latest);
+        renderPerformance(performance);
 
         const items = safeHistoryItems(historical).slice(-90);
-        renderEasyTrend(items, false);
         renderDivergence(items);
         renderCategoryChart(latest);
-
-        document.getElementById("overlay-official").addEventListener("change", (e) => {
-          renderEasyTrend(items, Boolean(e.target.checked));
-        });
       }).catch(err => {
         document.body.innerHTML = `<main class='wrap'><section class='card'><h2>Data load error</h2><p>${String(err)}</p></section></main>`;
       });

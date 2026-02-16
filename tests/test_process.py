@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import unittest
-from datetime import date
+from datetime import date, datetime, timezone
 
 from process import (
     CATEGORY_WEIGHTS,
+    compute_category_contributions,
     compute_confidence,
     compute_coverage,
+    compute_next_release,
+    compute_signal_quality_score,
     dedupe_quotes,
     evaluate_gate,
 )
@@ -40,6 +43,50 @@ class ProcessTests(unittest.TestCase):
         self.assertEqual("low", compute_confidence(0.7, 3, []))
         self.assertEqual("low", compute_confidence(0.95, 0, ["gate failed"]))
 
+    def test_compute_signal_quality_score(self) -> None:
+        categories = {
+            "food": {"status": "fresh", "proxy_level": 1.0},
+            "housing": {"status": "fresh", "proxy_level": 1.0},
+        }
+        diversity = {"food": 2, "housing": 2}
+        score = compute_signal_quality_score(0.9, 0, [], diversity, categories)
+        self.assertGreaterEqual(score, 85)
+
+        penalized = compute_signal_quality_score(
+            0.9,
+            4,
+            ["gate failed"],
+            {"food": 1, "housing": 1},
+            categories,
+        )
+        self.assertLess(penalized, score)
+
+    def test_compute_category_contributions(self) -> None:
+        categories = {
+            "food": {"daily_change_pct": 1.0, "weight": 0.2},
+            "housing": {"daily_change_pct": -0.5, "weight": 0.3},
+            "energy": {"daily_change_pct": None, "weight": 0.1},
+        }
+        out = compute_category_contributions(categories)
+        self.assertEqual(0.2, out["food"])
+        self.assertEqual(-0.15, out["housing"])
+        self.assertIsNone(out["energy"])
+
+    def test_compute_next_release(self) -> None:
+        payload = {
+            "events": [
+                {"release_at_utc": "2026-02-15T13:30:00+00:00"},
+                {"release_at_utc": "2026-02-17T13:30:00+00:00", "event_date": "2026-02-17"},
+            ]
+        }
+        out = compute_next_release(
+            payload,
+            datetime(2026, 2, 16, 12, 0, 0, tzinfo=timezone.utc),
+        )
+        self.assertIsNotNone(out)
+        assert out is not None
+        self.assertEqual("2026-02-17", out["event_date"])
+
     def test_evaluate_gate_pass(self) -> None:
         snapshot = {
             "source_health": [
@@ -55,6 +102,7 @@ class ProcessTests(unittest.TestCase):
                 "energy": {"points": 1},
             },
             "official_cpi": {"latest_release_month": "2025-12"},
+            "meta": {"representativeness_ratio": 0.95},
         }
         self.assertEqual([], evaluate_gate(snapshot))
 
@@ -73,6 +121,7 @@ class ProcessTests(unittest.TestCase):
                 "energy": {"points": 1},
             },
             "official_cpi": {"latest_release_month": "2025-12"},
+            "meta": {"representativeness_ratio": 0.95},
         }
         blocked = evaluate_gate(snapshot)
         self.assertTrue(any("Gate A failed" in item for item in blocked))

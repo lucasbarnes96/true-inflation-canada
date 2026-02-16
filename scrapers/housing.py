@@ -66,7 +66,9 @@ def scrape_housing() -> tuple[list[Quote], list[SourceHealth]]:
                 latest_by_product[product] = (ref_date, value)
 
         observed = datetime.now(timezone.utc).date()
-        for product, (_, value) in latest_by_product.items():
+        latest_period = None
+        for product, (period, value) in latest_by_product.items():
+            latest_period = period if latest_period is None or period > latest_period else latest_period
             quotes.append(
                 Quote(
                     category="housing",
@@ -85,6 +87,7 @@ def scrape_housing() -> tuple[list[Quote], list[SourceHealth]]:
                 status="stale" if quotes else "missing",
                 last_success_timestamp=utc_now_iso() if quotes else None,
                 detail=f"Collected {len(quotes)} CPI housing proxies from StatCan CSV.",
+                last_observation_period=latest_period,
             )
         )
     except Exception as err:
@@ -96,6 +99,7 @@ def scrape_housing() -> tuple[list[Quote], list[SourceHealth]]:
                 status="missing",
                 last_success_timestamp=None,
                 detail=f"Fetch failed: {err}",
+                last_observation_period=None,
             )
         )
 

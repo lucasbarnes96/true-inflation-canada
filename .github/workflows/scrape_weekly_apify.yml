@@ -76,6 +76,14 @@ jobs:
           with open(summary_path, "a", encoding="utf-8") as f:
             f.write("## Weekly APIFY Run Summary\\n")
             f.write(f"- Confidence: **{data['headline']['confidence']}**\\n")
+            f.write(f"- Signal quality: **{data['headline'].get('signal_quality_score', '--')}/100**\\n")
             f.write(f"- Coverage ratio: **{data['headline']['coverage_ratio']}**\\n")
             f.write(f"- Source success: **{ok}/{total}**\\n")
+            top_driver = data.get("meta", {}).get("top_driver", {})
+            f.write(f"- Top driver: **{top_driver.get('category', '--')} ({top_driver.get('contribution_pct', '--')})**\\n")
+            blocked = data.get("release", {}).get("blocked_conditions", [])
+            if blocked:
+                f.write("\\n### Gate Failures\\n")
+                for reason in blocked:
+                    f.write(f"- {reason}\\n")
           PY

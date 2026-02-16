@@ -1,0 +1,18 @@
+{
+  "as_of_date": "2026-02-16",
+  "method_version": "v1.6.0",
+  "north_star": "lead_time_vs_statcan",
+  "performance": {
+    "method_version": "v1.5.0",
+    "window_days": 120,
+    "evaluated_points": 1,
+    "mae_mom_pct": null,
+    "directional_accuracy_pct": null,
+    "lead_time_score_pct": null,
+    "generated_at": "2026-02-16T20:30:04+00:00"
+  },
+  "notes": [
+    "Experimental nowcast model card.",
+    "Metrics are computed from published historical snapshots."
+  ]
+}

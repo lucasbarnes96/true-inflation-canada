@@ -49,6 +49,7 @@ def _scrape_oeb() -> tuple[list[Quote], list[SourceHealth]]:
                 status="fresh" if quotes else "missing",
                 last_success_timestamp=utc_now_iso() if quotes else None,
                 detail=f"Collected {len(quotes)} OEB rate observations.",
+                last_observation_period=None,
             )
         )
     except Exception as err:
@@ -60,6 +61,7 @@ def _scrape_oeb() -> tuple[list[Quote], list[SourceHealth]]:
                 status="missing",
                 last_success_timestamp=None,
                 detail=f"OEB fetch failed: {err}",
+                last_observation_period=None,
             )
         )
     return quotes, health
@@ -122,6 +124,7 @@ def _scrape_statcan_energy() -> tuple[list[Quote], list[SourceHealth]]:
                 status="stale" if quotes else "missing",
                 last_success_timestamp=utc_now_iso() if quotes else None,
                 detail=f"Collected {len(quotes)} StatCan energy CPI fallback points.",
+                last_observation_period=latest_ref,
             )
         )
     except Exception as err:
@@ -133,6 +136,7 @@ def _scrape_statcan_energy() -> tuple[list[Quote], list[SourceHealth]]:
                 status="missing",
                 last_success_timestamp=None,
                 detail=f"StatCan energy fallback failed: {err}",
+                last_observation_period=None,
             )
         )
     return quotes, health

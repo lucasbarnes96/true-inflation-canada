@@ -32,6 +32,11 @@ class ApiContractTests(unittest.TestCase):
                 "nowcast_mom_pct": 0.1,
                 "confidence": "medium",
                 "coverage_ratio": 0.75,
+                "signal_quality_score": 74,
+                "lead_signal": "up",
+                "next_release_at_utc": "2026-02-17T13:30:00+00:00",
+                "consensus_yoy": 2.6,
+                "consensus_spread_yoy": -0.1,
                 "method_label": "test",
             },
             "categories": {
@@ -56,17 +61,78 @@ class ApiContractTests(unittest.TestCase):
                 }
             ],
             "notes": [],
-            "meta": {},
+            "meta": {"method_version": "v1.5.0"},
+            "performance_ref": {
+                "summary_path": "data/performance_summary.json",
+                "model_card_path": "data/model_card_latest.json",
+            },
             "release": {
                 "run_id": "run_123",
                 "status": "published",
+                "lifecycle_states": ["started", "completed", "published"],
                 "blocked_conditions": [],
                 "created_at": "2026-02-15T00:00:00+00:00",
                 "published_at": "2026-02-15T00:00:00+00:00",
             },
         }
         self.published_latest.write_text(json.dumps(snapshot))
-        self.historical.write_text(json.dumps({"2026-02-15": {"headline": {"nowcast_mom_pct": 0.1}}}))
+        self.historical.write_text(
+            json.dumps(
+                {
+                    "2026-02-15": {
+                        "headline": {"nowcast_mom_pct": 0.1, "lead_signal": "up"},
+                        "official_cpi": {"mom_pct": 0.2, "yoy_pct": 2.5, "latest_release_month": "2025-12"},
+                        "category_contributions": {"food": 0.02},
+                    }
+                }
+            )
+        )
+        (self.data_dir / "performance_summary.json").write_text(
+            json.dumps(
+                {
+                    "method_version": "v1.5.0",
+                    "window_days": 120,
+                    "evaluated_points": 10,
+                    "mae_mom_pct": 0.11,
+                    "directional_accuracy_pct": 70.0,
+                    "lead_time_score_pct": 70.0,
+                }
+            )
+        )
+        (self.data_dir / "release_events.json").write_text(
+            json.dumps(
+                {
+                    "events": [
+                        {
+                            "event_date": "2026-02-17",
+                            "release_at_et": "2026-02-17 08:30 ET",
+                            "release_at_utc": "2026-02-17T13:30:00+00:00",
+                            "series": "Canada CPI",
+                            "status": "scheduled",
+                        }
+                    ],
+                    "next_release": {
+                        "event_date": "2026-02-17",
+                        "release_at_et": "2026-02-17 08:30 ET",
+                        "release_at_utc": "2026-02-17T13:30:00+00:00",
+                        "series": "Canada CPI",
+                        "status": "upcoming",
+                        "countdown_seconds": 3600,
+                    },
+                }
+            )
+        )
+        (self.data_dir / "consensus_latest.json").write_text(
+            json.dumps(
+                {
+                    "as_of": "2026-02-16T12:00:00+00:00",
+                    "headline_yoy": 2.6,
+                    "headline_mom": 0.3,
+                    "source_count": 2,
+                    "confidence": "medium",
+                }
+            )
+        )
 
         with sqlite3.connect(self.releases_db) as conn:
             conn.execute(
@@ -85,12 +151,41 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         body = resp.json()
         self.assertEqual("run_123", body["release"]["run_id"])
+        self.assertIn("signal_quality_score", body["headline"])
+        self.assertIn("lead_signal", body["headline"])
+        self.assertEqual("v1.5.0", body["meta"]["method_version"])
 
     def test_methodology_endpoint(self) -> None:
         resp = self.client.get("/v1/methodology")
         self.assertEqual(200, resp.status_code)
         body = resp.json()
         self.assertIn("gate_policy", body)
+
+    def test_performance_summary_endpoint(self) -> None:
+        resp = self.client.get("/v1/performance/summary")
+        self.assertEqual(200, resp.status_code)
+        body = resp.json()
+        self.assertEqual("v1.5.0", body["method_version"])
+
+    def test_sources_catalog_endpoint(self) -> None:
+        resp = self.client.get("/v1/sources/catalog")
+        self.assertEqual(200, resp.status_code)
+        body = resp.json()
+        self.assertIn("items", body)
+        self.assertGreater(len(body["items"]), 0)
+
+    def test_releases_upcoming_endpoint(self) -> None:
+        resp = self.client.get("/v1/releases/upcoming")
+        self.assertEqual(200, resp.status_code)
+        body = resp.json()
+        self.assertIn("next_release", body)
+        self.assertEqual("2026-02-17", body["next_release"]["event_date"])
+
+    def test_consensus_latest_endpoint(self) -> None:
+        resp = self.client.get("/v1/consensus/latest")
+        self.assertEqual(200, resp.status_code)
+        body = resp.json()
+        self.assertEqual(2.6, body["headline_yoy"])
 
 
 if __name__ == "__main__":

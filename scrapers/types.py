@@ -23,3 +23,4 @@ class SourceHealth:
     last_success_timestamp: str | None
     detail: str
     source_run_id: str | None = None
+    last_observation_period: str | None = None

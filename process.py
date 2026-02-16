@@ -10,16 +10,25 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 from models import NowcastSnapshot
+from performance import compute_performance_summary, write_performance_summary
 from scrapers import (
     Quote,
     SourceHealth,
+    fetch_consensus_estimate,
+    fetch_release_events,
     fetch_boc_cpi,
     fetch_official_cpi_summary,
+    scrape_communication,
+    scrape_communication_public,
     scrape_energy,
     scrape_food,
     scrape_food_statcan,
     scrape_grocery_apify,
+    scrape_health_personal,
+    scrape_health_public,
     scrape_housing,
+    scrape_recreation_education,
+    scrape_recreation_education_public,
     scrape_transport,
 )
 
@@ -29,34 +38,75 @@ LATEST_PATH = DATA_DIR / "latest.json"
 PUBLISHED_LATEST_PATH = DATA_DIR / "published_latest.json"
 HISTORICAL_PATH = DATA_DIR / "historical.json"
 RELEASE_DB_PATH = DATA_DIR / "releases.db"
+PERFORMANCE_SUMMARY_PATH = DATA_DIR / "performance_summary.json"
+MODEL_CARD_PATH = DATA_DIR / "model_card_latest.json"
+RELEASE_EVENTS_PATH = DATA_DIR / "release_events.json"
+CONSENSUS_LATEST_PATH = DATA_DIR / "consensus_latest.json"
 
-CATEGORY_WEIGHTS = {
-    "food": 0.165,
-    "housing": 0.300,
-    "transport": 0.150,
-    "energy": 0.080,
+CATEGORY_REGISTRY: dict[str, dict] = {
+    "food": {
+        "weight": 0.165,
+        "value_bounds": (0.1, 500.0),
+        "outlier_threshold_pct": 60.0,
+        "min_points": 5,
+    },
+    "housing": {
+        "weight": 0.300,
+        "value_bounds": (1.0, 400.0),
+        "outlier_threshold_pct": 30.0,
+        "min_points": 2,
+    },
+    "transport": {
+        "weight": 0.150,
+        "value_bounds": (50.0, 300.0),
+        "outlier_threshold_pct": 40.0,
+        "min_points": 1,
+    },
+    "energy": {
+        "weight": 0.080,
+        "value_bounds": (0.1, 100.0),
+        "outlier_threshold_pct": 50.0,
+        "min_points": 1,
+    },
+    "communication": {
+        "weight": 0.045,
+        "value_bounds": (1.0, 400.0),
+        "outlier_threshold_pct": 30.0,
+        "min_points": 1,
+    },
+    "health_personal": {
+        "weight": 0.050,
+        "value_bounds": (1.0, 400.0),
+        "outlier_threshold_pct": 25.0,
+        "min_points": 1,
+    },
+    "recreation_education": {
+        "weight": 0.095,
+        "value_bounds": (1.0, 400.0),
+        "outlier_threshold_pct": 30.0,
+        "min_points": 1,
+    },
 }
 
-VALUE_BOUNDS = {
-    "food": (0.1, 500.0),
-    "housing": (1.0, 400.0),
-    "transport": (50.0, 300.0),
-    "energy": (0.1, 100.0),
-}
+CATEGORY_WEIGHTS = {name: cfg["weight"] for name, cfg in CATEGORY_REGISTRY.items()}
+VALUE_BOUNDS = {name: cfg["value_bounds"] for name, cfg in CATEGORY_REGISTRY.items()}
+OUTLIER_THRESHOLD_PCT = {name: cfg["outlier_threshold_pct"] for name, cfg in CATEGORY_REGISTRY.items()}
+CATEGORY_MIN_POINTS = {name: cfg["min_points"] for name, cfg in CATEGORY_REGISTRY.items()}
 
-OUTLIER_THRESHOLD_PCT = {
-    "food": 60.0,
-    "housing": 30.0,
-    "transport": 40.0,
-    "energy": 50.0,
-}
-
-CATEGORY_MIN_POINTS = {
-    "food": 5,
-    "housing": 2,
-    "transport": 1,
-    "energy": 1,
-}
+SCRAPER_REGISTRY = [
+    ("food_openfoodfacts", scrape_food),
+    ("food_statcan", scrape_food_statcan),
+    ("food_apify", scrape_grocery_apify),
+    ("transport_statcan", scrape_transport),
+    ("housing_statcan", scrape_housing),
+    ("energy_multi", scrape_energy),
+    ("communication_statcan", scrape_communication),
+    ("communication_public", scrape_communication_public),
+    ("health_personal_statcan", scrape_health_personal),
+    ("health_public", scrape_health_public),
+    ("recreation_education_statcan", scrape_recreation_education),
+    ("recreation_education_public", scrape_recreation_education_public),
+]
 
 SOURCE_SLA_DAYS = {
     "apify_loblaws": 14,
@@ -66,10 +116,17 @@ SOURCE_SLA_DAYS = {
     "statcan_food_prices": 45,
     "statcan_gas_csv": 45,
     "statcan_cpi_csv": 45,
+    "ised_mobile_plan_tracker": 60,
+    "crtc_cmr_report": 400,
+    "healthcanada_dpd": 90,
+    "pmprb_reports": 400,
+    "parkscanada_fees": 180,
+    "statcan_education_portal": 180,
 }
 
 APIFY_MAX_AGE_DAYS = 14
 METHOD_LABEL = "Daily nowcast vs prior month basket proxy"
+METHOD_VERSION = "v1.6.0"
 
 
 def utc_now() -> datetime:
@@ -98,6 +155,16 @@ def source_age_days(last_success_timestamp: str | None, now: datetime | None = N
     if now is None:
         now = utc_now()
     return max(0, (now.date() - stamp.date()).days)
+
+
+def source_age_hours(last_success_timestamp: str | None, now: datetime | None = None) -> float | None:
+    stamp = parse_iso_datetime(last_success_timestamp)
+    if stamp is None:
+        return None
+    if now is None:
+        now = utc_now()
+    delta = now - stamp
+    return round(max(0.0, delta.total_seconds() / 3600.0), 2)
 
 
 def human_age(age_days: int | None) -> str:
@@ -136,7 +203,10 @@ def apply_range_checks(quotes: list[Quote]) -> tuple[list[Quote], int]:
     valid: list[Quote] = []
     rejected = 0
     for quote in quotes:
-        lower, upper = VALUE_BOUNDS[quote.category]
+        bounds = VALUE_BOUNDS.get(quote.category)
+        if bounds is None:
+            continue
+        lower, upper = bounds
         if quote.value <= 0 or quote.value < lower or quote.value > upper:
             rejected += 1
             continue
@@ -172,7 +242,7 @@ def apply_outlier_filter(quotes: list[Quote], historical: dict) -> tuple[list[Qu
             continue
 
         delta_pct = abs((median_today / median_prev - 1) * 100)
-        threshold = OUTLIER_THRESHOLD_PCT[category]
+        threshold = OUTLIER_THRESHOLD_PCT.get(category, 50.0)
         if delta_pct > threshold:
             anomalies += len(cat_quotes)
             continue
@@ -197,6 +267,7 @@ def recompute_source_health(raw_health: list[SourceHealth], now: datetime) -> li
 
         payload["status"] = status
         payload["age_days"] = age_days
+        payload["run_age_hours"] = source_age_hours(entry.last_success_timestamp, now=now)
         payload["updated_days_ago"] = human_age(age_days)
         computed.append(payload)
     return computed
@@ -251,6 +322,18 @@ def compute_daily_changes(categories: dict, historical: dict) -> None:
         payload["daily_change_pct"] = round_or_none(((float(current) / float(prev)) - 1) * 100)
 
 
+def compute_category_contributions(categories: dict) -> dict:
+    contributions: dict[str, float | None] = {}
+    for category, payload in categories.items():
+        change = payload.get("daily_change_pct")
+        weight = payload.get("weight", 0.0)
+        if change is None:
+            contributions[category] = None
+            continue
+        contributions[category] = round_or_none(float(change) * float(weight), 4)
+    return contributions
+
+
 def compute_coverage(categories: dict) -> float:
     covered = 0.0
     for payload in categories.values():
@@ -258,6 +341,23 @@ def compute_coverage(categories: dict) -> float:
             covered += payload["weight"]
     total = sum(CATEGORY_WEIGHTS.values())
     return round(covered / total, 4) if total else 0.0
+
+
+def compute_representativeness(categories: dict) -> float:
+    # Share of planned basket with fresh data only.
+    fresh = 0.0
+    total = sum(CATEGORY_WEIGHTS.values())
+    for payload in categories.values():
+        if payload["status"] == "fresh" and payload["proxy_level"] is not None:
+            fresh += payload["weight"]
+    return round(fresh / total, 4) if total else 0.0
+
+
+def category_source_diversity(quotes: list[Quote]) -> dict[str, int]:
+    by_category: dict[str, set[str]] = defaultdict(set)
+    for quote in quotes:
+        by_category[quote.category].add(quote.source)
+    return {category: len(sources) for category, sources in by_category.items()}
 
 
 def compute_nowcast_mom(categories: dict, historical: dict) -> float | None:
@@ -286,7 +386,77 @@ def compute_nowcast_mom(categories: dict, historical: dict) -> float | None:
     return round_or_none(normalized_change)
 
 
-def compute_confidence(coverage_ratio: float, anomalies: int, blocked_conditions: list[str]) -> str:
+def derive_lead_signal(nowcast_mom: float | None) -> str:
+    if nowcast_mom is None:
+        return "insufficient_data"
+    if nowcast_mom > 0.02:
+        return "up"
+    if nowcast_mom < -0.02:
+        return "down"
+    return "flat"
+
+
+def compute_next_release(events_payload: dict, now: datetime) -> dict | None:
+    events = events_payload.get("events", []) if isinstance(events_payload, dict) else []
+    if not isinstance(events, list):
+        return None
+    upcoming: list[dict] = []
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        release_utc = parse_iso_datetime(event.get("release_at_utc"))
+        if release_utc is None:
+            continue
+        if release_utc >= now:
+            entry = dict(event)
+            entry["_release_dt"] = release_utc
+            upcoming.append(entry)
+    if not upcoming:
+        return None
+    next_event = sorted(upcoming, key=lambda x: x["_release_dt"])[0]
+    remaining = next_event["_release_dt"] - now
+    seconds = int(max(0, remaining.total_seconds()))
+    next_event["countdown_seconds"] = seconds
+    next_event["status"] = "upcoming"
+    next_event.pop("_release_dt", None)
+    return next_event
+
+
+def compute_signal_quality_score(
+    coverage_ratio: float,
+    anomalies: int,
+    blocked_conditions: list[str],
+    diversity_by_category: dict[str, int],
+    categories: dict,
+) -> int:
+    score = int(round(coverage_ratio * 100))
+
+    if blocked_conditions:
+        score -= 35
+
+    if anomalies > 0:
+        score -= min(20, anomalies)
+
+    if any(v.get("status") == "missing" for v in categories.values()):
+        score -= 10
+
+    # Penalize if covered categories rely on a single source.
+    weak = 0
+    for category, payload in categories.items():
+        if payload.get("status") in {"fresh", "stale"} and diversity_by_category.get(category, 0) < 2:
+            weak += 1
+    score -= min(20, weak * 4)
+
+    return max(0, min(100, score))
+
+
+def compute_confidence(
+    coverage_ratio: float,
+    anomalies: int,
+    blocked_conditions: list[str],
+    diversity_by_category: dict[str, int] | None = None,
+    categories: dict | None = None,
+) -> str:
     if blocked_conditions:
         return "low"
 
@@ -298,25 +468,28 @@ def compute_confidence(coverage_ratio: float, anomalies: int, blocked_conditions
         confidence = "low"
 
     if anomalies > 0 and confidence == "high":
-        return "medium"
-    if anomalies > 0 and confidence == "medium":
-        return "low"
+        confidence = "medium"
+    elif anomalies > 0 and confidence == "medium":
+        confidence = "low"
+
+    if diversity_by_category and categories:
+        for category, payload in categories.items():
+            if payload.get("status") in {"fresh", "stale"} and diversity_by_category.get(category, 0) < 2:
+                if confidence == "high":
+                    return "medium"
+
     return confidence
 
 
-def compute_top_driver(categories: dict) -> dict:
-    """Return top absolute weighted category contribution for Easy mode cards."""
+def compute_top_driver(contributions: dict) -> dict:
     best_category: str | None = None
     best_contribution: float | None = None
-    for category, payload in categories.items():
-        change = payload.get("daily_change_pct")
-        weight = payload.get("weight", 0.0)
-        if change is None:
+    for category, contribution in contributions.items():
+        if contribution is None:
             continue
-        contribution = float(change) * float(weight)
-        if best_contribution is None or abs(contribution) > abs(best_contribution):
+        if best_contribution is None or abs(float(contribution)) > abs(float(best_contribution)):
             best_category = category
-            best_contribution = contribution
+            best_contribution = float(contribution)
 
     if best_category is None:
         return {"category": None, "contribution_pct": None}
@@ -326,18 +499,35 @@ def compute_top_driver(categories: dict) -> dict:
     }
 
 
-def build_notes(categories: dict, anomalies: int, rejected_points: int, blocked_conditions: list[str]) -> list[str]:
+def build_notes(
+    categories: dict,
+    anomalies: int,
+    rejected_points: int,
+    blocked_conditions: list[str],
+    diversity_by_category: dict[str, int],
+    representativeness_ratio: float,
+) -> list[str]:
     notes: list[str] = [
         "This is an experimental nowcast estimate and not an official CPI release.",
-        "Methodology: weighted category proxy changes vs prior period baseline.",
+        "Methodology v1.6.0: weighted category proxy changes vs prior period baseline.",
+        "Confidence rubric: gate status + weighted coverage + anomaly rate + source diversity.",
+        f"Representativeness (fresh-weight share): {round(representativeness_ratio * 100, 1)}%.",
     ]
 
     missing = [k for k, v in categories.items() if v["status"] == "missing"]
     stale = [k for k, v in categories.items() if v["status"] == "stale"]
+    single_source = [
+        category
+        for category, payload in categories.items()
+        if payload.get("status") in {"fresh", "stale"} and diversity_by_category.get(category, 0) < 2
+    ]
+
     if missing:
         notes.append(f"Missing categories today: {', '.join(missing)}. Confidence is downgraded.")
     if stale:
         notes.append(f"Stale categories used: {', '.join(stale)}.")
+    if single_source:
+        notes.append(f"Source diversity warning: single-source categories today: {', '.join(single_source)}.")
     if rejected_points:
         notes.append(f"Dropped {rejected_points} points via range checks.")
     if anomalies:
@@ -352,7 +542,7 @@ def collect_all_quotes() -> tuple[list[Quote], list[SourceHealth]]:
     quotes: list[Quote] = []
     health: list[SourceHealth] = []
 
-    for scraper in (scrape_food, scrape_food_statcan, scrape_grocery_apify, scrape_transport, scrape_housing, scrape_energy):
+    for _, scraper in SCRAPER_REGISTRY:
         scraper_quotes, scraper_health = scraper()
         quotes.extend(scraper_quotes)
         health.extend(scraper_health)
@@ -390,6 +580,10 @@ def evaluate_gate(snapshot: dict) -> list[str]:
     official_month = snapshot.get("official_cpi", {}).get("latest_release_month")
     if not official_month:
         blocked.append("Gate E failed: official CPI metadata missing latest release month.")
+
+    representativeness_ratio = snapshot.get("meta", {}).get("representativeness_ratio", 0.0)
+    if representativeness_ratio < 0.85:
+        blocked.append("Gate F failed: representativeness ratio below 85% fresh basket coverage.")
 
     return blocked
 
@@ -443,6 +637,11 @@ def update_historical(snapshot: dict, historical: dict) -> dict:
             "nowcast_mom_pct": nowcast_mom,
             "confidence": snapshot["headline"]["confidence"],
             "coverage_ratio": snapshot["headline"]["coverage_ratio"],
+            "signal_quality_score": snapshot["headline"]["signal_quality_score"],
+            "lead_signal": snapshot["headline"]["lead_signal"],
+            "next_release_at_utc": snapshot["headline"].get("next_release_at_utc"),
+            "consensus_yoy": snapshot["headline"].get("consensus_yoy"),
+            "consensus_spread_yoy": snapshot["headline"].get("consensus_spread_yoy"),
             "divergence_mom_pct": divergence,
         },
         "official_cpi": {
@@ -458,6 +657,7 @@ def update_historical(snapshot: dict, historical: dict) -> dict:
             }
             for k, v in snapshot["categories"].items()
         },
+        "category_contributions": snapshot.get("meta", {}).get("category_contributions", {}),
         "source_health": [
             {
                 "source": s["source"],
@@ -465,6 +665,8 @@ def update_historical(snapshot: dict, historical: dict) -> dict:
                 "category": s["category"],
                 "tier": s["tier"],
                 "age_days": s.get("age_days"),
+                "last_success_timestamp": s.get("last_success_timestamp"),
+                "last_observation_period": s.get("last_observation_period"),
             }
             for s in snapshot["source_health"]
         ],
@@ -480,6 +682,9 @@ def build_snapshot() -> dict:
 
     run_id = f"run_{uuid.uuid4().hex[:12]}"
     now = utc_now().replace(microsecond=0)
+    release_events = fetch_release_events()
+    consensus_latest = fetch_consensus_estimate()
+    next_release = compute_next_release(release_events, now)
 
     raw_quotes, raw_source_health = collect_all_quotes()
     source_health = recompute_source_health(raw_source_health, now=now)
@@ -492,7 +697,17 @@ def build_snapshot() -> dict:
     compute_daily_changes(categories, historical)
 
     coverage_ratio = compute_coverage(categories)
+    representativeness_ratio = compute_representativeness(categories)
     nowcast_mom = compute_nowcast_mom(categories, historical)
+    lead_signal = derive_lead_signal(nowcast_mom)
+    diversity_by_category = category_source_diversity(filtered)
+    category_contributions = compute_category_contributions(categories)
+    official_cpi = fetch_official_cpi_summary()
+    official_yoy = official_cpi.get("yoy_pct")
+    consensus_yoy = consensus_latest.get("headline_yoy") if isinstance(consensus_latest, dict) else None
+    consensus_spread_yoy = None
+    if consensus_yoy is not None and official_yoy is not None:
+        consensus_spread_yoy = round_or_none(float(official_yoy) - float(consensus_yoy), 3)
 
     snapshot = {
         "as_of_date": now.date().isoformat(),
@@ -501,20 +716,48 @@ def build_snapshot() -> dict:
             "nowcast_mom_pct": nowcast_mom,
             "confidence": "low",
             "coverage_ratio": coverage_ratio,
+            "signal_quality_score": 0,
+            "lead_signal": lead_signal,
+            "next_release_at_utc": next_release.get("release_at_utc") if next_release else None,
+            "consensus_yoy": consensus_yoy,
+            "consensus_spread_yoy": consensus_spread_yoy,
             "method_label": METHOD_LABEL,
         },
         "categories": categories,
-        "official_cpi": fetch_official_cpi_summary(),
+        "official_cpi": official_cpi,
         "bank_of_canada": fetch_boc_cpi(),
         "source_health": source_health,
         "notes": [],
         "meta": {
+            "method_version": METHOD_VERSION,
             "total_raw_points": len(raw_quotes),
             "total_points_after_dedupe": len(deduped),
             "total_points_after_quality_filters": len(filtered),
             "anomaly_points": anomalies,
             "rejected_points": rejected_points,
-            "top_driver": compute_top_driver(categories),
+            "representativeness_ratio": representativeness_ratio,
+            "source_diversity_by_category": diversity_by_category,
+            "category_contributions": category_contributions,
+            "top_driver": compute_top_driver(category_contributions),
+            "province_overlays": ["ON", "QC", "BC"],
+            "release_intelligence": next_release or {},
+            "release_events": release_events,
+            "consensus": {
+                "headline_yoy": consensus_yoy,
+                "headline_mom": consensus_latest.get("headline_mom") if isinstance(consensus_latest, dict) else None,
+                "source_count": consensus_latest.get("source_count") if isinstance(consensus_latest, dict) else 0,
+                "confidence": consensus_latest.get("confidence") if isinstance(consensus_latest, dict) else "low",
+                "as_of": consensus_latest.get("as_of") if isinstance(consensus_latest, dict) else None,
+                "source_urls": [s.get("url") for s in consensus_latest.get("sources", []) if isinstance(s, dict)]
+                if isinstance(consensus_latest, dict)
+                else [],
+                "sources": consensus_latest.get("sources", []) if isinstance(consensus_latest, dict) else [],
+                "errors": consensus_latest.get("errors", []) if isinstance(consensus_latest, dict) else [],
+            },
+        },
+        "performance_ref": {
+            "summary_path": str(PERFORMANCE_SUMMARY_PATH),
+            "model_card_path": str(MODEL_CARD_PATH),
         },
         "release": {
             "run_id": run_id,
@@ -538,8 +781,28 @@ def build_snapshot() -> dict:
     if status == "published":
         snapshot["release"]["published_at"] = now.isoformat()
 
-    snapshot["headline"]["confidence"] = compute_confidence(coverage_ratio, anomalies, blocked_conditions)
-    snapshot["notes"] = build_notes(categories, anomalies, rejected_points, blocked_conditions)
+    snapshot["headline"]["signal_quality_score"] = compute_signal_quality_score(
+        coverage_ratio=coverage_ratio,
+        anomalies=anomalies,
+        blocked_conditions=blocked_conditions,
+        diversity_by_category=diversity_by_category,
+        categories=categories,
+    )
+    snapshot["headline"]["confidence"] = compute_confidence(
+        coverage_ratio=coverage_ratio,
+        anomalies=anomalies,
+        blocked_conditions=blocked_conditions,
+        diversity_by_category=diversity_by_category,
+        categories=categories,
+    )
+    snapshot["notes"] = build_notes(
+        categories=categories,
+        anomalies=anomalies,
+        rejected_points=rejected_points,
+        blocked_conditions=blocked_conditions,
+        diversity_by_category=diversity_by_category,
+        representativeness_ratio=representativeness_ratio,
+    )
     return snapshot
 
 
@@ -556,6 +819,30 @@ def write_outputs(snapshot: dict) -> None:
         PUBLISHED_LATEST_PATH.write_text(json.dumps(snapshot, indent=2))
         historical = update_historical(snapshot, historical)
         HISTORICAL_PATH.write_text(json.dumps(historical, indent=2))
+
+    # Persist release intelligence and free-source consensus artifacts each run.
+    release_payload = snapshot.get("meta", {}).get("release_events", {})
+    if isinstance(release_payload, dict):
+        release_payload = {
+            **release_payload,
+            "next_release": snapshot.get("meta", {}).get("release_intelligence", {}),
+            "method_version": METHOD_VERSION,
+        }
+    RELEASE_EVENTS_PATH.write_text(json.dumps(release_payload, indent=2))
+    CONSENSUS_LATEST_PATH.write_text(json.dumps(snapshot.get("meta", {}).get("consensus", {}), indent=2))
+
+    performance_summary = write_performance_summary(PERFORMANCE_SUMMARY_PATH, historical)
+    model_card = {
+        "as_of_date": snapshot["as_of_date"],
+        "method_version": METHOD_VERSION,
+        "north_star": "lead_time_vs_statcan",
+        "performance": performance_summary,
+        "notes": [
+            "Experimental nowcast model card.",
+            "Metrics are computed from published historical snapshots.",
+        ],
+    }
+    MODEL_CARD_PATH.write_text(json.dumps(model_card, indent=2))
 
     record_release_run(
         run_id=run_id,
@@ -575,6 +862,7 @@ def main() -> int:
     print(
         "Summary: "
         f"confidence={snap['headline']['confidence']} coverage={snap['headline']['coverage_ratio']} "
+        f"signal_quality_score={snap['headline']['signal_quality_score']} "
         f"sources_ok={sum(1 for s in snap['source_health'] if s['status'] in {'fresh', 'stale'})}/"
         f"{len(snap['source_health'])}"
     )
