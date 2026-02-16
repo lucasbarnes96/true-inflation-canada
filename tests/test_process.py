@@ -5,6 +5,7 @@ from datetime import date, datetime, timezone
 
 from process import (
     CATEGORY_WEIGHTS,
+    compute_nowcast_yoy_prorated,
     compute_category_contributions,
     compute_confidence,
     compute_coverage,
@@ -86,6 +87,39 @@ class ProcessTests(unittest.TestCase):
         self.assertIsNotNone(out)
         assert out is not None
         self.assertEqual("2026-02-17", out["event_date"])
+
+    def test_compute_nowcast_yoy_prorated_mid_month(self) -> None:
+        series = [
+            {"ref_date": "2025-01", "index_value": 150.0},
+            {"ref_date": "2025-02", "index_value": 152.0},
+            {"ref_date": "2026-01", "index_value": 160.0},
+        ]
+        out, meta = compute_nowcast_yoy_prorated(date(2026, 2, 16), 1.2, series)
+        self.assertIsNotNone(out)
+        self.assertAlmostEqual(16 / 28, meta["prorate_factor"], places=4)
+
+    def test_compute_nowcast_yoy_prorated_day_one(self) -> None:
+        series = [
+            {"ref_date": "2025-02", "index_value": 152.0},
+            {"ref_date": "2026-01", "index_value": 160.0},
+        ]
+        out, meta = compute_nowcast_yoy_prorated(date(2026, 2, 1), 1.0, series)
+        self.assertIsNotNone(out)
+        self.assertAlmostEqual(1 / 28, meta["prorate_factor"], places=4)
+
+    def test_compute_nowcast_yoy_prorated_month_end(self) -> None:
+        series = [
+            {"ref_date": "2025-02", "index_value": 152.0},
+            {"ref_date": "2026-01", "index_value": 160.0},
+        ]
+        out, meta = compute_nowcast_yoy_prorated(date(2026, 2, 28), 1.0, series)
+        self.assertIsNotNone(out)
+        self.assertAlmostEqual(1.0, meta["prorate_factor"], places=4)
+
+    def test_compute_nowcast_yoy_prorated_missing_inputs(self) -> None:
+        out, meta = compute_nowcast_yoy_prorated(date(2026, 2, 16), None, [])
+        self.assertIsNone(out)
+        self.assertEqual("missing_nowcast_mom", meta["reason"])
 
     def test_evaluate_gate_pass(self) -> None:
         snapshot = {

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import calendar
 import json
 import sqlite3
 import statistics
@@ -17,6 +18,7 @@ from scrapers import (
     fetch_consensus_estimate,
     fetch_release_events,
     fetch_boc_cpi,
+    fetch_official_cpi_series,
     fetch_official_cpi_summary,
     scrape_communication,
     scrape_communication_public,
@@ -125,8 +127,8 @@ SOURCE_SLA_DAYS = {
 }
 
 APIFY_MAX_AGE_DAYS = 14
-METHOD_LABEL = "Daily nowcast vs prior month basket proxy"
-METHOD_VERSION = "v1.6.0"
+METHOD_LABEL = "YoY nowcast from public category proxies with month-to-date prorating"
+METHOD_VERSION = "v1.2.0"
 CORE_GATE_CATEGORIES = ("food", "housing", "transport")
 
 
@@ -417,6 +419,94 @@ def compute_nowcast_mom(categories: dict, historical: dict) -> float | None:
     return round_or_none(normalized_change)
 
 
+def month_key(year: int, month: int) -> str:
+    return f"{year:04d}-{month:02d}"
+
+
+def prev_month(year: int, month: int) -> tuple[int, int]:
+    if month == 1:
+        return year - 1, 12
+    return year, month - 1
+
+
+def next_month(year: int, month: int) -> tuple[int, int]:
+    if month == 12:
+        return year + 1, 1
+    return year, month + 1
+
+
+def compute_nowcast_yoy_prorated(
+    current_date: date,
+    nowcast_mom_pct: float | None,
+    official_series: list[dict],
+) -> tuple[float | None, dict]:
+    diagnostics = {
+        "prorate_factor": None,
+        "base_month": None,
+        "reference_month": None,
+        "projected_index": None,
+        "base_index": None,
+        "reference_index": None,
+        "reason": None,
+    }
+    if nowcast_mom_pct is None:
+        diagnostics["reason"] = "missing_nowcast_mom"
+        return None, diagnostics
+
+    by_month = {
+        row.get("ref_date"): row
+        for row in official_series
+        if isinstance(row, dict) and isinstance(row.get("ref_date"), str)
+    }
+    ordered_months = sorted(k for k in by_month.keys() if isinstance(k, str))
+    if not ordered_months:
+        diagnostics["reason"] = "missing_required_official_index"
+        return None, diagnostics
+
+    base_y, base_m = prev_month(current_date.year, current_date.month)
+    base_key = month_key(base_y, base_m)
+    base = by_month.get(base_key)
+    if base is None:
+        base_key = ordered_months[-1]
+        base = by_month.get(base_key)
+
+    if base is None:
+        diagnostics["reason"] = "missing_required_official_index"
+        return None, diagnostics
+
+    base_year = int(base_key[:4])
+    base_month = int(base_key[5:7])
+    projected_year, projected_month = next_month(base_year, base_month)
+    ref_key = month_key(projected_year - 1, projected_month)
+    reference = by_month.get(ref_key)
+
+    diagnostics["base_month"] = base_key
+    diagnostics["reference_month"] = ref_key
+    if not base or not reference:
+        diagnostics["reason"] = "missing_required_official_index"
+        return None, diagnostics
+
+    base_index = base.get("index_value")
+    reference_index = reference.get("index_value")
+    if base_index in (None, 0) or reference_index in (None, 0):
+        diagnostics["reason"] = "invalid_required_official_index"
+        return None, diagnostics
+
+    if projected_year == current_date.year and projected_month == current_date.month:
+        month_days = calendar.monthrange(current_date.year, current_date.month)[1]
+        days_elapsed = current_date.day
+        prorate_factor = days_elapsed / month_days
+    else:
+        prorate_factor = 1.0
+    projected_index = float(base_index) * (1 + (float(nowcast_mom_pct) / 100.0) * prorate_factor)
+    yoy = ((projected_index / float(reference_index)) - 1) * 100
+    diagnostics["prorate_factor"] = round_or_none(prorate_factor, 4)
+    diagnostics["projected_index"] = round_or_none(projected_index, 4)
+    diagnostics["base_index"] = base_index
+    diagnostics["reference_index"] = reference_index
+    return round_or_none(yoy, 3), diagnostics
+
+
 def derive_lead_signal(nowcast_mom: float | None) -> str:
     if nowcast_mom is None:
         return "insufficient_data"
@@ -540,9 +630,10 @@ def build_notes(
 ) -> list[str]:
     notes: list[str] = [
         "This is an experimental nowcast estimate and not an official CPI release.",
-        "Methodology v1.6.0: weighted category proxy changes vs prior period baseline.",
+        "Methodology v1.2.0: weighted category proxies with month-to-date YoY projection.",
         "Confidence rubric: gate status + weighted coverage + anomaly rate + source diversity.",
         f"Representativeness (fresh-weight share): {round(representativeness_ratio * 100, 1)}%.",
+        "Coverage ratio is the share of the CPI basket with usable source data in this run.",
     ]
 
     missing = [k for k, v in categories.items() if v["status"] == "missing"]
@@ -655,6 +746,7 @@ def update_historical(snapshot: dict, historical: dict) -> dict:
     day = snapshot["as_of_date"]
     official = snapshot.get("official_cpi", {})
     nowcast_mom = snapshot.get("headline", {}).get("nowcast_mom_pct")
+    nowcast_yoy = snapshot.get("headline", {}).get("nowcast_yoy_pct")
     official_mom = official.get("mom_pct")
     divergence = None
     if nowcast_mom is not None and official_mom is not None:
@@ -663,6 +755,7 @@ def update_historical(snapshot: dict, historical: dict) -> dict:
     historical[day] = {
         "headline": {
             "nowcast_mom_pct": nowcast_mom,
+            "nowcast_yoy_pct": nowcast_yoy,
             "confidence": snapshot["headline"]["confidence"],
             "coverage_ratio": snapshot["headline"]["coverage_ratio"],
             "signal_quality_score": snapshot["headline"]["signal_quality_score"],
@@ -670,6 +763,7 @@ def update_historical(snapshot: dict, historical: dict) -> dict:
             "next_release_at_utc": snapshot["headline"].get("next_release_at_utc"),
             "consensus_yoy": snapshot["headline"].get("consensus_yoy"),
             "consensus_spread_yoy": snapshot["headline"].get("consensus_spread_yoy"),
+            "deviation_yoy_pct": snapshot["headline"].get("deviation_yoy_pct"),
             "divergence_mom_pct": divergence,
         },
         "official_cpi": {
@@ -730,6 +824,7 @@ def build_snapshot() -> dict:
     diversity_by_category = category_source_diversity(filtered)
     category_contributions = compute_category_contributions(categories)
     official_cpi = fetch_official_cpi_summary()
+    official_series = fetch_official_cpi_series()
     official_yoy = official_cpi.get("yoy_pct")
     official_mom = official_cpi.get("mom_pct")
     fallback_used = False
@@ -739,15 +834,19 @@ def build_snapshot() -> dict:
         fallback_used = True
     lead_signal = derive_lead_signal(nowcast_mom)
     consensus_yoy = consensus_latest.get("headline_yoy") if isinstance(consensus_latest, dict) else None
-    consensus_spread_yoy = None
-    if consensus_yoy is not None and official_yoy is not None:
-        consensus_spread_yoy = round_or_none(float(official_yoy) - float(consensus_yoy), 3)
+    nowcast_yoy, yoy_projection = compute_nowcast_yoy_prorated(now.date(), nowcast_mom, official_series)
+    deviation_yoy = None
+    if nowcast_yoy is not None and consensus_yoy is not None:
+        deviation_yoy = round_or_none(float(nowcast_yoy) - float(consensus_yoy), 3)
+    # Deprecated alias retained for compatibility during transition.
+    consensus_spread_yoy = deviation_yoy
 
     snapshot = {
         "as_of_date": now.date().isoformat(),
         "timestamp": now.isoformat(),
         "headline": {
             "nowcast_mom_pct": nowcast_mom,
+            "nowcast_yoy_pct": nowcast_yoy,
             "confidence": "low",
             "coverage_ratio": coverage_ratio,
             "signal_quality_score": 0,
@@ -755,6 +854,7 @@ def build_snapshot() -> dict:
             "next_release_at_utc": next_release.get("release_at_utc") if next_release else None,
             "consensus_yoy": consensus_yoy,
             "consensus_spread_yoy": consensus_spread_yoy,
+            "deviation_yoy_pct": deviation_yoy,
             "method_label": METHOD_LABEL,
         },
         "categories": categories,
@@ -777,6 +877,9 @@ def build_snapshot() -> dict:
             "release_intelligence": next_release or {},
             "release_events": release_events,
             "fallbacks": {"nowcast_from_official_mom": fallback_used},
+            "projection": {
+                "nowcast_yoy_prorated": yoy_projection,
+            },
             "consensus": {
                 "headline_yoy": consensus_yoy,
                 "headline_mom": consensus_latest.get("headline_mom") if isinstance(consensus_latest, dict) else None,
@@ -840,6 +943,12 @@ def build_snapshot() -> dict:
     )
     if fallback_used:
         snapshot["notes"].append("Nowcast MoM uses official MoM fallback until sufficient category history is available.")
+    snapshot["notes"].append(
+        "Deprecated fields retained for compatibility: headline.nowcast_mom_pct and headline.consensus_spread_yoy."
+    )
+    if nowcast_yoy is None:
+        reason = yoy_projection.get("reason") if isinstance(yoy_projection, dict) else "unknown"
+        snapshot["notes"].append(f"Nowcast YoY unavailable: {reason}.")
     return snapshot
 
 

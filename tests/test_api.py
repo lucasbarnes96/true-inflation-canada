@@ -30,6 +30,7 @@ class ApiContractTests(unittest.TestCase):
             "timestamp": "2026-02-15T00:00:00+00:00",
             "headline": {
                 "nowcast_mom_pct": 0.1,
+                "nowcast_yoy_pct": 2.4,
                 "confidence": "medium",
                 "coverage_ratio": 0.75,
                 "signal_quality_score": 74,
@@ -37,6 +38,7 @@ class ApiContractTests(unittest.TestCase):
                 "next_release_at_utc": "2026-02-17T13:30:00+00:00",
                 "consensus_yoy": 2.6,
                 "consensus_spread_yoy": -0.1,
+                "deviation_yoy_pct": -0.2,
                 "method_label": "test",
             },
             "categories": {
@@ -80,7 +82,7 @@ class ApiContractTests(unittest.TestCase):
             json.dumps(
                 {
                     "2026-02-15": {
-                        "headline": {"nowcast_mom_pct": 0.1, "lead_signal": "up"},
+                        "headline": {"nowcast_mom_pct": 0.1, "nowcast_yoy_pct": 2.4, "lead_signal": "up"},
                         "official_cpi": {"mom_pct": 0.2, "yoy_pct": 2.5, "latest_release_month": "2025-12"},
                         "category_contributions": {"food": 0.02},
                         "meta": {"seeded": True, "seed_type": "official_monthly_baseline", "seed_source": "statcan_cpi_csv"},
@@ -154,6 +156,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual("run_123", body["release"]["run_id"])
         self.assertIn("signal_quality_score", body["headline"])
         self.assertIn("lead_signal", body["headline"])
+        self.assertIn("nowcast_yoy_pct", body["headline"])
         self.assertEqual("v1.5.0", body["meta"]["method_version"])
 
     def test_methodology_endpoint(self) -> None:
@@ -194,6 +197,7 @@ class ApiContractTests(unittest.TestCase):
         items = resp.json()["items"]
         self.assertEqual(1, len(items))
         self.assertTrue(items[0]["meta"]["seeded"])
+        self.assertEqual(2.4, items[0]["headline"]["nowcast_yoy_pct"])
 
 
 if __name__ == "__main__":

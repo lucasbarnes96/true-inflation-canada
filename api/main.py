@@ -19,7 +19,7 @@ PERFORMANCE_SUMMARY_PATH = DATA_DIR / "performance_summary.json"
 RELEASE_EVENTS_PATH = DATA_DIR / "release_events.json"
 CONSENSUS_LATEST_PATH = DATA_DIR / "consensus_latest.json"
 
-app = FastAPI(title="True Inflation Canada API", version="1.6.0")
+app = FastAPI(title="True Inflation Canada API", version="1.2.0")
 
 
 def _load_json(path: Path, default: dict | list) -> dict | list:
@@ -68,6 +68,11 @@ def nowcast_history(
         official_mom = official.get("mom_pct")
         if headline.get("divergence_mom_pct") is None and nowcast_mom is not None and official_mom is not None:
             headline["divergence_mom_pct"] = round(float(nowcast_mom) - float(official_mom), 4)
+            row["headline"] = headline
+        nowcast_yoy = headline.get("nowcast_yoy_pct")
+        consensus_yoy = headline.get("consensus_yoy")
+        if headline.get("deviation_yoy_pct") is None and nowcast_yoy is not None and consensus_yoy is not None:
+            headline["deviation_yoy_pct"] = round(float(nowcast_yoy) - float(consensus_yoy), 4)
             row["headline"] = headline
         row["category_contributions"] = row.get("category_contributions") or row.get("meta", {}).get("category_contributions")
         items.append(row)
@@ -121,7 +126,7 @@ def releases_latest() -> dict:
 def methodology() -> dict:
     return {
         "summary": "Weighted category nowcast using free/public daily and monthly sources.",
-        "method_version": "v1.6.0",
+        "method_version": "v1.2.0",
         "confidence_formula": {
             "inputs": ["gate_status", "coverage_ratio", "anomalies", "source_diversity"],
             "high": "coverage_ratio >= 0.9, no gate failures, low anomalies, no diversity penalty",
@@ -149,6 +154,7 @@ def methodology() -> dict:
             "Experimental nowcast, not an official CPI release.",
             "APIFY is run weekly on free-tier constraints.",
             "Monthly sources may remain fresh for up to 45 days.",
+            "Deprecated compatibility fields remain available: headline.nowcast_mom_pct and headline.consensus_spread_yoy.",
         ],
     }
 

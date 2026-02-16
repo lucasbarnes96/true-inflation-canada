@@ -8,7 +8,7 @@ from performance import compute_performance_summary
 class PerformanceTests(unittest.TestCase):
     def test_compute_performance_summary_empty(self) -> None:
         out = compute_performance_summary({})
-        self.assertEqual("v1.5.0", out["method_version"])
+        self.assertEqual("v1.2.0", out["method_version"])
         self.assertEqual(0, out["evaluated_points"])
         self.assertIsNone(out["mae_mom_pct"])
 
@@ -32,4 +32,3 @@ class PerformanceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

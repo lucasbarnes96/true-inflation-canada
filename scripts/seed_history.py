@@ -56,14 +56,10 @@ def _series_for_day(day: date, indexed: list[tuple[date, dict]]) -> dict | None:
 
 
 def _build_seeded_row(day: date, official: dict) -> dict:
-    mom = official.get("mom_pct")
     return {
-        "headline": {
-            "nowcast_mom_pct": mom,
-        },
         "official_cpi": {
             "latest_release_month": official.get("ref_date"),
-            "mom_pct": mom,
+            "mom_pct": official.get("mom_pct"),
             "yoy_pct": official.get("yoy_pct"),
         },
         "meta": {
@@ -114,7 +110,9 @@ def seed_history(days: int, output: Path, force: bool) -> tuple[int, int, int]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Seed historical nowcast data from official CPI monthly baselines.")
+    parser = argparse.ArgumentParser(
+        description="Seed historical official CPI baseline data (official-only; no synthetic nowcast series)."
+    )
     parser.add_argument("--days", type=int, default=DEFAULT_DAYS, help="Number of days to seed (default: 365).")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="Output historical JSON path.")
     parser.add_argument("--force", action="store_true", help="Overwrite existing non-seeded entries.")

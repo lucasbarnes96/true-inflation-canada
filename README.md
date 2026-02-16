@@ -1,6 +1,7 @@
 # True Inflation Canada
 
 Real-time Canadian inflation nowcast with strict publish gates, explicit source run timestamps, release intelligence, and published performance metrics.
+Experimental open-source nowcast using public data. Not official StatCan CPI.
 
 ## What changed
 - API-first architecture (`FastAPI + Pydantic`).
@@ -47,8 +48,8 @@ python3.11 scripts/seed_history.py
 python3.11 process.py
 ```
 
-`scripts/seed_history.py` backfills the last 365 days with tagged official monthly CPI baselines (`meta.seeded=true`) so trend charts are immediately usable without pretending daily precision.
-The Drivers chart may still show an "insufficient day-over-day history" placeholder until real day-over-day category variation accumulates.
+`scripts/seed_history.py` backfills the last 365 days with tagged official CPI baselines (`meta.seeded=true`) and does not create synthetic nowcast history.
+This preserves an authentic live nowcast track record while keeping official CPI context available for YoY comparison.
 
 Output artifacts:
 - `data/latest.json` (latest run, includes failed gates)
@@ -96,7 +97,7 @@ A run is blocked (`failed_gate`) if any condition fails:
 5. Official CPI metadata missing (`latest_release_month`).
 6. Representativeness ratio below 85% fresh basket coverage.
 
-## Methodology v1.5 confidence rubric
+## Methodology v1.2.0 confidence rubric
 - Inputs: release gate status, weighted coverage ratio, anomaly counts, and source diversity.
 - `high`: no gate failures, high coverage, low anomalies, and no diversity penalty.
 - `medium`: adequate coverage with anomaly or diversity penalties.
@@ -105,10 +106,30 @@ A run is blocked (`failed_gate`) if any condition fails:
 Additional headline and metadata fields:
 - `headline.signal_quality_score` (0-100)
 - `headline.lead_signal` (`up`, `down`, `flat`, `insufficient_data`)
+- `headline.nowcast_yoy_pct` (primary nowcast metric)
 - `headline.next_release_at_utc`
 - `headline.consensus_yoy`
-- `headline.consensus_spread_yoy`
-- `meta.method_version` (`v1.6.0`)
+- `headline.deviation_yoy_pct`
+- Compatibility fields (deprecated): `headline.nowcast_mom_pct`, `headline.consensus_spread_yoy`
+- `meta.method_version` (`v1.2.0`)
+
+## Startup Phase (First Weeks)
+- Live nowcast series begins on February 16, 2026.
+- Green nowcast line is short initially by design; only authentic live runs are shown.
+- Category Contribution Ranking needs at least 2 consecutive live runs for stable delta calculations.
+- MAE and directional accuracy are low-confidence until roughly 30-60 live days accumulate.
+
+## Glossary
+- `YoY`: change versus the same month 12 months ago; typically less volatile than MoM.
+- `Nowcast`: real-time estimate from scraped public signals before official release.
+- `Deviation from Expectations`: `nowcast_yoy_pct - consensus_yoy` when consensus is available.
+- `MAE`: Mean Absolute Error versus official values on the tracked evaluation window.
+
+StatCan CPI methodology and basket reference:
+- https://www.statcan.gc.ca/en/statistical-programs/document/2301_D2_V4
+
+## Changelog
+- `v1.2.0` - YoY pivot: primary metric now YoY; MoM fields deprecated; nowcast history live-only.
 
 ## CI
 GitHub Actions (`.github/workflows/scrape.yml`):

@@ -37,7 +37,7 @@ class SeedHistoryTests(unittest.TestCase):
             self.assertEqual("official_monthly_baseline", sample["meta"]["seed_type"])
             self.assertEqual("statcan_cpi_csv", sample["meta"]["seed_source"])
             self.assertIn("official_cpi", sample)
-            self.assertIn("headline", sample)
+            self.assertNotIn("headline", sample)
 
     def test_seed_history_skips_non_seeded_rows_without_force(self) -> None:
         module = self._load_module()

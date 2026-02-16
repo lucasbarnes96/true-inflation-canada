@@ -68,6 +68,7 @@ class ReleaseGateResult(BaseModel):
 
 class HeadlineModel(BaseModel):
     nowcast_mom_pct: float | None = None
+    nowcast_yoy_pct: float | None = None
     confidence: Literal["high", "medium", "low"]
     coverage_ratio: float
     signal_quality_score: int = 0
@@ -75,6 +76,7 @@ class HeadlineModel(BaseModel):
     next_release_at_utc: datetime | None = None
     consensus_yoy: float | None = None
     consensus_spread_yoy: float | None = None
+    deviation_yoy_pct: float | None = None
     method_label: str
 
 

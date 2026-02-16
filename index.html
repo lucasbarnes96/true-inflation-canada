@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -23,7 +24,10 @@
       --shadow: 0 12px 34px rgba(18, 48, 33, 0.08);
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
@@ -132,9 +136,17 @@
       line-height: 1;
     }
 
-    .tone-good { color: var(--good); }
-    .tone-warn { color: var(--warn); }
-    .tone-bad { color: var(--bad); }
+    .tone-good {
+      color: var(--good);
+    }
+
+    .tone-warn {
+      color: var(--warn);
+    }
+
+    .tone-bad {
+      color: var(--bad);
+    }
 
     .hero-caption {
       margin-top: 0.6rem;
@@ -204,7 +216,10 @@
       font-size: 0.85rem;
     }
 
-    .mode { display: grid; gap: 1rem; }
+    .mode {
+      display: grid;
+      gap: 1rem;
+    }
 
     .panel-title {
       margin: 0 0 0.65rem;
@@ -241,14 +256,18 @@
       font-size: 0.91rem;
     }
 
-    th, td {
+    th,
+    td {
       text-align: left;
       border-bottom: 1px solid var(--border);
       padding: 0.5rem 0.25rem;
       vertical-align: top;
     }
 
-    th { color: var(--muted); font-weight: 500; }
+    th {
+      color: var(--muted);
+      font-weight: 500;
+    }
 
     .release-banner {
       display: none;
@@ -289,26 +308,53 @@
     }
 
     @media (max-width: 960px) {
-      .hero { grid-template-columns: 1fr; }
-      .grid-3 { grid-template-columns: 1fr; }
-      .release-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .expert-grid { grid-template-columns: 1fr; }
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .grid-3 {
+        grid-template-columns: 1fr;
+      }
+
+      .release-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .expert-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     @media (max-width: 560px) {
-      body { padding: 0.7rem; }
-      .header-card { grid-template-columns: 1fr; }
-      .release-grid { grid-template-columns: 1fr; }
-      th:nth-child(3), td:nth-child(3), th:nth-child(5), td:nth-child(5) { display: none; }
+      body {
+        padding: 0.7rem;
+      }
+
+      .header-card {
+        grid-template-columns: 1fr;
+      }
+
+      .release-grid {
+        grid-template-columns: 1fr;
+      }
+
+      th:nth-child(3),
+      td:nth-child(3),
+      th:nth-child(5),
+      td:nth-child(5) {
+        display: none;
+      }
     }
   </style>
 </head>
+
 <body>
   <main class="wrap" id="app">
     <section class="card header-card">
       <div>
         <h1 class="title">True Inflation Canada Dashboard</h1>
         <p class="subtitle">Finance-first Canadian inflation nowcast with transparent source diagnostics.</p>
+        <div class="small-note">Experimental open-source nowcast using public data. Not official StatCan CPI.</div>
         <div class="small-note" id="asof">as of --</div>
       </div>
     </section>
@@ -323,9 +369,9 @@
       </article>
       <aside class="hero-side">
         <div class="stat-box">
-          <div class="kicker">Nowcast Signal (MoM)</div>
+          <div class="kicker">Nowcast Signal (YoY)</div>
           <div id="hero-nowcast" class="stat-value">--</div>
-          <div class="small-note" id="hero-divergence">vs Official MoM: --</div>
+          <div class="small-note" id="hero-divergence">Deviation from expectations (YoY): --</div>
         </div>
         <div class="stat-box">
           <div class="kicker">Official Release Month</div>
@@ -353,13 +399,13 @@
       </section>
 
       <section class="card">
-        <h2 class="panel-title">Nowcast vs Official CPI (Month Over Month)</h2>
+        <h2 class="panel-title">Nowcast vs Official CPI (Year-over-Year)</h2>
         <canvas id="divergenceChart"></canvas>
       </section>
 
       <section class="expert-grid">
         <article class="card">
-          <h2 class="panel-title">What Is Driving Prices Right Now</h2>
+          <h2 class="panel-title">Category Contribution Ranking</h2>
           <p id="category-placeholder" class="chart-placeholder" style="display:none;"></p>
           <canvas id="categoryChart"></canvas>
         </article>
@@ -461,14 +507,56 @@
 
     function renderDivergence(items) {
       const days = items.map(d => d.date);
-      const nowcast = items.map(d => d.headline?.nowcast_mom_pct ?? null);
-      const official = items.map(d => d.official_cpi?.mom_pct ?? null);
-      const spread = items.map(d => {
-        const n = d.headline?.nowcast_mom_pct;
-        const o = d.official_cpi?.mom_pct;
-        if (n === null || n === undefined || o === null || o === undefined) return null;
-        return Number((n - o).toFixed(4));
-      });
+      const nowcast = items.map(d => d.headline?.nowcast_yoy_pct ?? null);
+      const official = items.map(d => d.official_cpi?.yoy_pct ?? null);
+      const firstLiveIndex = nowcast.findIndex(v => v !== null && v !== undefined);
+      const decorPlugin = {
+        id: "liveNowcastDecor",
+        beforeDatasetsDraw(chart) {
+          if (firstLiveIndex <= 0) return;
+          const xScale = chart.scales.x;
+          const area = chart.chartArea;
+          if (!xScale || !area) return;
+          const liveX = xScale.getPixelForValue(firstLiveIndex);
+          const ctx = chart.ctx;
+          ctx.save();
+          ctx.fillStyle = "rgba(120, 126, 122, 0.08)";
+          ctx.fillRect(area.left, area.top, Math.max(0, liveX - area.left), area.bottom - area.top);
+          ctx.fillStyle = "#4f6658";
+          ctx.font = "12px 'IBM Plex Mono', monospace";
+          ctx.fillText("Pre-live (official only)", area.left + 8, area.top + 16);
+          ctx.restore();
+        },
+        afterDatasetsDraw(chart) {
+          if (firstLiveIndex < 0) return;
+          const xScale = chart.scales.x;
+          const yScale = chart.scales.y;
+          const area = chart.chartArea;
+          if (!xScale || !yScale || !area) return;
+          const val = nowcast[firstLiveIndex];
+          if (val === null || val === undefined) return;
+          const x = xScale.getPixelForValue(firstLiveIndex);
+          const y = yScale.getPixelForValue(val);
+          const ctx = chart.ctx;
+          ctx.save();
+          ctx.strokeStyle = "#2b8f6f";
+          ctx.fillStyle = "#2b8f6f";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(x + 6, y - 16);
+          ctx.lineTo(x + 42, y - 26);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(x + 42, y - 26);
+          ctx.lineTo(x + 38, y - 22);
+          ctx.lineTo(x + 36, y - 28);
+          ctx.closePath();
+          ctx.fill();
+          ctx.font = "12px 'IBM Plex Mono', monospace";
+          ctx.fillText("Live nowcast starts here", x + 46, y - 28);
+          ctx.restore();
+        },
+      };
 
       if (divergenceChart) divergenceChart.destroy();
       divergenceChart = new Chart(document.getElementById("divergenceChart"), {
@@ -476,24 +564,18 @@
           labels: days,
           datasets: [
             {
-              type: "bar",
-              label: "Spread (Nowcast - Official)",
-              data: spread,
-              backgroundColor: spread.map(v => (v === null ? "rgba(0,0,0,0)" : v >= 0 ? "rgba(43, 143, 111, 0.25)" : "rgba(195, 63, 79, 0.25)")),
-              yAxisID: "y2",
-            },
-            {
               type: "line",
-              label: "Nowcast MoM",
+              label: "Nowcast YoY",
               data: nowcast,
               borderColor: "#2b8f6f",
               backgroundColor: "rgba(43, 143, 111, 0.15)",
               tension: 0.2,
+              spanGaps: false,
               yAxisID: "y",
             },
             {
               type: "line",
-              label: "Official CPI MoM",
+              label: "Official CPI YoY",
               data: official,
               borderColor: "#cc8c1a",
               borderDash: [6, 5],
@@ -513,17 +595,13 @@
               ticks: { color: "#4f6658" },
               grid: { color: "rgba(16,32,25,0.08)" },
             },
-            y2: {
-              position: "right",
-              ticks: { color: "#4f6658" },
-              grid: { drawOnChartArea: false },
-            },
             x: {
               ticks: { color: "#4f6658" },
               grid: { color: "rgba(16,32,25,0.08)" },
             },
           },
         },
+        plugins: [decorPlugin],
       });
     }
 
@@ -559,7 +637,7 @@
         data: {
           labels: sorted.map(s => `${s.key} (${s.points})`),
           datasets: [{
-            label: "Weighted contribution (percentage points to MoM nowcast)",
+            label: "Weighted contribution (percentage points to nowcast signal)",
             data: sorted.map(s => (s.contribution === null ? 0 : s.contribution)),
             backgroundColor: sorted.map(s => ((s.contribution || 0) >= 0 ? "rgba(43, 143, 111, 0.55)" : "rgba(195, 63, 79, 0.55)")),
           }],
@@ -631,7 +709,7 @@
       const official = latest.official_cpi || {};
       const consensusYoy = consensus?.headline_yoy ?? latest.headline?.consensus_yoy;
       const consensusMom = consensus?.headline_mom ?? null;
-      const surprise = latest.headline?.consensus_spread_yoy;
+      const deviation = latest.headline?.deviation_yoy_pct ?? latest.headline?.consensus_spread_yoy;
       const nextRelease = upcomingRelease?.next_release || latest.meta?.release_intelligence || {};
       const cards = [
         {
@@ -646,8 +724,10 @@
         },
         {
           title: "Consensus YoY (Unofficial)",
-          value: consensusYoy === null || consensusYoy === undefined ? "--" : `${Number(consensusYoy).toFixed(2)}%`,
-          note: `Free-source estimate`,
+          value: consensusYoy === null || consensusYoy === undefined ? "Consensus: Unavailable" : `${Number(consensusYoy).toFixed(2)}%`,
+          note: consensusYoy === null || consensusYoy === undefined
+            ? "Consensus forecast not yet available from aggregated sources."
+            : "Free-source estimate",
         },
         {
           title: "Consensus MoM (Unofficial)",
@@ -660,15 +740,20 @@
           note: `Release month: ${official.latest_release_month || "--"}`,
         },
         {
-          title: "Surprise vs Consensus",
-          value: surprise === null || surprise === undefined ? "--" : `${Number(surprise).toFixed(2)} pp`,
-          note: `Actual YoY - consensus YoY`,
+          title: "Deviation from Expectations",
+          value: consensusYoy === null || consensusYoy === undefined || deviation === null || deviation === undefined
+            ? "Unavailable"
+            : `${Number(deviation).toFixed(2)} pp`,
+          note: consensusYoy === null || consensusYoy === undefined
+            ? "Consensus forecast not yet available from aggregated sources."
+            : "Nowcast YoY - consensus YoY",
         },
       ];
       grid.innerHTML = "";
       cards.forEach((card) => {
         const el = document.createElement("article");
         el.className = "chip";
+        el.title = card.note;
         el.innerHTML = `<div class="kicker">${card.title}</div><div class="stat-value">${card.value}</div><div class="chip-age">${card.note}</div>`;
         grid.appendChild(el);
       });
@@ -676,10 +761,10 @@
 
     function renderHero(latest) {
       const yoy = latest.official_cpi?.yoy_pct;
-      const mom = latest.official_cpi?.mom_pct;
-      const nowcast = latest.headline?.nowcast_mom_pct;
-      const divergence = (nowcast !== null && nowcast !== undefined && mom !== null && mom !== undefined)
-        ? Number((nowcast - mom).toFixed(3))
+      const nowcast = latest.headline?.nowcast_yoy_pct;
+      const consensus = latest.headline?.consensus_yoy;
+      const deviation = (nowcast !== null && nowcast !== undefined && consensus !== null && consensus !== undefined)
+        ? Number((nowcast - consensus).toFixed(3))
         : null;
 
       const hero = document.getElementById("hero-yoy");
@@ -694,7 +779,7 @@
       }
       document.getElementById("hero-summary").textContent = summary;
       document.getElementById("hero-nowcast").textContent = pct(nowcast, 3);
-      document.getElementById("hero-divergence").textContent = `Spread vs official month-over-month CPI: ${pct(divergence, 3)}`;
+      document.getElementById("hero-divergence").textContent = `Deviation from expectations (YoY): ${pct(deviation, 3)}`;
       document.getElementById("hero-release").textContent = maybe(latest.official_cpi?.latest_release_month);
       const quality = latest.headline?.signal_quality_score;
       document.getElementById("hero-confidence").textContent = `Confidence: ${(latest.headline?.confidence || "--").toUpperCase()} | Data quality score: ${quality ?? "--"}/100`;
@@ -732,10 +817,12 @@
       const rows = [
         `Method version: ${latest.meta?.method_version || methodology?.method_version || "--"} (how this nowcast is calculated).`,
         `Coverage ratio: ${(100 * (latest.headline?.coverage_ratio || 0)).toFixed(1)}% of the planned basket had usable data today.`,
+        "Basket weights are fixed CPI component shares used to aggregate category signals.",
         `Lead signal: ${(latest.headline?.lead_signal || "--").toUpperCase()} means this model currently points to prices moving ${latest.headline?.lead_signal || "--"}.`,
         `Province overlays available: ${(latest.meta?.province_overlays || ["ON", "QC", "BC"]).join(", ")}.`,
-        `Top driver right now: ${topDriver.category || "--"} (${pct(topDriver.contribution_pct, 3)} contribution to month-over-month nowcast).`,
+        `Top driver right now: ${topDriver.category || "--"} (${pct(topDriver.contribution_pct, 3)} contribution to current signal).`,
         `Last-successful-run rule: APIFY grocery data must be within ${gate.apify_max_age_days ?? "--"} days.`,
+        "Deprecated compatibility fields are still emitted: headline.nowcast_mom_pct and headline.consensus_spread_yoy.",
       ];
       rows.forEach(text => {
         const li = document.createElement("li");
@@ -752,7 +839,7 @@
         banner.textContent = `Release status: ${release.status}. ${(release.blocked_conditions || []).join(" | ")}`;
         return;
       }
-      banner.textContent = `Release status: published. Run ID: ${release.run_id || "--"}.`;
+      banner.textContent = `Release status: published. Calculation ID: ${release.run_id || "--"}.`;
     }
 
     function renderPerformance(performance) {
@@ -764,6 +851,7 @@
         `MAE (MoM): ${performance?.mae_mom_pct ?? "--"} percentage points`,
         `Directional accuracy: ${performance?.directional_accuracy_pct ?? "--"}%`,
         `Lead-time score: ${performance?.lead_time_score_pct ?? "--"}%`,
+        "Interpret MAE and directional metrics cautiously until 30-60 live days accumulate.",
       ];
       rows.forEach(text => {
         const li = document.createElement("li");
@@ -777,9 +865,10 @@
       ul.innerHTML = "";
       const rows = [
         "Official CPI (YoY): year-over-year inflation from Statistics Canada.",
-        "Nowcast Signal (MoM): model-implied monthly inflation move ahead of official release.",
-        "Spread and Surprise metrics: monitor deviation from official prints and consensus.",
+        "Nowcast Signal (YoY): model-implied annual inflation estimate from live public signals.",
+        "Deviation from Expectations: nowcast YoY minus available consensus YoY.",
         "Data quality score reflects source coverage, recency, anomaly filtering, and source diversity.",
+        "Live nowcast series begins on February 16, 2026 by design for authenticity.",
       ];
       rows.forEach((text) => {
         const li = document.createElement("li");
@@ -819,4 +908,5 @@
     }
   </script>
 </body>
+
 </html>

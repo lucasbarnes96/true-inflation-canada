@@ -29,7 +29,7 @@ def _lead_signal(nowcast: float | None) -> str:
 def compute_performance_summary(historical: dict, window_days: int = 120) -> dict:
     if not historical:
         return {
-            "method_version": "v1.5.0",
+            "method_version": "v1.2.0",
             "window_days": window_days,
             "evaluated_points": 0,
             "mae_mom_pct": None,
@@ -82,7 +82,7 @@ def compute_performance_summary(historical: dict, window_days: int = 120) -> dic
     mae = (sum(mae_terms) / len(mae_terms)) if mae_terms else None
 
     return {
-        "method_version": "v1.5.0",
+        "method_version": "v1.2.0",
         "window_days": window_days,
         "evaluated_points": len(days),
         "mae_mom_pct": round(mae, 4) if mae is not None else None,
@@ -96,4 +96,3 @@ def write_performance_summary(path: Path, historical: dict, window_days: int = 1
     summary = compute_performance_summary(historical=historical, window_days=window_days)
     path.write_text(json.dumps(summary, indent=2))
     return summary
-

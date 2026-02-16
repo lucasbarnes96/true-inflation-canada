@@ -1,18 +1,16 @@
 {
   "as_of_date": "2026-02-16",
-  "timestamp": "2026-02-16T22:42:51+00:00",
+  "timestamp": "2026-02-16T21:35:38+00:00",
   "headline": {
     "nowcast_mom_pct": 0.0,
-    "nowcast_yoy_pct": 2.294,
     "confidence": "low",
     "coverage_ratio": 0.7458,
     "signal_quality_score": 37,
     "lead_signal": "flat",
     "next_release_at_utc": "2026-02-17T13:30:00+00:00",
     "consensus_yoy": 0.515,
-    "consensus_spread_yoy": 1.779,
-    "deviation_yoy_pct": 1.779,
-    "method_label": "YoY nowcast from public category proxies with month-to-date prorating"
+    "consensus_spread_yoy": 1.842,
+    "method_label": "Daily nowcast vs prior month basket proxy"
   },
   "categories": {
     "food": {
@@ -85,7 +83,7 @@
       "category": "food",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-16T22:42:53+00:00",
+      "last_success_timestamp": "2026-02-16T21:35:40+00:00",
       "detail": "Collected 100 records from OpenFoodFacts API.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -98,7 +96,7 @@
       "category": "food",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-16T22:42:55+00:00",
+      "last_success_timestamp": "2026-02-16T21:35:43+00:00",
       "detail": "Collected 9 retail food price observations from StatCan.",
       "source_run_id": null,
       "last_observation_period": "2025-12",
@@ -111,9 +109,9 @@
       "category": "food",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-16T22:43:19+00:00",
+      "last_success_timestamp": "2026-02-16T21:36:05+00:00",
       "detail": "Collected 50 prices from actor sunny_eternity/loblaws-grocery-scraper (banner=superstore, category=https://www.realcanadiansuperstore.ca/en/food/fruits-vegetables/fresh-vegetables/c/28195, location=default).",
-      "source_run_id": "ObXocLbbHy7dlfwkx",
+      "source_run_id": "Krz1R9vBq5ca2ip4D",
       "last_observation_period": null,
       "age_days": 0,
       "run_age_hours": 0.0,
@@ -124,7 +122,7 @@
       "category": "transport",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-16T22:43:19+00:00",
+      "last_success_timestamp": "2026-02-16T21:36:06+00:00",
       "detail": "Collected 1 fuel price observations from StatCan.",
       "source_run_id": null,
       "last_observation_period": "2025-12",
@@ -137,7 +135,7 @@
       "category": "housing",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-16T22:43:28+00:00",
+      "last_success_timestamp": "2026-02-16T21:36:14+00:00",
       "detail": "Collected 3 CPI housing proxies from StatCan CSV.",
       "source_run_id": null,
       "last_observation_period": "2025-12",
@@ -150,7 +148,7 @@
       "category": "energy",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-16T22:43:29+00:00",
+      "last_success_timestamp": "2026-02-16T21:36:15+00:00",
       "detail": "Collected 12 OEB rate observations.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -163,7 +161,7 @@
       "category": "energy",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-16T22:43:37+00:00",
+      "last_success_timestamp": "2026-02-16T21:36:24+00:00",
       "detail": "Collected 1 StatCan energy CPI fallback points.",
       "source_run_id": null,
       "last_observation_period": "2025-12",
@@ -176,7 +174,7 @@
       "category": "communication",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-16T22:43:43+00:00",
+      "last_success_timestamp": "2026-02-16T21:36:30+00:00",
       "detail": "Collected 4 communication CPI proxies from StatCan CSV.",
       "source_run_id": null,
       "last_observation_period": "2025-12",
@@ -189,7 +187,7 @@
       "category": "communication",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-16T22:43:44+00:00",
+      "last_success_timestamp": "2026-02-16T21:36:30+00:00",
       "detail": "Collected 8 supplemental communication points.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -202,7 +200,7 @@
       "category": "communication",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-16T22:43:44+00:00",
+      "last_success_timestamp": "2026-02-16T21:36:30+00:00",
       "detail": "Collected 4 supplemental communication points. TLS verify disabled for pinned CRTC host.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -215,7 +213,7 @@
       "category": "health_personal",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-16T22:43:53+00:00",
+      "last_success_timestamp": "2026-02-16T21:36:38+00:00",
       "detail": "Collected 11 health/personal CPI proxies from StatCan CSV.",
       "source_run_id": null,
       "last_observation_period": "2025-12",
@@ -228,7 +226,7 @@
       "category": "health_personal",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-16T22:43:54+00:00",
+      "last_success_timestamp": "2026-02-16T21:36:40+00:00",
       "detail": "Collected 8 supplemental health/personal points from https://health-products.canada.ca/dpd-bdpp/index-eng.jsp.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -241,7 +239,7 @@
       "category": "health_personal",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-16T22:43:57+00:00",
+      "last_success_timestamp": "2026-02-16T21:36:42+00:00",
       "detail": "Collected 8 supplemental health/personal points from https://www.pmprb-cepmb.gc.ca/en/reporting/market-intelligence.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -254,7 +252,7 @@
       "category": "recreation_education",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-16T22:44:05+00:00",
+      "last_success_timestamp": "2026-02-16T21:36:52+00:00",
       "detail": "Collected 20 recreation/education CPI proxies from StatCan CSV.",
       "source_run_id": null,
       "last_observation_period": "2025-12",
@@ -267,7 +265,7 @@
       "category": "recreation_education",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-16T22:44:06+00:00",
+      "last_success_timestamp": "2026-02-16T21:36:53+00:00",
       "detail": "Collected 10 supplemental recreation/education points.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -280,7 +278,7 @@
       "category": "recreation_education",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-16T22:44:06+00:00",
+      "last_success_timestamp": "2026-02-16T21:36:53+00:00",
       "detail": "Collected 10 supplemental recreation/education points.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -291,18 +289,16 @@
   ],
   "notes": [
     "This is an experimental nowcast estimate and not an official CPI release.",
-    "Methodology v1.2.0: weighted category proxies with month-to-date YoY projection.",
+    "Methodology v1.6.0: weighted category proxy changes vs prior period baseline.",
     "Confidence rubric: gate status + weighted coverage + anomaly rate + source diversity.",
     "Representativeness (fresh-weight share): 74.6%.",
-    "Coverage ratio is the share of the CPI basket with usable source data in this run.",
     "Missing categories today: energy, health_personal, recreation_education. Confidence is downgraded.",
     "Source diversity warning: single-source categories today: housing, transport.",
     "Dropped 2 points via range checks.",
-    "Dropped 78 points via day-over-day anomaly filter.",
-    "Deprecated fields retained for compatibility: headline.nowcast_mom_pct and headline.consensus_spread_yoy."
+    "Dropped 78 points via day-over-day anomaly filter."
   ],
   "meta": {
-    "method_version": "v1.2.0",
+    "method_version": "v1.6.0",
     "total_raw_points": 259,
     "total_points_after_dedupe": 160,
     "total_points_after_quality_filters": 80,
@@ -340,10 +336,10 @@
       "series": "Canada CPI",
       "source_url": "https://www150.statcan.gc.ca/n1/dai-quo/cal2-eng.htm",
       "status": "upcoming",
-      "countdown_seconds": 53229
+      "countdown_seconds": 57262
     },
     "release_events": {
-      "as_of": "2026-02-16T22:42:51+00:00",
+      "as_of": "2026-02-16T21:35:38+00:00",
       "source_url": "https://www150.statcan.gc.ca/n1/dai-quo/cal2-eng.htm",
       "events": [
         {
@@ -360,23 +356,12 @@
     "fallbacks": {
       "nowcast_from_official_mom": false
     },
-    "projection": {
-      "nowcast_yoy_prorated": {
-        "prorate_factor": 1.0,
-        "base_month": "2025-12",
-        "reference_month": "2025-01",
-        "projected_index": 165.0,
-        "base_index": 165.0,
-        "reference_index": 161.3,
-        "reason": null
-      }
-    },
     "consensus": {
       "headline_yoy": 0.515,
       "headline_mom": null,
       "source_count": 2,
       "confidence": "medium",
-      "as_of": "2026-02-16T22:42:52+00:00",
+      "as_of": "2026-02-16T21:35:39+00:00",
       "source_urls": [
         "https://tradingeconomics.com/canada/inflation-cpi",
         "https://www.fxstreet.com/economic-calendar"
@@ -385,14 +370,14 @@
         {
           "source": "tradingeconomics",
           "url": "https://tradingeconomics.com/canada/inflation-cpi",
-          "retrieved_at": "2026-02-16T22:42:52+00:00",
+          "retrieved_at": "2026-02-16T21:35:39+00:00",
           "headline_yoy_candidate": 0.0,
           "field_confidence": "low"
         },
         {
           "source": "fxstreet",
           "url": "https://www.fxstreet.com/economic-calendar",
-          "retrieved_at": "2026-02-16T22:42:52+00:00",
+          "retrieved_at": "2026-02-16T21:35:39+00:00",
           "headline_yoy_candidate": 1.03,
           "field_confidence": "low"
         }
@@ -405,7 +390,7 @@
     "model_card_path": "data/model_card_latest.json"
   },
   "release": {
-    "run_id": "run_bcb6dc311b03",
+    "run_id": "run_b1e19a06a464",
     "status": "published",
     "lifecycle_states": [
       "started",
@@ -413,7 +398,7 @@
       "published"
     ],
     "blocked_conditions": [],
-    "created_at": "2026-02-16T22:42:51+00:00",
-    "published_at": "2026-02-16T22:42:51+00:00"
+    "created_at": "2026-02-16T21:35:38+00:00",
+    "published_at": "2026-02-16T21:35:38+00:00"
   }
 }
