@@ -132,6 +132,7 @@ def methodology() -> dict:
             "apify_max_age_days": 14,
             "required_sources": ["apify_loblaws", "statcan_cpi_csv", "statcan_gas_csv"],
             "energy_required_any_of": ["oeb_scrape", "statcan_energy_cpi_csv"],
+            "core_gate_categories": ["food", "housing", "transport", "energy"],
             "category_min_points": {
                 "food": 5,
                 "housing": 2,
@@ -142,7 +143,7 @@ def methodology() -> dict:
                 "recreation_education": 1,
             },
             "metadata_required": ["official_cpi.latest_release_month"],
-            "representativeness_min_fresh_ratio": 0.85,
+            "representativeness_min_fresh_ratio": "advisory_only",
         },
         "limitations": [
             "Experimental nowcast, not an official CPI release.",

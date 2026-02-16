@@ -2,8 +2,8 @@
   "method_version": "v1.5.0",
   "window_days": 120,
   "evaluated_points": 2,
-  "mae_mom_pct": null,
-  "directional_accuracy_pct": null,
+  "mae_mom_pct": 0.242,
+  "directional_accuracy_pct": 0.0,
   "lead_time_score_pct": 0.0,
-  "generated_at": "2026-02-16T20:46:07+00:00"
+  "generated_at": "2026-02-16T20:53:42+00:00"
 }
