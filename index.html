@@ -345,6 +345,91 @@
         display: none;
       }
     }
+
+    .pulse-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .pulse-card {
+      background: #173529;
+      color: #f4f8f4;
+      border-radius: 16px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .pulse-card::after {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(43, 143, 111, 0.15) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .pulse-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      opacity: 0.8;
+      margin-bottom: 0.35rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: #1f9b65;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #1f9b65;
+      animation: pulse 2s infinite;
+    }
+
+    .pulse-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      font-family: "Space Grotesk", sans-serif;
+    }
+
+    .pulse-sub {
+      font-size: 0.85rem;
+      opacity: 0.7;
+      margin-top: 0.2rem;
+      font-family: "IBM Plex Mono", monospace;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 0.6;
+        transform: scale(0.95);
+      }
+
+      50% {
+        opacity: 1;
+        transform: scale(1.05);
+      }
+
+      100% {
+        opacity: 0.6;
+        transform: scale(0.95);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .pulse-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 
@@ -360,6 +445,23 @@
     </section>
 
     <section id="release-banner" class="release-banner"></section>
+
+    <section class="pulse-grid" id="pulse-section" style="display: none;">
+      <div class="pulse-card">
+        <div class="pulse-label">
+          <div class="pulse-dot"></div>Avg Asking Rent (Canada)
+        </div>
+        <div class="pulse-value" id="pulse-rent">--</div>
+        <div class="pulse-sub">Source: Rentals.ca (Leading Indicator)</div>
+      </div>
+      <div class="pulse-card" style="background: #202b36;">
+        <div class="pulse-label">
+          <div class="pulse-dot" style="background:#cc8c1a; box-shadow:0 0 8px #cc8c1a;"></div>Avg Regular Gas (Canada)
+        </div>
+        <div class="pulse-value" id="pulse-gas">--</div>
+        <div class="pulse-sub">Source: NRCAN Weekly (Leading Indicator)</div>
+      </div>
+    </section>
 
     <section class="card hero">
       <article class="hero-main">
@@ -895,6 +997,26 @@
       });
     }
 
+    function renderPulse(meta) {
+      const indicators = meta.indicators || {};
+      const rent = indicators.average_asking_rent;
+      const gas = indicators.gasoline_canada_avg;
+
+      const section = document.getElementById("pulse-section");
+
+      if (rent || gas) {
+        section.style.display = "grid";
+      }
+
+      if (rent) {
+        document.getElementById("pulse-rent").textContent = "$" + Math.round(rent).toLocaleString();
+      }
+
+      if (gas) {
+        document.getElementById("pulse-gas").textContent = gas.toFixed(1) + " ¢/L";
+      }
+    }
+
     if (!UI_MODE_V2) {
       document.getElementById("app").innerHTML = "<section class='card'><h2>UI v2 is disabled</h2><p>Append <code>?ui_v2=1</code> to enable the dashboard.</p></section>";
     } else {
@@ -912,6 +1034,7 @@
         const liveDays = countLiveNowcastDays(items);
         applyReleaseBanner(latest);
         renderHero(latest);
+        renderPulse(latest.meta || {});
         renderReleaseIntel(latest, upcomingRelease, consensus, liveDays);
         renderPurchasingPowerCard(latest);
         renderNotes(latest);

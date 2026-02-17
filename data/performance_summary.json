@@ -1,9 +1,9 @@
 {
   "method_version": "v1.2.0",
   "window_days": 120,
-  "evaluated_points": 2,
-  "mae_mom_pct": 0.171,
-  "directional_accuracy_pct": 50.0,
-  "lead_time_score_pct": 50.0,
-  "generated_at": "2026-02-16T23:13:45+00:00"
+  "evaluated_points": 3,
+  "mae_mom_pct": 1.4353,
+  "directional_accuracy_pct": 33.33,
+  "lead_time_score_pct": 33.33,
+  "generated_at": "2026-02-17T01:06:48+00:00"
 }

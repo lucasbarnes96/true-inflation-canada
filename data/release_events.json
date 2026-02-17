@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-02-16T23:12:08+00:00",
+  "as_of": "2026-02-17T01:05:41+00:00",
   "source_url": "https://www150.statcan.gc.ca/n1/dai-quo/cal2-eng.htm",
   "events": [
     {
@@ -19,7 +19,7 @@
     "series": "Canada CPI",
     "source_url": "https://www150.statcan.gc.ca/n1/dai-quo/cal2-eng.htm",
     "status": "upcoming",
-    "countdown_seconds": 51472
+    "countdown_seconds": 44659
   },
   "method_version": "v1.2.0"
 }

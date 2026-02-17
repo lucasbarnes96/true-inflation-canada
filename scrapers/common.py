@@ -10,7 +10,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 DEFAULT_TIMEOUT_SECONDS = 20
-USER_AGENT = "TrueNorthIndexBot/1.0 (+https://github.com/)"
+USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
 
 class FetchError(Exception):
@@ -39,7 +39,13 @@ def fetch_url(
     last_err: Exception | None = None
     for attempt in range(retries + 1):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+            headers = {
+                "User-Agent": USER_AGENT,
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Referer": "https://www.google.com/",
+            }
+            req = urllib.request.Request(url, headers=headers)
             context = None
             if not verify:
                 context = ssl._create_unverified_context()

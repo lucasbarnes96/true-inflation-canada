@@ -23,12 +23,14 @@ from scrapers import (
     scrape_communication,
     scrape_communication_public,
     scrape_energy,
+    scrape_energy_fuel,
     scrape_food,
     scrape_food_statcan,
     scrape_grocery_apify,
     scrape_health_personal,
     scrape_health_public,
     scrape_housing,
+    scrape_housing_listings,
     scrape_recreation_education,
     scrape_recreation_education_public,
     scrape_transport,
@@ -100,7 +102,9 @@ SCRAPER_REGISTRY = [
     ("food_statcan", scrape_food_statcan),
     ("food_apify", scrape_grocery_apify),
     ("transport_statcan", scrape_transport),
+    ("transport_fuel_scrappy", scrape_energy_fuel),
     ("housing_statcan", scrape_housing),
+    ("housing_listings_scrappy", scrape_housing_listings),
     ("energy_multi", scrape_energy),
     ("communication_statcan", scrape_communication),
     ("communication_public", scrape_communication_public),
@@ -726,6 +730,25 @@ def collect_all_quotes() -> tuple[list[Quote], list[SourceHealth]]:
     return quotes, health
 
 
+def extract_hero_indicators(quotes: list[Quote]) -> dict[str, float | None]:
+    """Extract specific high-value 'scrappy' indicators for sidebar display."""
+    indicators = {
+        "average_asking_rent": None,
+        "gasoline_canada_avg": None,
+    }
+    # We look for the most recent value for specific item_ids
+    # Sort by date descending
+    sorted_quotes = sorted(quotes, key=lambda q: q.observed_at, reverse=True)
+    
+    for q in sorted_quotes:
+        if q.item_id == "average_asking_rent_canada" and indicators["average_asking_rent"] is None:
+            indicators["average_asking_rent"] = q.value
+        if q.item_id == "gasoline_regular_canada_avg" and indicators["gasoline_canada_avg"] is None:
+            indicators["gasoline_canada_avg"] = q.value
+            
+    return indicators
+
+
 def evaluate_gate(snapshot: dict) -> list[str]:
     blocked: list[str] = []
     source_by_name = {s["source"]: s for s in snapshot["source_health"]}
@@ -863,14 +886,24 @@ def build_snapshot() -> dict:
     consensus_latest = fetch_consensus_estimate()
     next_release = compute_next_release(release_events, now)
 
-    raw_quotes, raw_source_health = collect_all_quotes()
-    source_health = recompute_source_health(raw_source_health, now=now)
+    quotes, source_health = collect_all_quotes()
+    
+    # Filter out "scrappy" raw price quotes from the main index calculation
+    # to prevent mixing Index (100-basis) with Prices ($2000).
+    # We keep them only for the 'indicators' metadata.
+    scrappy_ids = {"average_asking_rent_canada", "gasoline_regular_canada_avg"}
+    index_quotes = [q for q in quotes if q.item_id not in scrappy_ids]
+    
+    indicators = extract_hero_indicators(quotes)
+    
+    computed_health = recompute_source_health(source_health, now)
+    
+    # Use index_quotes for the main calculation
+    deduped = dedupe_quotes(index_quotes)
+    valid_quotes, rejected_points = apply_range_checks(deduped)
+    filtered, anomalies = apply_outlier_filter(valid_quotes, historical)
 
-    deduped = dedupe_quotes(raw_quotes)
-    range_valid, rejected_points = apply_range_checks(deduped)
-    filtered, anomalies = apply_outlier_filter(range_valid, historical)
-
-    categories = summarize_categories(filtered, source_health)
+    categories = summarize_categories(filtered, computed_health)
     compute_daily_changes(categories, historical)
 
     coverage_ratio = compute_coverage(categories)
@@ -916,11 +949,11 @@ def build_snapshot() -> dict:
         "categories": categories,
         "official_cpi": official_cpi,
         "bank_of_canada": fetch_boc_cpi(),
-        "source_health": source_health,
+        "source_health": computed_health,
         "notes": [],
         "meta": {
             "method_version": METHOD_VERSION,
-            "total_raw_points": len(raw_quotes),
+            "total_raw_points": len(quotes),
             "total_points_after_dedupe": len(deduped),
             "total_points_after_quality_filters": len(filtered),
             "anomaly_points": anomalies,
@@ -949,6 +982,7 @@ def build_snapshot() -> dict:
                 "errors": consensus_latest.get("errors", []) if isinstance(consensus_latest, dict) else [],
                 "guardrails": consensus_guardrails,
             },
+            "indicators": indicators,
         },
         "performance_ref": {
             "summary_path": str(PERFORMANCE_SUMMARY_PATH),
