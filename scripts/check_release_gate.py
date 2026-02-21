@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from gate_policy import GATE_POLICY
 
 
 def _count_live_days(history: dict) -> int:
@@ -21,9 +28,16 @@ def _count_live_days(history: dict) -> int:
 
 
 def main() -> int:
+    rep_threshold = float(GATE_POLICY["representativeness_min_fresh_ratio"])
     parser = argparse.ArgumentParser(description="Check release and launch readiness gates.")
     parser.add_argument("--min-coverage", type=float, default=0.80, help="Minimum headline coverage ratio.")
     parser.add_argument("--min-live-days", type=int, default=30, help="Minimum authentic live nowcast days.")
+    parser.add_argument(
+        "--min-representativeness",
+        type=float,
+        default=rep_threshold,
+        help="Minimum fresh basket representativeness ratio.",
+    )
     parser.add_argument(
         "--strict-official-parity",
         action="store_true",
@@ -59,6 +73,13 @@ def main() -> int:
     coverage = headline.get("coverage_ratio")
     if not isinstance(coverage, (int, float)) or float(coverage) < float(args.min_coverage):
         errors.append(f"Coverage below threshold: {coverage} < {args.min_coverage}")
+
+    representativeness = payload.get("meta", {}).get("representativeness_ratio")
+    if not isinstance(representativeness, (int, float)) or float(representativeness) < float(args.min_representativeness):
+        errors.append(
+            "Representativeness below threshold: "
+            f"{representativeness} < {args.min_representativeness}"
+        )
 
     live_days = _count_live_days(historical if isinstance(historical, dict) else {})
     if live_days < args.min_live_days:

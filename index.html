@@ -1023,7 +1023,7 @@
       return `${d}d ${h}h ${m}m`;
     }
 
-    function renderReleaseIntel(latest, upcomingRelease, consensus, liveDays) {
+    function renderReleaseIntel(latest, upcomingRelease, consensus, forecast, liveDays) {
       const grid = document.getElementById("release-grid");
       const official = latest.official_cpi || {};
       const officialYoy = official.yoy_display_pct ?? official.yoy_pct;
@@ -1032,6 +1032,7 @@
       const deviation = latest.headline?.deviation_yoy_pct ?? latest.headline?.consensus_spread_yoy;
       const deviationEnabled = liveDays >= 30 && consensusYoy !== null && consensusYoy !== undefined;
       const nextRelease = upcomingRelease?.next_release || latest.meta?.release_intelligence || {};
+      const nextForecast = forecast || latest.meta?.forecast || {};
       const cards = [
         {
           title: "Next CPI Release (ET)",
@@ -1070,6 +1071,15 @@
             : liveDays < 30
               ? "Deviation is hidden until at least 30 live nowcast days are available."
               : "Nowcast YoY - consensus YoY",
+        },
+        {
+          title: "Forecast: Next CPI YoY",
+          value: nextForecast.status === "published" && nextForecast.point_yoy !== null && nextForecast.point_yoy !== undefined
+            ? `${Number(nextForecast.point_yoy).toFixed(2)}%`
+            : "Withheld",
+          note: nextForecast.status === "published"
+            ? `Range ${pct(nextForecast.lower_yoy, 2)} to ${pct(nextForecast.upper_yoy, 2)} | Confidence ${String(nextForecast.confidence || "low").toUpperCase()}`
+            : "Forecast is hidden until enough live history exists.",
         },
       ];
       grid.innerHTML = "";
@@ -1145,7 +1155,8 @@
         `Lead signal: ${(latest.headline?.lead_signal || "--").toUpperCase()} means this model currently points to prices moving ${latest.headline?.lead_signal || "--"}.`,
         `Province overlays available: ${(latest.meta?.province_overlays || ["ON", "QC", "BC"]).join(", ")}.`,
         `Top driver right now: ${topDriver.category || "--"} (${pct(topDriver.contribution_pct, 3)} contribution to current signal).`,
-        `Last-successful-run rule: APIFY grocery data must be within ${gate.apify_max_age_days ?? "--"} days.`,
+        `Food resilience gate: at least ${gate.food_gate?.min_fresh_sources ?? "--"} fresh and ${gate.food_gate?.min_usable_sources ?? "--"} usable food sources.`,
+        `Representativeness release threshold: ${(100 * (gate.representativeness_min_fresh_ratio ?? 0)).toFixed(0)}% fresh basket coverage.`,
         "Deprecated compatibility fields are still emitted: headline.nowcast_mom_pct and headline.consensus_spread_yoy.",
       ];
       rows.forEach(text => {
@@ -1273,14 +1284,15 @@
         fetchJsonWithFallback("/v1/performance/summary", "data/performance_summary.json"),
         fetchJsonWithFallback("/v1/releases/upcoming", "data/release_events.json"),
         fetchJsonWithFallback("/v1/consensus/latest", "data/consensus_latest.json"),
-      ]).then(([latest, historical, methodology, performance, upcomingRelease, consensus]) => {
+        fetchJsonWithFallback("/v1/forecast/next_release", "data/latest.json"),
+      ]).then(([latest, historical, methodology, performance, upcomingRelease, consensus, forecast]) => {
         document.getElementById("asof").textContent = `as of ${latest.as_of_date || "--"}`;
         const items = safeHistoryItems(historical).slice(-365);
         const liveDays = countLiveNowcastDays(items);
         applyReleaseBanner(latest);
         renderHero(latest);
         renderPulse(latest.meta || {});
-        renderReleaseIntel(latest, upcomingRelease, consensus, liveDays);
+        renderReleaseIntel(latest, upcomingRelease, consensus, forecast?.meta?.forecast || forecast, liveDays);
         renderPurchasingPowerCard(latest);
         renderNotes(latest);
         renderSourceTable(latest.source_health || []);

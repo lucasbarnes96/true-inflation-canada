@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+from gate_policy import METHOD_VERSION, gate_policy_payload
 from models import NowcastSnapshot
 from source_catalog import SOURCE_CATALOG
 from api import contributions
@@ -22,7 +23,7 @@ PERFORMANCE_SUMMARY_PATH = DATA_DIR / "performance_summary.json"
 RELEASE_EVENTS_PATH = DATA_DIR / "release_events.json"
 CONSENSUS_LATEST_PATH = DATA_DIR / "consensus_latest.json"
 
-app = FastAPI(title="True Inflation Canada API", version="1.2.0")
+app = FastAPI(title="True Inflation Canada API", version=METHOD_VERSION)
 
 app.include_router(contributions.router)
 
@@ -139,33 +140,17 @@ def releases_latest() -> dict:
 def methodology() -> dict:
     return {
         "summary": "Weighted category nowcast using free/public daily and monthly sources.",
-        "method_version": "v1.2.0",
+        "method_version": METHOD_VERSION,
         "confidence_formula": {
             "inputs": ["gate_status", "coverage_ratio", "anomalies", "source_diversity"],
             "high": "coverage_ratio >= 0.9, no gate failures, low anomalies, no diversity penalty",
             "medium": "coverage_ratio >= 0.6 or diversity/anomaly penalties",
             "low": "gate failure or low weighted coverage",
         },
-        "gate_policy": {
-            "apify_max_age_days": 14,
-            "required_sources": ["apify_loblaws", "statcan_cpi_csv", "statcan_gas_csv"],
-            "energy_required_any_of": ["oeb_scrape", "statcan_energy_cpi_csv"],
-            "core_gate_categories": ["food", "housing", "transport", "energy"],
-            "category_min_points": {
-                "food": 5,
-                "housing": 2,
-                "transport": 1,
-                "energy": 1,
-                "communication": 1,
-                "health_personal": 1,
-                "recreation_education": 1,
-            },
-            "metadata_required": ["official_cpi.latest_release_month"],
-            "representativeness_min_fresh_ratio": "advisory_only",
-        },
+        "gate_policy": gate_policy_payload(),
         "limitations": [
             "Experimental nowcast, not an official CPI release.",
-            "APIFY is run weekly on free-tier constraints.",
+            "APIFY auto-retry is attempted when stale/missing before gate evaluation.",
             "Monthly sources may remain fresh for up to 45 days.",
             "Deprecated compatibility fields remain available: headline.nowcast_mom_pct and headline.consensus_spread_yoy.",
         ],
@@ -207,3 +192,16 @@ def consensus_latest() -> dict:
     if not isinstance(payload, dict):
         raise HTTPException(status_code=500, detail="Invalid consensus format.")
     return payload
+
+
+@app.get("/v1/forecast/next_release")
+def forecast_next_release() -> dict:
+    payload = _load_json(PUBLISHED_LATEST_PATH, {})
+    if not payload:
+        payload = _load_json(LATEST_PATH, {})
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=404, detail="No snapshot available.")
+    forecast = payload.get("meta", {}).get("forecast")
+    if not isinstance(forecast, dict):
+        raise HTTPException(status_code=404, detail="No forecast available.")
+    return forecast

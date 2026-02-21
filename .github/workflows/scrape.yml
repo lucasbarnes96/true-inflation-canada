@@ -1,8 +1,9 @@
-name: Daily Data Scrape (No APIFY)
+name: Daily Data Scrape
 
 on:
   schedule:
     - cron: "0 6 * * *"
+    - cron: "0 7 * * 0"
   workflow_dispatch:
 
 permissions:
@@ -11,8 +12,6 @@ permissions:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    env:
-      APIFY_ENABLED: "false"
 
     steps:
       - uses: actions/checkout@v4
@@ -29,6 +28,39 @@ jobs:
 
       - name: Validate runtime pin
         run: python -c "import sys; assert sys.version.startswith('3.11'), sys.version"
+
+      - name: Decide APIFY mode
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          import os
+
+          enable = False
+          reason = "daily_no_refresh_needed"
+          now = datetime.now(timezone.utc)
+          if now.weekday() == 6:
+              enable = True
+              reason = "weekly_refresh"
+          else:
+              latest = Path("data/published_latest.json")
+              if latest.exists():
+                  payload = json.loads(latest.read_text())
+                  rows = payload.get("source_health", [])
+                  apify = next((r for r in rows if isinstance(r, dict) and r.get("source") == "apify_loblaws"), None)
+                  age_days = apify.get("age_days") if isinstance(apify, dict) else None
+                  if isinstance(age_days, int) and age_days > 10:
+                      enable = True
+                      reason = f"stale_apify_age_{age_days}"
+              else:
+                  enable = True
+                  reason = "missing_previous_snapshot"
+          with open(Path(os.environ["GITHUB_ENV"]), "a", encoding="utf-8") as f:
+              f.write(f\"APIFY_ENABLED={'true' if enable else 'false'}\\n\")
+              f.write(f\"APIFY_MODE_REASON={reason}\\n\")
+          print(f\"APIFY_ENABLED={'true' if enable else 'false'} reason={reason}\")
+          PY
 
       - name: Run nowcast pipeline
         run: python process.py

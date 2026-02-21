@@ -63,7 +63,17 @@ class ApiContractTests(unittest.TestCase):
                 }
             ],
             "notes": [],
-            "meta": {"method_version": "v1.5.0"},
+            "meta": {
+                "method_version": "v1.5.0",
+                "forecast": {
+                    "status": "published",
+                    "point_yoy": 2.7,
+                    "lower_yoy": 2.3,
+                    "upper_yoy": 3.1,
+                    "confidence": "medium",
+                    "next_release_date": "2026-02-17",
+                },
+            },
             "performance_ref": {
                 "summary_path": "data/performance_summary.json",
                 "model_card_path": "data/model_card_latest.json",
@@ -190,6 +200,13 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         body = resp.json()
         self.assertEqual(2.6, body["headline_yoy"])
+
+    def test_forecast_endpoint(self) -> None:
+        resp = self.client.get("/v1/forecast/next_release")
+        self.assertEqual(200, resp.status_code)
+        body = resp.json()
+        self.assertEqual("published", body["status"])
+        self.assertIn("point_yoy", body)
 
     def test_history_preserves_seeded_meta(self) -> None:
         resp = self.client.get("/v1/nowcast/history")

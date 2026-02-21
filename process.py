@@ -4,12 +4,14 @@ import calendar
 import json
 import sqlite3
 import statistics
+import time
 import uuid
 from collections import defaultdict
 from dataclasses import asdict
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+from gate_policy import GATE_POLICY, METHOD_VERSION
 from models import NowcastSnapshot
 from performance import compute_performance_summary, write_performance_summary
 from scrapers import (
@@ -95,7 +97,7 @@ CATEGORY_REGISTRY: dict[str, dict] = {
 CATEGORY_WEIGHTS = {name: cfg["weight"] for name, cfg in CATEGORY_REGISTRY.items()}
 VALUE_BOUNDS = {name: cfg["value_bounds"] for name, cfg in CATEGORY_REGISTRY.items()}
 OUTLIER_THRESHOLD_PCT = {name: cfg["outlier_threshold_pct"] for name, cfg in CATEGORY_REGISTRY.items()}
-CATEGORY_MIN_POINTS = {name: cfg["min_points"] for name, cfg in CATEGORY_REGISTRY.items()}
+CATEGORY_MIN_POINTS = dict(GATE_POLICY["category_min_points"])
 
 SCRAPER_REGISTRY = [
     ("food_openfoodfacts", scrape_food),
@@ -130,13 +132,15 @@ SOURCE_SLA_DAYS = {
     "statcan_education_portal": 180,
 }
 
-APIFY_MAX_AGE_DAYS = 14
 METHOD_LABEL = "YoY nowcast from public category proxies with month-to-date prorating"
-METHOD_VERSION = "v1.2.0"
 CORE_GATE_CATEGORIES = ("food", "housing", "transport")
 MIN_PLAUSIBLE_CONSENSUS_YOY = 1.0
 MAX_PLAUSIBLE_CONSENSUS_YOY = 5.0
 MAX_CONSENSUS_SPREAD_PCT = 1.0
+SOURCE_TIER_MULTIPLIER = {1: 1.0, 2: 0.85, 3: 0.7}
+SOURCE_STATUS_MULTIPLIER = {"fresh": 1.0, "stale": 0.9, "missing": 0.0}
+HOUSING_RENT_BLEND_WEIGHT = 0.3
+FORECAST_MIN_LIVE_DAYS = 30
 
 
 def utc_now() -> datetime:
@@ -313,7 +317,15 @@ def recompute_source_health(raw_health: list[SourceHealth], now: datetime) -> li
     return computed
 
 
-def summarize_categories(quotes: list[Quote], source_health: list[dict]) -> dict:
+def source_effective_weight(source_row: dict | None) -> float:
+    if not isinstance(source_row, dict):
+        return 0.0
+    tier = int(source_row.get("tier") or 3)
+    status = source_row.get("status") or "missing"
+    return SOURCE_TIER_MULTIPLIER.get(tier, 0.7) * SOURCE_STATUS_MULTIPLIER.get(status, 0.0)
+
+
+def summarize_categories(quotes: list[Quote], source_health: list[dict]) -> tuple[dict, dict]:
     by_category: dict[str, list[Quote]] = defaultdict(list)
     for quote in quotes:
         by_category[quote.category].append(quote)
@@ -321,19 +333,39 @@ def summarize_categories(quotes: list[Quote], source_health: list[dict]) -> dict
     source_by_name = {s["source"]: s for s in source_health}
 
     summary: dict[str, dict] = {}
+    signal_inputs: dict[str, list[dict]] = {}
     for category, weight in CATEGORY_WEIGHTS.items():
         cat_quotes = by_category.get(category, [])
-        level = round_or_none(statistics.mean([q.value for q in cat_quotes]), 4) if cat_quotes else None
+        per_source_values: dict[str, list[float]] = defaultdict(list)
+        for quote in cat_quotes:
+            per_source_values[quote.source].append(quote.value)
+
+        weighted_sum = 0.0
+        effective_weight = 0.0
+        source_rows: list[dict] = []
+        for source, values in per_source_values.items():
+            source_row = source_by_name.get(source, {})
+            source_weight = source_effective_weight(source_row)
+            source_mean = statistics.mean(values)
+            if source_weight > 0:
+                weighted_sum += source_mean * source_weight
+                effective_weight += source_weight
+            source_rows.append(
+                {
+                    "source": source,
+                    "status": source_row.get("status", "missing"),
+                    "tier": source_row.get("tier", 3),
+                    "points": len(values),
+                    "source_mean": round_or_none(float(source_mean), 4),
+                    "effective_weight": round_or_none(float(source_weight), 3),
+                }
+            )
+        level = round_or_none(weighted_sum / effective_weight, 4) if effective_weight > 0 else None
 
         status = "missing"
         if cat_quotes:
             category_statuses = [h["status"] for h in source_health if h["category"] == category]
             status = "fresh" if "fresh" in category_statuses else "stale"
-
-        if category == "food":
-            apify = source_by_name.get("apify_loblaws")
-            if not apify or apify["status"] != "fresh":
-                status = "missing"
 
         summary[category] = {
             "proxy_level": level,
@@ -342,8 +374,20 @@ def summarize_categories(quotes: list[Quote], source_health: list[dict]) -> dict
             "points": len(cat_quotes),
             "status": status,
         }
+        signal_inputs[category] = sorted(source_rows, key=lambda row: row["source"])
 
-    return summary
+    return summary, signal_inputs
+
+
+def previous_indicator_value(key: str) -> float | None:
+    for path in (PUBLISHED_LATEST_PATH, LATEST_PATH):
+        payload = load_json(path, {})
+        if not isinstance(payload, dict):
+            continue
+        value = payload.get("meta", {}).get("indicators", {}).get(key)
+        if isinstance(value, (int, float)):
+            return float(value)
+    return None
 
 
 def compute_daily_changes(categories: dict, historical: dict) -> None:
@@ -360,6 +404,42 @@ def compute_daily_changes(categories: dict, historical: dict) -> None:
             payload["daily_change_pct"] = None
             continue
         payload["daily_change_pct"] = round_or_none(((float(current) / float(prev)) - 1) * 100)
+
+
+def apply_housing_signal_overlay(categories: dict, indicators: dict[str, float | None]) -> dict:
+    diagnostics = {
+        "applied": False,
+        "blend_weight": HOUSING_RENT_BLEND_WEIGHT,
+        "rent_delta_pct": None,
+        "previous_rent": None,
+        "current_rent": None,
+        "reason": None,
+    }
+    current = indicators.get("average_asking_rent")
+    previous = previous_indicator_value("average_asking_rent")
+    diagnostics["current_rent"] = current
+    diagnostics["previous_rent"] = previous
+    if not isinstance(current, (int, float)) or not isinstance(previous, (int, float)) or previous <= 0:
+        diagnostics["reason"] = "missing_or_invalid_indicator_history"
+        return diagnostics
+
+    rent_delta = ((float(current) / float(previous)) - 1) * 100
+    rent_delta = max(min(rent_delta, 5.0), -5.0)
+    diagnostics["rent_delta_pct"] = round_or_none(rent_delta, 4)
+
+    housing = categories.get("housing")
+    if not isinstance(housing, dict):
+        diagnostics["reason"] = "housing_category_missing"
+        return diagnostics
+
+    base_change = housing.get("daily_change_pct")
+    if base_change is None:
+        housing["daily_change_pct"] = round_or_none(rent_delta, 4)
+    else:
+        blended = (float(base_change) * (1.0 - HOUSING_RENT_BLEND_WEIGHT)) + (rent_delta * HOUSING_RENT_BLEND_WEIGHT)
+        housing["daily_change_pct"] = round_or_none(blended, 4)
+    diagnostics["applied"] = True
+    return diagnostics
 
 
 def compute_category_contributions(categories: dict) -> dict:
@@ -401,22 +481,14 @@ def category_source_diversity(quotes: list[Quote]) -> dict[str, int]:
 
 
 def compute_nowcast_mom(categories: dict, historical: dict) -> float | None:
-    if not historical:
-        return None
-
-    latest_day = sorted(historical.keys())[-1]
-    prev_categories = historical.get(latest_day, {}).get("categories", {})
-
     weighted_change = 0.0
     effective_weight = 0.0
     for category, payload in categories.items():
-        current = payload.get("proxy_level")
-        prev = prev_categories.get(category, {}).get("proxy_level")
+        category_change = payload.get("daily_change_pct")
         weight = payload["weight"]
-        if current is None or prev in (None, 0):
+        if category_change is None:
             continue
-        category_change = (float(current) / float(prev) - 1) * 100
-        weighted_change += category_change * weight
+        weighted_change += float(category_change) * weight
         effective_weight += weight
 
     if effective_weight == 0:
@@ -601,6 +673,81 @@ def compute_next_release(events_payload: dict, now: datetime) -> dict | None:
     return next_event
 
 
+def count_live_nowcast_days(historical: dict) -> int:
+    count = 0
+    for payload in historical.values():
+        if not isinstance(payload, dict):
+            continue
+        meta = payload.get("meta", {})
+        if isinstance(meta, dict) and meta.get("seeded"):
+            continue
+        headline = payload.get("headline", {})
+        if isinstance(headline, dict) and isinstance(headline.get("nowcast_yoy_pct"), (int, float)):
+            count += 1
+    return count
+
+
+def compute_forecast(
+    nowcast_yoy: float | None,
+    official_series: list[dict],
+    consensus_yoy: float | None,
+    historical: dict,
+    next_release: dict | None,
+    as_of: datetime,
+) -> dict:
+    forecast = {
+        "status": "insufficient_history",
+        "next_release_date": next_release.get("event_date") if isinstance(next_release, dict) else None,
+        "as_of": as_of.isoformat(),
+        "model_version": "v1.3.0-forecast-baseline",
+        "confidence": "low",
+        "point_yoy": None,
+        "lower_yoy": None,
+        "upper_yoy": None,
+        "backtest": {"live_days": count_live_nowcast_days(historical), "minimum_required_days": FORECAST_MIN_LIVE_DAYS},
+        "inputs": {
+            "nowcast_yoy": nowcast_yoy,
+            "consensus_yoy": consensus_yoy,
+            "official_recent_yoy": None,
+            "official_yoy_momentum": None,
+        },
+    }
+    live_days = forecast["backtest"]["live_days"]
+    if live_days < FORECAST_MIN_LIVE_DAYS:
+        return forecast
+
+    official_yoy_values = [
+        float(row["yoy_pct"])
+        for row in official_series
+        if isinstance(row, dict) and isinstance(row.get("yoy_pct"), (int, float))
+    ]
+    if len(official_yoy_values) < 2:
+        forecast["status"] = "insufficient_official_history"
+        return forecast
+
+    latest_official_yoy = official_yoy_values[-1]
+    momentum = latest_official_yoy - official_yoy_values[-2]
+    forecast["inputs"]["official_recent_yoy"] = round_or_none(latest_official_yoy, 3)
+    forecast["inputs"]["official_yoy_momentum"] = round_or_none(momentum, 3)
+
+    if nowcast_yoy is None:
+        if consensus_yoy is None:
+            forecast["status"] = "insufficient_inputs"
+            return forecast
+        point = float(consensus_yoy)
+    else:
+        baseline = (0.6 * float(nowcast_yoy)) + (0.4 * (latest_official_yoy + momentum))
+        point = baseline if consensus_yoy is None else (0.75 * baseline) + (0.25 * float(consensus_yoy))
+
+    interval_half_width = 0.35 if live_days >= 60 else 0.5
+    forecast["status"] = "published"
+    forecast["confidence"] = "medium" if live_days >= 60 else "low"
+    forecast["point_yoy"] = round_or_none(point, 3)
+    forecast["lower_yoy"] = round_or_none(point - interval_half_width, 3)
+    forecast["upper_yoy"] = round_or_none(point + interval_half_width, 3)
+    return forecast
+
+
 def compute_signal_quality_score(
     coverage_ratio: float,
     anomalies: int,
@@ -688,7 +835,7 @@ def build_notes(
 ) -> list[str]:
     notes: list[str] = [
         "This is an experimental nowcast estimate and not an official CPI release.",
-        "Methodology v1.2.0: weighted category proxies with month-to-date YoY projection.",
+        f"Methodology {METHOD_VERSION}: weighted category proxies with month-to-date YoY projection.",
         "Confidence rubric: gate status + weighted coverage + anomaly rate + source diversity.",
         f"Representativeness (fresh-weight share): {round(representativeness_ratio * 100, 1)}%.",
         "Coverage ratio is the share of the CPI basket with usable source data in this run.",
@@ -718,16 +865,57 @@ def build_notes(
     return notes
 
 
-def collect_all_quotes() -> tuple[list[Quote], list[SourceHealth]]:
+def collect_all_quotes() -> tuple[list[Quote], list[SourceHealth], dict]:
     quotes: list[Quote] = []
     health: list[SourceHealth] = []
+    diagnostics = {
+        "apify_retry": {
+            "attempts": 0,
+            "retries_used": 0,
+            "succeeded": False,
+            "final_status": "missing",
+            "reason": None,
+        }
+    }
 
     for _, scraper in SCRAPER_REGISTRY:
         scraper_quotes, scraper_health = scraper()
         quotes.extend(scraper_quotes)
         health.extend(scraper_health)
 
-    return quotes, health
+    apify_idx = next((idx for idx, row in enumerate(health) if row.source == "apify_loblaws"), None)
+    retry_cfg = GATE_POLICY.get("apify_retry", {})
+    max_attempts = int(retry_cfg.get("max_attempts", 1))
+    backoff_seconds = int(retry_cfg.get("backoff_seconds", 0))
+    diagnostics["apify_retry"]["attempts"] = max_attempts
+    if apify_idx is None:
+        diagnostics["apify_retry"]["reason"] = "apify_source_not_registered"
+        return quotes, health, diagnostics
+
+    for attempt in range(2, max_attempts + 1):
+        apify_health = health[apify_idx]
+        if apify_health.status == "fresh":
+            diagnostics["apify_retry"]["succeeded"] = True
+            diagnostics["apify_retry"]["final_status"] = "fresh"
+            break
+        if backoff_seconds > 0:
+            time.sleep(backoff_seconds)
+        retry_quotes, retry_health = scrape_grocery_apify()
+        diagnostics["apify_retry"]["retries_used"] = attempt - 1
+        if retry_quotes:
+            quotes.extend(retry_quotes)
+        if retry_health:
+            health[apify_idx] = retry_health[0]
+            if retry_health[0].status == "fresh":
+                diagnostics["apify_retry"]["succeeded"] = True
+                diagnostics["apify_retry"]["final_status"] = "fresh"
+                break
+    else:
+        apify_health = health[apify_idx]
+        diagnostics["apify_retry"]["final_status"] = apify_health.status
+        diagnostics["apify_retry"]["reason"] = apify_health.detail
+
+    return quotes, health, diagnostics
 
 
 def extract_hero_indicators(quotes: list[Quote]) -> dict[str, float | None]:
@@ -749,37 +937,135 @@ def extract_hero_indicators(quotes: list[Quote]) -> dict[str, float | None]:
     return indicators
 
 
-def evaluate_gate(snapshot: dict) -> list[str]:
-    blocked: list[str] = []
-    source_by_name = {s["source"]: s for s in snapshot["source_health"]}
+def count_food_sources(snapshot: dict, fresh_only: bool = False) -> int:
+    sources = {
+        row.get("source")
+        for row in snapshot.get("source_health", [])
+        if isinstance(row, dict)
+        and row.get("category") == "food"
+        and row.get("status") in ({"fresh"} if fresh_only else {"fresh", "stale"})
+    }
+    return len(sources)
+
+
+def build_gate_diagnostics(snapshot: dict) -> dict:
+    diagnostics: dict[str, dict] = {}
+    source_by_name = {s["source"]: s for s in snapshot.get("source_health", []) if isinstance(s, dict)}
+    policy = GATE_POLICY
 
     apify = source_by_name.get("apify_loblaws")
-    apify_age = apify.get("age_days") if apify else None
-    if not apify or apify.get("status") == "missing" or apify_age is None or apify_age > APIFY_MAX_AGE_DAYS:
-        blocked.append("Gate A failed: APIFY missing or older than 14 days.")
+    apify_age = apify.get("age_days") if isinstance(apify, dict) else None
+    apify_ok = bool(isinstance(apify_age, int) and apify_age <= int(policy["apify_max_age_days"]))
+    diagnostics["apify_recency"] = {
+        "passed": apify_ok,
+        "value": apify_age,
+        "threshold": policy["apify_max_age_days"],
+        "reason": None if apify_ok else "apify_stale_or_missing",
+    }
 
-    for required in ("statcan_cpi_csv", "statcan_gas_csv"):
-        if source_by_name.get(required, {}).get("status") == "missing":
-            blocked.append(f"Gate B failed: required source {required} is missing.")
-
-    energy_ok = False
-    for source in ("oeb_scrape", "statcan_energy_cpi_csv"):
+    required = []
+    for source in policy["required_sources"]:
         state = source_by_name.get(source, {}).get("status")
-        if state in {"fresh", "stale"}:
-            energy_ok = True
-            break
-    if not energy_ok:
-        blocked.append("Gate B failed: no usable energy source.")
+        ok = state in {"fresh", "stale"}
+        required.append({"source": source, "status": state, "passed": ok})
+    diagnostics["required_sources"] = {
+        "passed": all(item["passed"] for item in required),
+        "value": required,
+        "threshold": "all_required",
+        "reason": None if all(item["passed"] for item in required) else "missing_required_source",
+    }
 
-    for category in CORE_GATE_CATEGORIES:
-        payload = snapshot["categories"].get(category, {"points": 0})
-        min_points = CATEGORY_MIN_POINTS[category]
-        if payload["points"] < min_points:
-            blocked.append(f"Gate D failed: category {category} has fewer than {min_points} points.")
+    energy_states = [
+        source_by_name.get(source, {}).get("status")
+        for source in policy["energy_required_any_of"]
+    ]
+    energy_ok = any(state in {"fresh", "stale"} for state in energy_states)
+    diagnostics["energy_source"] = {
+        "passed": energy_ok,
+        "value": energy_states,
+        "threshold": "any_usable",
+        "reason": None if energy_ok else "no_usable_energy_source",
+    }
+
+    point_checks: list[dict] = []
+    for category, min_points in policy["category_min_points"].items():
+        points = snapshot.get("categories", {}).get(category, {}).get("points", 0)
+        point_checks.append(
+            {
+                "category": category,
+                "points": points,
+                "threshold": min_points,
+                "passed": points >= min_points,
+            }
+        )
+    diagnostics["category_points"] = {
+        "passed": all(row["passed"] for row in point_checks),
+        "value": point_checks,
+        "threshold": "all_min_points",
+        "reason": None if all(row["passed"] for row in point_checks) else "category_min_points_failed",
+    }
 
     official_month = snapshot.get("official_cpi", {}).get("latest_release_month")
-    if not official_month:
+    diagnostics["official_metadata"] = {
+        "passed": bool(official_month),
+        "value": official_month,
+        "threshold": "required",
+        "reason": None if official_month else "missing_latest_release_month",
+    }
+
+    representativeness = snapshot.get("meta", {}).get("representativeness_ratio")
+    rep_threshold = float(policy["representativeness_min_fresh_ratio"])
+    rep_passed = isinstance(representativeness, (int, float)) and float(representativeness) >= rep_threshold
+    diagnostics["representativeness"] = {
+        "passed": rep_passed,
+        "value": representativeness,
+        "threshold": rep_threshold,
+        "reason": None if rep_passed else "fresh_weight_ratio_below_threshold",
+    }
+
+    food_policy = policy["food_gate"]
+    fresh_food_sources = count_food_sources(snapshot, fresh_only=True)
+    usable_food_sources = count_food_sources(snapshot, fresh_only=False)
+    food_passed = (
+        fresh_food_sources >= int(food_policy["min_fresh_sources"])
+        and usable_food_sources >= int(food_policy["min_usable_sources"])
+    )
+    diagnostics["food_resilience"] = {
+        "passed": food_passed,
+        "value": {
+            "fresh_sources": fresh_food_sources,
+            "usable_sources": usable_food_sources,
+            "preferred_source_status": source_by_name.get(food_policy["preferred_source"], {}).get("status"),
+        },
+        "threshold": {
+            "min_fresh_sources": food_policy["min_fresh_sources"],
+            "min_usable_sources": food_policy["min_usable_sources"],
+        },
+        "reason": None if food_passed else "food_source_resilience_failed",
+    }
+    return diagnostics
+
+
+def evaluate_gate(snapshot: dict) -> list[str]:
+    blocked: list[str] = []
+    diagnostics = build_gate_diagnostics(snapshot)
+    if not diagnostics["required_sources"]["passed"]:
+        blocked.append("Gate B failed: one or more required sources missing.")
+    if not diagnostics["energy_source"]["passed"]:
+        blocked.append("Gate B failed: no usable energy source.")
+    if not diagnostics["category_points"]["passed"]:
+        failed = [
+            row for row in diagnostics["category_points"]["value"] if not row["passed"] and row["category"] in CORE_GATE_CATEGORIES
+        ]
+        for row in failed:
+            blocked.append(f"Gate D failed: category {row['category']} has fewer than {row['threshold']} points.")
+    if not diagnostics["official_metadata"]["passed"]:
         blocked.append("Gate E failed: official CPI metadata missing latest release month.")
+    if not diagnostics["representativeness"]["passed"]:
+        threshold = diagnostics["representativeness"]["threshold"]
+        blocked.append(f"Gate F failed: representativeness ratio below {int(threshold * 100)}% fresh basket coverage.")
+    if not diagnostics["food_resilience"]["passed"]:
+        blocked.append("Gate A failed: food source resilience below minimum fresh/diversity threshold.")
 
     return blocked
 
@@ -886,7 +1172,7 @@ def build_snapshot() -> dict:
     consensus_latest = fetch_consensus_estimate()
     next_release = compute_next_release(release_events, now)
 
-    quotes, source_health = collect_all_quotes()
+    quotes, source_health, collection_diagnostics = collect_all_quotes()
     
     # Filter out "scrappy" raw price quotes from the main index calculation
     # to prevent mixing Index (100-basis) with Prices ($2000).
@@ -903,14 +1189,25 @@ def build_snapshot() -> dict:
     valid_quotes, rejected_points = apply_range_checks(deduped)
     filtered, anomalies = apply_outlier_filter(valid_quotes, historical)
 
-    categories = summarize_categories(filtered, computed_health)
+    categories, category_signal_inputs = summarize_categories(filtered, computed_health)
     compute_daily_changes(categories, historical)
+    housing_overlay = apply_housing_signal_overlay(categories, indicators)
 
     coverage_ratio = compute_coverage(categories)
     representativeness_ratio = compute_representativeness(categories)
     nowcast_mom = compute_nowcast_mom(categories, historical)
     diversity_by_category = category_source_diversity(filtered)
     category_contributions = compute_category_contributions(categories)
+    for category, rows in category_signal_inputs.items():
+        if not isinstance(rows, list):
+            continue
+        total_source_weight = sum(float(row.get("effective_weight") or 0.0) for row in rows)
+        category_contribution = category_contributions.get(category)
+        for row in rows:
+            share = (float(row.get("effective_weight") or 0.0) / total_source_weight) if total_source_weight > 0 else 0.0
+            row["source_weight_share"] = round_or_none(share, 3)
+            row["category_contribution_pct"] = category_contribution
+            row["source_contribution_pct"] = round_or_none(float(category_contribution) * share, 4) if category_contribution is not None else None
     official_cpi = fetch_official_cpi_summary()
     official_series = fetch_official_cpi_series()
     official_yoy = official_cpi.get("yoy_pct")
@@ -924,6 +1221,14 @@ def build_snapshot() -> dict:
     lead_signal = derive_lead_signal(nowcast_mom)
     consensus_yoy, consensus_guardrails = apply_consensus_guardrails(consensus_latest if isinstance(consensus_latest, dict) else None)
     nowcast_yoy, yoy_projection = compute_nowcast_yoy_prorated(now.date(), nowcast_mom, official_series)
+    forecast = compute_forecast(
+        nowcast_yoy=nowcast_yoy,
+        official_series=official_series,
+        consensus_yoy=consensus_yoy,
+        historical=historical,
+        next_release=next_release,
+        as_of=now,
+    )
     deviation_yoy = None
     if nowcast_yoy is not None and consensus_yoy is not None:
         deviation_yoy = round_or_none(float(nowcast_yoy) - float(consensus_yoy), 3)
@@ -960,12 +1265,15 @@ def build_snapshot() -> dict:
             "rejected_points": rejected_points,
             "representativeness_ratio": representativeness_ratio,
             "source_diversity_by_category": diversity_by_category,
+            "category_signal_inputs": category_signal_inputs,
             "category_contributions": category_contributions,
             "top_driver": compute_top_driver(category_contributions),
-            "province_overlays": ["ON", "QC", "BC"],
+            "province_overlays": [],
             "release_intelligence": next_release or {},
             "release_events": release_events,
             "fallbacks": {"nowcast_from_official_mom": fallback_used},
+            "collection_diagnostics": collection_diagnostics,
+            "housing_signal_overlay": housing_overlay,
             "projection": {
                 "nowcast_yoy_prorated": yoy_projection,
             },
@@ -983,6 +1291,7 @@ def build_snapshot() -> dict:
                 "guardrails": consensus_guardrails,
             },
             "indicators": indicators,
+            "forecast": forecast,
         },
         "performance_ref": {
             "summary_path": str(PERFORMANCE_SUMMARY_PATH),
@@ -1000,6 +1309,8 @@ def build_snapshot() -> dict:
 
     snapshot["release"]["status"] = "completed"
     snapshot["release"]["lifecycle_states"].append("completed")
+    gate_diagnostics = build_gate_diagnostics(snapshot)
+    snapshot["meta"]["gate_diagnostics"] = gate_diagnostics
     blocked_conditions = evaluate_gate(snapshot)
     blocked_conditions.extend(validate_snapshot(snapshot))
 
@@ -1048,6 +1359,8 @@ def build_snapshot() -> dict:
     if consensus_yoy is None:
         reason = consensus_guardrails.get("reason") if isinstance(consensus_guardrails, dict) else "unknown"
         snapshot["notes"].append(f"Consensus YoY withheld due to quality guardrails: {reason}.")
+    if snapshot.get("meta", {}).get("forecast", {}).get("status") != "published":
+        snapshot["notes"].append("Forecast is withheld until sufficient live history accumulates.")
     return snapshot
 
 

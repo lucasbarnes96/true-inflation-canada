@@ -5,6 +5,7 @@ from datetime import date, datetime, timezone
 
 from process import (
     CATEGORY_WEIGHTS,
+    build_gate_diagnostics,
     compute_nowcast_yoy_prorated,
     compute_category_contributions,
     compute_confidence,
@@ -124,7 +125,8 @@ class ProcessTests(unittest.TestCase):
     def test_evaluate_gate_pass(self) -> None:
         snapshot = {
             "source_health": [
-                {"source": "apify_loblaws", "status": "fresh", "age_days": 1},
+                {"source": "apify_loblaws", "category": "food", "status": "fresh", "age_days": 1},
+                {"source": "statcan_food_prices", "category": "food", "status": "fresh", "age_days": 3},
                 {"source": "statcan_cpi_csv", "status": "fresh", "age_days": 2},
                 {"source": "statcan_gas_csv", "status": "fresh", "age_days": 2},
                 {"source": "oeb_scrape", "status": "fresh", "age_days": 0},
@@ -143,7 +145,7 @@ class ProcessTests(unittest.TestCase):
     def test_evaluate_gate_fail_when_apify_stale(self) -> None:
         snapshot = {
             "source_health": [
-                {"source": "apify_loblaws", "status": "stale", "age_days": 20},
+                {"source": "apify_loblaws", "category": "food", "status": "stale", "age_days": 20},
                 {"source": "statcan_cpi_csv", "status": "fresh", "age_days": 2},
                 {"source": "statcan_gas_csv", "status": "fresh", "age_days": 2},
                 {"source": "oeb_scrape", "status": "fresh", "age_days": 0},
@@ -159,6 +161,30 @@ class ProcessTests(unittest.TestCase):
         }
         blocked = evaluate_gate(snapshot)
         self.assertTrue(any("Gate A failed" in item for item in blocked))
+
+    def test_gate_diagnostics_include_representativeness(self) -> None:
+        snapshot = {
+            "source_health": [
+                {"source": "apify_loblaws", "category": "food", "status": "fresh", "age_days": 1},
+                {"source": "statcan_food_prices", "category": "food", "status": "fresh", "age_days": 2},
+                {"source": "statcan_cpi_csv", "status": "fresh", "age_days": 2},
+                {"source": "statcan_gas_csv", "status": "fresh", "age_days": 2},
+                {"source": "oeb_scrape", "status": "fresh", "age_days": 0},
+            ],
+            "categories": {
+                "food": {"points": 10},
+                "housing": {"points": 3},
+                "transport": {"points": 1},
+                "energy": {"points": 1},
+                "communication": {"points": 1},
+                "health_personal": {"points": 1},
+                "recreation_education": {"points": 1},
+            },
+            "official_cpi": {"latest_release_month": "2025-12"},
+            "meta": {"representativeness_ratio": 0.9},
+        }
+        diagnostics = build_gate_diagnostics(snapshot)
+        self.assertTrue(diagnostics["representativeness"]["passed"])
 
 
 if __name__ == "__main__":

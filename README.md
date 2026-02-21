@@ -78,6 +78,7 @@ Endpoints:
 - `GET /v1/sources/catalog`
 - `GET /v1/releases/upcoming`
 - `GET /v1/consensus/latest`
+- `GET /v1/forecast/next_release`
 
 ## Dashboard
 Serve static UI and point it to API:
@@ -90,14 +91,15 @@ Open `http://localhost:8000`. The dashboard fetches from `/v1/...` and expects t
 
 ## Release gate policy
 A run is blocked (`failed_gate`) if any condition fails:
-1. APIFY missing or older than 14 days.
+1. Food resilience fails (minimum fresh + usable food source diversity).
 2. Required sources missing (`statcan_cpi_csv`, `statcan_gas_csv`, and at least one energy source).
 3. Snapshot schema validation fails.
 4. Category point minimums fail.
 5. Official CPI metadata missing (`latest_release_month`).
 6. Representativeness ratio below 85% fresh basket coverage.
+7. APIFY retry diagnostics are recorded; stale APIFY does not automatically block if food resilience still passes.
 
-## Methodology v1.2.0 confidence rubric
+## Methodology v1.3.0 confidence rubric
 - Inputs: release gate status, weighted coverage ratio, anomaly counts, and source diversity.
 - `high`: no gate failures, high coverage, low anomalies, and no diversity penalty.
 - `medium`: adequate coverage with anomaly or diversity penalties.
@@ -111,7 +113,10 @@ Additional headline and metadata fields:
 - `headline.consensus_yoy`
 - `headline.deviation_yoy_pct`
 - Compatibility fields (deprecated): `headline.nowcast_mom_pct`, `headline.consensus_spread_yoy`
-- `meta.method_version` (`v1.2.0`)
+- `meta.method_version` (`v1.3.0`)
+- `meta.gate_diagnostics` (machine-readable gate checks)
+- `meta.category_signal_inputs` (category source provenance with tier/freshness)
+- `meta.forecast` (next-release forecast with confidence bounds, if eligible)
 
 ## Startup Phase (First Weeks)
 - Live nowcast series begins on February 16, 2026.
@@ -129,7 +134,7 @@ StatCan CPI methodology and basket reference:
 - https://www.statcan.gc.ca/en/statistical-programs/document/2301_D2_V4
 
 ## Changelog
-- `v1.2.0` - YoY pivot: primary metric now YoY; MoM fields deprecated; nowcast history live-only.
+- `v1.3.0` - Reliability hardening: centralized gate policy, food resilience gate, APIFY retry diagnostics, housing overlay normalization, and public forecast endpoint.
 
 ## CI
 GitHub Actions (`.github/workflows/scrape.yml`):
