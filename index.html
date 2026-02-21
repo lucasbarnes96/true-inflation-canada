@@ -441,8 +441,201 @@
         <p class="subtitle">Finance-first Canadian inflation nowcast with transparent source diagnostics.</p>
         <div class="small-note">Experimental open-source nowcast using public data. Not official StatCan CPI.</div>
         <div class="small-note" id="asof">as of --</div>
+        <div style="margin-top: 0.5rem;">
+          <button class="btn-primary" onclick="openContributeModal()">+ Contribute Data</button>
+        </div>
       </div>
     </section>
+
+    <!-- Contribution Modal -->
+    <div id="contribute-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Submit Real-time Price</h3>
+          <button class="close-btn" onclick="closeContributeModal()">×</button>
+        </div>
+        <div class="modal-body">
+          <p>Help us track inflation in real-time. Your data is anonymous.</p>
+
+          <label class="input-label">Category</label>
+          <div class="segment" style="width: 100%; margin-bottom: 1rem;">
+            <button class="active" onclick="setContributeCategory('gas')" id="btn-cat-gas">Gas (Regular)</button>
+            <button onclick="setContributeCategory('rent')" id="btn-cat-rent">Rent (1-Bed)</button>
+            <button onclick="setContributeCategory('grocery')" id="btn-cat-grocery">Grocery Item</button>
+          </div>
+
+          <label class="input-label" id="lbl-price">Price (cents/L)</label>
+          <input type="number" id="inp-price" class="input-field" placeholder="e.g. 145.9" step="0.1">
+
+          <label class="input-label">City / Location</label>
+          <input type="text" id="inp-location" class="input-field" placeholder="e.g. Toronto, ON">
+
+          <div id="submit-msg" class="small-note" style="margin-top: 0.5rem; height: 1.2em;"></div>
+
+          <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="submitContribution()">Submit
+            Report</button>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      .btn-primary {
+        background: var(--accent);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 0.9rem;
+      }
+
+      .btn-primary:hover {
+        background: var(--good);
+      }
+
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        backdrop-filter: blur(2px);
+      }
+
+      .modal-card {
+        background: var(--card);
+        padding: 1.5rem;
+        border-radius: 16px;
+        width: 90%;
+        max-width: 400px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+        border: 1px solid var(--border);
+      }
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+      }
+
+      .modal-header h3 {
+        margin: 0;
+      }
+
+      .close-btn {
+        background: transparent;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: var(--muted);
+      }
+
+      .input-label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 0.3rem;
+        color: var(--muted);
+      }
+
+      .input-field {
+        width: 100%;
+        padding: 0.8rem;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        background: #fbfdfc;
+      }
+    </style>
+
+    <script>
+      let activeCategory = 'gas';
+
+      function openContributeModal() {
+        document.getElementById('contribute-modal').style.display = 'flex';
+      }
+
+      function closeContributeModal() {
+        document.getElementById('contribute-modal').style.display = 'none';
+        document.getElementById('submit-msg').textContent = '';
+      }
+
+      function setContributeCategory(cat) {
+        activeCategory = cat;
+        // Update tabs
+        ['gas', 'rent', 'grocery'].forEach(c => {
+          const btn = document.getElementById(`btn-cat-${c}`);
+          if (c === cat) btn.classList.add('active');
+          else btn.classList.remove('active');
+        });
+
+        // Update labels
+        const lbl = document.getElementById('lbl-price');
+        const inp = document.getElementById('inp-price');
+
+        if (cat === 'gas') {
+          lbl.textContent = 'Price (cents/L)';
+          inp.placeholder = 'e.g. 145.9';
+        } else if (cat === 'rent') {
+          lbl.textContent = 'Monthly Rent ($)';
+          inp.placeholder = 'e.g. 2400';
+        } else {
+          lbl.textContent = 'Price ($)';
+          inp.placeholder = 'e.g. 5.99';
+        }
+      }
+
+      async function submitContribution() {
+        const price = parseFloat(document.getElementById('inp-price').value);
+        const location = document.getElementById('inp-location').value;
+        const msg = document.getElementById('submit-msg');
+
+        if (!price || price <= 0) {
+          msg.textContent = "Please enter a valid price.";
+          msg.style.color = "var(--bad)";
+          return;
+        }
+
+        msg.textContent = "Submitting...";
+        msg.style.color = "var(--muted)";
+
+        try {
+          const res = await fetch('/v1/community/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              category: activeCategory,
+              price: price,
+              location: location
+            })
+          });
+
+          if (res.ok) {
+            msg.textContent = "Thank you! Data received.";
+            msg.style.color = "var(--good)";
+            setTimeout(closeContributeModal, 1500);
+            document.getElementById('inp-price').value = '';
+          } else {
+            const err = await res.json();
+            msg.textContent = "Error: " + (err.detail || "Failed");
+            msg.style.color = "var(--bad)";
+          }
+        } catch (e) {
+          msg.textContent = "Network error. Is API running?";
+          msg.style.color = "var(--bad)";
+        }
+      }
+    </script>
 
     <section id="release-banner" class="release-banner"></section>
 
@@ -460,6 +653,18 @@
         </div>
         <div class="pulse-value" id="pulse-gas">--</div>
         <div class="pulse-sub">Source: NRCAN Weekly (Leading Indicator)</div>
+      </div>
+    </section>
+
+    <!-- Community Stats Section -->
+    <section class="card" id="community-section"
+      style="display: none; border-left: 4px solid var(--accent); background: linear-gradient(120deg, #f4fbf7 0%, #ffffff 100%);">
+      <h2 class="panel-title" style="display:flex; justify-content:space-between;">
+        The People's Voice (Community Data)
+        <span class="small-note" style="margin:0;">Live User Reports</span>
+      </h2>
+      <div id="community-stats-grid" class="pulse-grid" style="margin-top: 1rem;">
+        <!-- Filled by JS -->
       </div>
     </section>
 
@@ -1017,10 +1222,50 @@
       }
     }
 
+    async function fetchCommunityStats() {
+      try {
+        const res = await fetch('/v1/community/stats');
+        if (!res.ok) return;
+        const stats = await res.json();
+
+        if (stats.length === 0) return; // Hide section if no data
+
+        const section = document.getElementById('community-section');
+        const grid = document.getElementById('community-stats-grid');
+
+        section.style.display = 'block';
+        grid.innerHTML = '';
+
+        stats.forEach(s => {
+          const card = document.createElement('div');
+          card.className = 'pulse-card';
+          card.style.background = '#fcfffc';
+          card.style.color = '#102019';
+          card.style.border = '1px solid var(--border)';
+
+          let icon = '';
+          let unit = '';
+          if (s.category === 'gas') { icon = '⛽'; unit = '¢/L'; }
+          else if (s.category === 'rent') { icon = '🏠'; unit = '$/mo'; }
+          else { icon = '🛒'; unit = '$'; }
+
+          card.innerHTML = `
+            <div class="pulse-label" style="color:var(--muted);">${icon} Community ${s.category.toUpperCase()}</div>
+            <div class="pulse-value" style="color:var(--accent);">${s.avg_price} ${unit}</div>
+            <div class="pulse-sub" style="color:var(--muted);">Based on ${s.count} user report(s)</div>
+          `;
+          grid.appendChild(card);
+        });
+      } catch (e) {
+        console.error("Failed to fetch community stats:", e);
+      }
+    }
+
     if (!UI_MODE_V2) {
       document.getElementById("app").innerHTML = "<section class='card'><h2>UI v2 is disabled</h2><p>Append <code>?ui_v2=1</code> to enable the dashboard.</p></section>";
     } else {
       renderExplainers();
+      fetchCommunityStats();
       Promise.all([
         fetchLatestSnapshot(),
         fetchJsonWithFallback("/v1/nowcast/history", "data/historical.json"),
