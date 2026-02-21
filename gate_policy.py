@@ -2,7 +2,52 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-METHOD_VERSION = "v1.3.0"
+METHOD_VERSION = "v1.3.1"
+
+BASKET_WEIGHTS: dict[str, float] = {
+    "housing": 0.2941,
+    "food": 0.1691,
+    "transport": 0.1690,
+    "recreation_education": 0.1012,
+    "energy": 0.0800,
+    "health_personal": 0.0505,
+    "communication": 0.0350,
+}
+
+WEIGHTS_METADATA: dict = {
+    "source_table": "Statistics Canada Table 18-10-0007-01",
+    "source_url": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000701",
+    "analysis_reference": "Statistics Canada 62F0014M2025003",
+    "analysis_url": "https://www150.statcan.gc.ca/n1/pub/62f0014m/62f0014m2025003-eng.htm",
+    "basket_reference_year": 2024,
+    "effective_month": "2025-05",
+    "tracked_weights": BASKET_WEIGHTS,
+    "tracked_share_total": round(sum(BASKET_WEIGHTS.values()), 4),
+    "omitted_components": [
+        {
+            "component": "household_operations_furnishings_equipment",
+            "weight_estimate": 0.1325,
+            "status": "omitted_in_v1",
+            "rationale": "Daily representative scraping remains noisy and high maintenance.",
+        },
+        {
+            "component": "clothing_footwear",
+            "weight_estimate": 0.0440,
+            "status": "omitted_in_v1",
+            "rationale": "High SKU churn and promotion-driven volatility can distort daily proxies.",
+        },
+        {
+            "component": "alcohol_tobacco_cannabis",
+            "weight_estimate": 0.0400,
+            "status": "omitted_in_v1",
+            "rationale": "Regulated pricing cadence is less informative for daily nowcasting.",
+        },
+    ],
+    "mapping_notes": [
+        "communication is represented as a proxy mapped within broader official CPI components.",
+        "energy is tracked as a high-signal proxy across shelter and transport-related cost pressures.",
+    ],
+}
 
 GATE_POLICY: dict = {
     "apify_max_age_days": 14,
@@ -33,3 +78,7 @@ GATE_POLICY: dict = {
 
 def gate_policy_payload() -> dict:
     return deepcopy(GATE_POLICY)
+
+
+def weights_payload() -> dict:
+    return deepcopy(WEIGHTS_METADATA)

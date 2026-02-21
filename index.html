@@ -528,6 +528,11 @@
       </section>
 
       <section class="card">
+        <h2 class="panel-title">Calibration & Maturity</h2>
+        <ul id="calibration-list" class="meta-list"></ul>
+      </section>
+
+      <section class="card">
         <h2 class="panel-title">Data Source Diagnostics</h2>
         <table>
           <thead>
@@ -947,16 +952,19 @@
       const ul = document.getElementById("methodology-list");
       ul.innerHTML = "";
       const gate = methodology?.gate_policy || {};
+      const weightsRef = methodology?.weights_reference || {};
       const topDriver = latest.meta?.top_driver || {};
       const rows = [
         `Method version: ${latest.meta?.method_version || methodology?.method_version || "--"} (how this nowcast is calculated).`,
         `Coverage ratio: ${(100 * (latest.headline?.coverage_ratio || 0)).toFixed(1)}% of the planned basket had usable data today.`,
-        "Basket weights are fixed CPI component shares used to aggregate category signals.",
+        `Tracked basket share in this model: ${(100 * (weightsRef.tracked_share_total ?? 0)).toFixed(1)}% (source: ${weightsRef.source_table || "StatCan"}).`,
+        "Communication is treated as a proxy mapped within broader CPI structures, not a standalone official major component.",
         `Lead signal: ${(latest.headline?.lead_signal || "--").toUpperCase()} means this model currently points to prices moving ${latest.headline?.lead_signal || "--"}.`,
-        `Province overlays available: ${(latest.meta?.province_overlays || ["ON", "QC", "BC"]).join(", ")}.`,
+        "Model uses minimal smoothing with transparent calibration diagnostics to reduce tail misses while preserving real-time sensitivity.",
         `Top driver right now: ${topDriver.category || "--"} (${pct(topDriver.contribution_pct, 3)} contribution to current signal).`,
         `Food resilience gate: at least ${gate.food_gate?.min_fresh_sources ?? "--"} fresh and ${gate.food_gate?.min_usable_sources ?? "--"} usable food sources.`,
         `Representativeness release threshold: ${(100 * (gate.representativeness_min_fresh_ratio ?? 0)).toFixed(0)}% fresh basket coverage.`,
+        "Housing blends a live asking-rent momentum signal with broader housing proxies; this differs from survey-based transacted-rent CPI methods.",
         "Deprecated compatibility fields are still emitted: headline.nowcast_mom_pct and headline.consensus_spread_yoy.",
       ];
       rows.forEach(text => {
@@ -982,14 +990,42 @@
       ul.innerHTML = "";
       const rows = [
         `Evaluation window: last ${performance?.window_days ?? "--"} days`,
-        `Evaluated points: ${performance?.evaluated_points ?? "--"}`,
+        `Evaluated points (raw window): ${performance?.evaluated_points ?? "--"}`,
+        `Evaluated live points (non-seeded): ${performance?.evaluated_live_points ?? "--"}`,
         `Live nowcast days accumulated: ${liveDays}`,
+        `MAE (YoY): ${performance?.mae_yoy_pct ?? "--"} percentage points`,
+        `Median absolute error (YoY): ${performance?.median_abs_error_yoy_pct ?? "--"} percentage points`,
+        `Directional accuracy (YoY): ${performance?.directional_accuracy_yoy_pct ?? "--"}%`,
+        `Bias (YoY): ${performance?.bias_yoy_pct ?? "--"} percentage points`,
         `MAE (MoM): ${performance?.mae_mom_pct ?? "--"} percentage points`,
-        `Directional accuracy: ${performance?.directional_accuracy_pct ?? "--"}%`,
-        `Lead-time score: ${performance?.lead_time_score_pct ?? "--"}%`,
-        "Interpret MAE and directional metrics cautiously until 30-60 live days accumulate.",
+        `Directional accuracy (MoM, compatibility): ${performance?.directional_accuracy_pct ?? "--"}%`,
+        `Lead-time score (MoM, compatibility): ${performance?.lead_time_score_pct ?? "--"}%`,
+        "Interpret all performance metrics cautiously until 30-60 live days accumulate.",
       ];
       rows.forEach(text => {
+        const li = document.createElement("li");
+        li.textContent = text;
+        ul.appendChild(li);
+      });
+    }
+
+    function renderCalibration(calibration) {
+      const ul = document.getElementById("calibration-list");
+      ul.innerHTML = "";
+      const current = calibration || {};
+      const metrics = current.current_error_metrics || {};
+      const eligibility = current.forecast_eligibility || {};
+      const rows = [
+        `Maturity tier: ${(current.maturity_tier || "--").toUpperCase()}`,
+        `Live days observed: ${current.live_days ?? "--"} (stable-eval target: ${current.minimum_days_for_stable_eval ?? "--"} days)`,
+        `Forecast eligibility: ${eligibility.eligible ? "ELIGIBLE" : "NOT ELIGIBLE"}${eligibility.reason ? ` (${eligibility.reason})` : ""}`,
+        `Current YoY MAE: ${metrics.mae_yoy_pct ?? "--"} pp`,
+        `Current YoY median abs error: ${metrics.median_abs_error_yoy_pct ?? "--"} pp`,
+        `Current YoY directional accuracy: ${metrics.directional_accuracy_yoy_pct ?? "--"}%`,
+        `Current YoY bias: ${metrics.bias_yoy_pct ?? "--"} pp`,
+        "Calibration applies moderate shrinkage toward official trend when source diversity is weak or anomaly pressure is elevated.",
+      ];
+      rows.forEach((text) => {
         const li = document.createElement("li");
         li.textContent = text;
         ul.appendChild(li);
@@ -1098,6 +1134,7 @@
         renderSourceTable(latest.source_health || []);
         renderMethodology(methodology, latest);
         renderPerformance(performance, liveDays);
+        renderCalibration(latest.meta?.calibration || {});
         renderDivergence(items.slice(-90));
         renderCategoryChart(latest);
       }).catch(err => {

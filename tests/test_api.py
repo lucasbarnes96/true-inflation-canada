@@ -65,6 +65,7 @@ class ApiContractTests(unittest.TestCase):
             "notes": [],
             "meta": {
                 "method_version": "v1.5.0",
+                "weights": {"tracked_share_total": 0.9},
                 "forecast": {
                     "status": "published",
                     "point_yoy": 2.7,
@@ -72,6 +73,13 @@ class ApiContractTests(unittest.TestCase):
                     "upper_yoy": 3.1,
                     "confidence": "medium",
                     "next_release_date": "2026-02-17",
+                },
+                "calibration": {
+                    "maturity_tier": "bootstrapping",
+                    "live_days": 5,
+                    "minimum_days_for_stable_eval": 30,
+                    "forecast_eligibility": {"eligible": False, "reason": "forecast_status=insufficient_history"},
+                    "current_error_metrics": {"mae_yoy_pct": 0.4},
                 },
             },
             "performance_ref": {
@@ -106,6 +114,11 @@ class ApiContractTests(unittest.TestCase):
                     "method_version": "v1.5.0",
                     "window_days": 120,
                     "evaluated_points": 10,
+                    "evaluated_live_points": 5,
+                    "mae_yoy_pct": 0.22,
+                    "median_abs_error_yoy_pct": 0.19,
+                    "directional_accuracy_yoy_pct": 60.0,
+                    "bias_yoy_pct": -0.04,
                     "mae_mom_pct": 0.11,
                     "directional_accuracy_pct": 70.0,
                     "lead_time_score_pct": 70.0,
@@ -174,6 +187,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         body = resp.json()
         self.assertIn("gate_policy", body)
+        self.assertIn("weights_reference", body)
 
     def test_performance_summary_endpoint(self) -> None:
         resp = self.client.get("/v1/performance/summary")
@@ -207,6 +221,12 @@ class ApiContractTests(unittest.TestCase):
         body = resp.json()
         self.assertEqual("published", body["status"])
         self.assertIn("point_yoy", body)
+
+    def test_calibration_endpoint(self) -> None:
+        resp = self.client.get("/v1/calibration/status")
+        self.assertEqual(200, resp.status_code)
+        body = resp.json()
+        self.assertIn("maturity_tier", body)
 
     def test_history_preserves_seeded_meta(self) -> None:
         resp = self.client.get("/v1/nowcast/history")

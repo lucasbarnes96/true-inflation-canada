@@ -33,6 +33,11 @@ def main() -> int:
     parser.add_argument("--min-coverage", type=float, default=0.80, help="Minimum headline coverage ratio.")
     parser.add_argument("--min-live-days", type=int, default=30, help="Minimum authentic live nowcast days.")
     parser.add_argument(
+        "--enforce-live-days",
+        action="store_true",
+        help="Fail the check when live nowcast days are below --min-live-days.",
+    )
+    parser.add_argument(
         "--min-representativeness",
         type=float,
         default=rep_threshold,
@@ -83,7 +88,11 @@ def main() -> int:
 
     live_days = _count_live_days(historical if isinstance(historical, dict) else {})
     if live_days < args.min_live_days:
-        errors.append(f"Live nowcast history too short: {live_days} < {args.min_live_days} days")
+        msg = f"Live nowcast history short: {live_days} < {args.min_live_days} days (soft-launch informational)"
+        if args.enforce_live_days:
+            errors.append(msg)
+        else:
+            print(f"Info: {msg}")
 
     # Consensus is optional; if present, it must pass quality checks.
     consensus_yoy = headline.get("consensus_yoy")

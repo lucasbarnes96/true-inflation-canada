@@ -1,9 +1,9 @@
 {
   "headline_yoy": null,
   "headline_mom": null,
-  "source_count": 2,
-  "confidence": "medium",
-  "as_of": "2026-02-21T20:30:54+00:00",
+  "source_count": 0,
+  "confidence": "low",
+  "as_of": "2026-02-21T22:04:57+00:00",
   "source_urls": [
     "https://tradingeconomics.com/canada/inflation-cpi",
     "https://www.fxstreet.com/economic-calendar"
@@ -12,23 +12,26 @@
     {
       "source": "tradingeconomics",
       "url": "https://tradingeconomics.com/canada/inflation-cpi",
-      "retrieved_at": "2026-02-21T20:30:54+00:00",
-      "headline_yoy_candidate": 0.0,
-      "field_confidence": "low"
+      "retrieved_at": "2026-02-21T22:04:57+00:00",
+      "headline_yoy_candidate": null,
+      "field_confidence": "none"
     },
     {
       "source": "fxstreet",
       "url": "https://www.fxstreet.com/economic-calendar",
-      "retrieved_at": "2026-02-21T20:30:54+00:00",
-      "headline_yoy_candidate": 1.03,
-      "field_confidence": "low"
+      "retrieved_at": "2026-02-21T22:04:57+00:00",
+      "headline_yoy_candidate": null,
+      "field_confidence": "none"
     }
   ],
-  "errors": [],
+  "errors": [
+    "tradingeconomics: Failed to fetch URL: https://tradingeconomics.com/canada/inflation-cpi: <urlopen error [Errno 8] nodename nor servname provided, or not known>",
+    "fxstreet: Failed to fetch URL: https://www.fxstreet.com/economic-calendar: <urlopen error [Errno 8] nodename nor servname provided, or not known>"
+  ],
   "guardrails": {
     "accepted": false,
     "reason": "insufficient_high_conf_sources",
-    "candidate_count": 2,
+    "candidate_count": 0,
     "usable_count": 0,
     "spread": null
   }

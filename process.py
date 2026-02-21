@@ -11,7 +11,7 @@ from dataclasses import asdict
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from gate_policy import GATE_POLICY, METHOD_VERSION
+from gate_policy import BASKET_WEIGHTS, GATE_POLICY, METHOD_VERSION, weights_payload
 from models import NowcastSnapshot
 from performance import compute_performance_summary, write_performance_summary
 from scrapers import (
@@ -51,43 +51,43 @@ CONSENSUS_LATEST_PATH = DATA_DIR / "consensus_latest.json"
 
 CATEGORY_REGISTRY: dict[str, dict] = {
     "food": {
-        "weight": 0.165,
+        "weight": BASKET_WEIGHTS["food"],
         "value_bounds": (0.1, 500.0),
         "outlier_threshold_pct": 60.0,
         "min_points": 5,
     },
     "housing": {
-        "weight": 0.300,
+        "weight": BASKET_WEIGHTS["housing"],
         "value_bounds": (1.0, 400.0),
         "outlier_threshold_pct": 30.0,
         "min_points": 2,
     },
     "transport": {
-        "weight": 0.150,
+        "weight": BASKET_WEIGHTS["transport"],
         "value_bounds": (50.0, 300.0),
         "outlier_threshold_pct": 40.0,
         "min_points": 1,
     },
     "energy": {
-        "weight": 0.080,
+        "weight": BASKET_WEIGHTS["energy"],
         "value_bounds": (0.1, 100.0),
         "outlier_threshold_pct": 50.0,
         "min_points": 1,
     },
     "communication": {
-        "weight": 0.045,
+        "weight": BASKET_WEIGHTS["communication"],
         "value_bounds": (1.0, 400.0),
         "outlier_threshold_pct": 30.0,
         "min_points": 1,
     },
     "health_personal": {
-        "weight": 0.050,
+        "weight": BASKET_WEIGHTS["health_personal"],
         "value_bounds": (1.0, 400.0),
         "outlier_threshold_pct": 25.0,
         "min_points": 1,
     },
     "recreation_education": {
-        "weight": 0.095,
+        "weight": BASKET_WEIGHTS["recreation_education"],
         "value_bounds": (1.0, 400.0),
         "outlier_threshold_pct": 30.0,
         "min_points": 1,
@@ -141,6 +141,7 @@ SOURCE_TIER_MULTIPLIER = {1: 1.0, 2: 0.85, 3: 0.7}
 SOURCE_STATUS_MULTIPLIER = {"fresh": 1.0, "stale": 0.9, "missing": 0.0}
 HOUSING_RENT_BLEND_WEIGHT = 0.3
 FORECAST_MIN_LIVE_DAYS = 30
+CALIBRATION_MIN_LIVE_DAYS = 30
 
 
 def utc_now() -> datetime:
@@ -748,6 +749,111 @@ def compute_forecast(
     return forecast
 
 
+def calibrate_nowcast_yoy(
+    raw_nowcast_yoy: float | None,
+    official_series: list[dict],
+    diversity_by_category: dict[str, int],
+    categories: dict,
+    anomalies: int,
+) -> tuple[float | None, dict]:
+    diagnostics = {
+        "raw_nowcast_yoy": raw_nowcast_yoy,
+        "calibrated_nowcast_yoy": raw_nowcast_yoy,
+        "shrink_factor": 0.0,
+        "anchor_yoy": None,
+        "trigger_reason": None,
+        "cap_applied": False,
+    }
+    if raw_nowcast_yoy is None:
+        diagnostics["trigger_reason"] = "missing_raw_nowcast_yoy"
+        return None, diagnostics
+
+    official_yoy_values = [
+        float(row["yoy_pct"])
+        for row in official_series
+        if isinstance(row, dict) and isinstance(row.get("yoy_pct"), (int, float))
+    ]
+    if len(official_yoy_values) < 2:
+        diagnostics["trigger_reason"] = "insufficient_official_yoy_history"
+        return raw_nowcast_yoy, diagnostics
+
+    latest_official = official_yoy_values[-1]
+    momentum = latest_official - official_yoy_values[-2]
+    anchor = latest_official + (0.5 * momentum)
+    diagnostics["anchor_yoy"] = round_or_none(anchor, 3)
+
+    covered_categories = [
+        category
+        for category, payload in categories.items()
+        if isinstance(payload, dict) and payload.get("status") in {"fresh", "stale"}
+    ]
+    weak_categories = [
+        category for category in covered_categories if diversity_by_category.get(category, 0) < 2
+    ]
+    weak_ratio = (len(weak_categories) / len(covered_categories)) if covered_categories else 1.0
+    shrink = 0.0
+    reasons: list[str] = []
+    if weak_ratio >= 0.4:
+        shrink += 0.15
+        reasons.append("low_source_diversity")
+    if anomalies > 0:
+        shrink += min(0.2, anomalies / 60.0)
+        reasons.append("anomaly_penalty")
+    shrink = min(0.35, shrink)
+    diagnostics["shrink_factor"] = round_or_none(shrink, 3)
+    diagnostics["trigger_reason"] = ",".join(reasons) if reasons else "none"
+
+    calibrated = (float(raw_nowcast_yoy) * (1 - shrink)) + (anchor * shrink)
+    max_gap = 2.5
+    gap = calibrated - anchor
+    if abs(gap) > max_gap:
+        calibrated = anchor + (max_gap if gap > 0 else -max_gap)
+        diagnostics["cap_applied"] = True
+
+    calibrated = round_or_none(calibrated, 3)
+    diagnostics["calibrated_nowcast_yoy"] = calibrated
+    return calibrated, diagnostics
+
+
+def calibration_tier(live_days: int) -> str:
+    if live_days < 30:
+        return "bootstrapping"
+    if live_days < 60:
+        return "developing"
+    return "stable"
+
+
+def build_calibration(
+    historical: dict,
+    performance_summary: dict,
+    forecast: dict,
+    calibration_diagnostics: dict,
+) -> dict:
+    live_days = count_live_nowcast_days(historical)
+    tier = calibration_tier(live_days)
+    forecast_status = forecast.get("status") if isinstance(forecast, dict) else "unknown"
+    eligible = forecast_status == "published"
+    reason = None if eligible else f"forecast_status={forecast_status}"
+    return {
+        "maturity_tier": tier,
+        "live_days": live_days,
+        "minimum_days_for_stable_eval": CALIBRATION_MIN_LIVE_DAYS,
+        "forecast_eligibility": {"eligible": eligible, "reason": reason},
+        "current_error_metrics": {
+            "mae_yoy_pct": performance_summary.get("mae_yoy_pct"),
+            "median_abs_error_yoy_pct": performance_summary.get("median_abs_error_yoy_pct"),
+            "directional_accuracy_yoy_pct": performance_summary.get("directional_accuracy_yoy_pct"),
+            "bias_yoy_pct": performance_summary.get("bias_yoy_pct"),
+            "evaluated_live_points": performance_summary.get("evaluated_live_points"),
+        },
+        "notes": [
+            "Calibration applies moderate shrinkage toward recent official trend when diversity is weak or anomaly pressure is elevated.",
+            "Early-stage metrics should be interpreted cautiously until live history depth increases.",
+        ],
+        "calibration_diagnostics": calibration_diagnostics,
+    }
+
+
 def compute_signal_quality_score(
     coverage_ratio: float,
     anomalies: int,
@@ -837,6 +943,8 @@ def build_notes(
         "This is an experimental nowcast estimate and not an official CPI release.",
         f"Methodology {METHOD_VERSION}: weighted category proxies with month-to-date YoY projection.",
         "Confidence rubric: gate status + weighted coverage + anomaly rate + source diversity.",
+        "Model applies minimal smoothing with calibration guardrails to reduce tail errors while preserving real-time signal responsiveness.",
+        "Housing includes an asking-rent momentum overlay from Rentals.ca and is not survey-equivalent to transacted-rent CPI methods.",
         f"Representativeness (fresh-weight share): {round(representativeness_ratio * 100, 1)}%.",
         "Coverage ratio is the share of the CPI basket with usable source data in this run.",
     ]
@@ -1220,7 +1328,14 @@ def build_snapshot() -> dict:
         fallback_used = True
     lead_signal = derive_lead_signal(nowcast_mom)
     consensus_yoy, consensus_guardrails = apply_consensus_guardrails(consensus_latest if isinstance(consensus_latest, dict) else None)
-    nowcast_yoy, yoy_projection = compute_nowcast_yoy_prorated(now.date(), nowcast_mom, official_series)
+    raw_nowcast_yoy, yoy_projection = compute_nowcast_yoy_prorated(now.date(), nowcast_mom, official_series)
+    nowcast_yoy, calibration_diagnostics = calibrate_nowcast_yoy(
+        raw_nowcast_yoy=raw_nowcast_yoy,
+        official_series=official_series,
+        diversity_by_category=diversity_by_category,
+        categories=categories,
+        anomalies=anomalies,
+    )
     forecast = compute_forecast(
         nowcast_yoy=nowcast_yoy,
         official_series=official_series,
@@ -1258,6 +1373,7 @@ def build_snapshot() -> dict:
         "notes": [],
         "meta": {
             "method_version": METHOD_VERSION,
+            "weights": weights_payload(),
             "total_raw_points": len(quotes),
             "total_points_after_dedupe": len(deduped),
             "total_points_after_quality_filters": len(filtered),
@@ -1292,6 +1408,7 @@ def build_snapshot() -> dict:
             },
             "indicators": indicators,
             "forecast": forecast,
+            "calibration_diagnostics": calibration_diagnostics,
         },
         "performance_ref": {
             "summary_path": str(PERFORMANCE_SUMMARY_PATH),
@@ -1351,6 +1468,10 @@ def build_snapshot() -> dict:
     if nowcast_yoy is None:
         reason = yoy_projection.get("reason") if isinstance(yoy_projection, dict) else "unknown"
         snapshot["notes"].append(f"Nowcast YoY unavailable: {reason}.")
+    elif raw_nowcast_yoy is not None and nowcast_yoy != raw_nowcast_yoy:
+        snapshot["notes"].append(
+            f"Calibrated YoY nowcast from raw {raw_nowcast_yoy}% to {nowcast_yoy}% using transparent shrinkage diagnostics."
+        )
     if official_yoy_display is not None:
         snapshot["official_cpi"]["yoy_display_pct"] = official_yoy_display
         snapshot["notes"].append(
@@ -1361,6 +1482,13 @@ def build_snapshot() -> dict:
         snapshot["notes"].append(f"Consensus YoY withheld due to quality guardrails: {reason}.")
     if snapshot.get("meta", {}).get("forecast", {}).get("status") != "published":
         snapshot["notes"].append("Forecast is withheld until sufficient live history accumulates.")
+    perf_snapshot = compute_performance_summary(historical)
+    snapshot["meta"]["calibration"] = build_calibration(
+        historical=historical,
+        performance_summary=perf_snapshot,
+        forecast=forecast,
+        calibration_diagnostics=calibration_diagnostics,
+    )
     return snapshot
 
 

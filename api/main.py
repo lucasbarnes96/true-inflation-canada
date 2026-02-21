@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from gate_policy import METHOD_VERSION, gate_policy_payload
+from gate_policy import METHOD_VERSION, gate_policy_payload, weights_payload
 from models import NowcastSnapshot
 from source_catalog import SOURCE_CATALOG
 
@@ -135,9 +135,22 @@ def releases_latest() -> dict:
 
 @app.get("/v1/methodology")
 def methodology() -> dict:
+    weights = weights_payload()
+    latest_payload = _load_json(PUBLISHED_LATEST_PATH, {})
+    as_of_utc = latest_payload.get("timestamp") if isinstance(latest_payload, dict) else None
     return {
-        "summary": "Weighted category nowcast using free/public daily and monthly sources.",
+        "summary": "Weighted category nowcast using free/public daily and monthly sources with transparent calibration diagnostics.",
         "method_version": METHOD_VERSION,
+        "as_of_utc": as_of_utc,
+        "weights_reference": {
+            "source_table": weights.get("source_table"),
+            "source_url": weights.get("source_url"),
+            "analysis_reference": weights.get("analysis_reference"),
+            "analysis_url": weights.get("analysis_url"),
+            "basket_reference_year": weights.get("basket_reference_year"),
+            "effective_month": weights.get("effective_month"),
+            "tracked_share_total": weights.get("tracked_share_total"),
+        },
         "confidence_formula": {
             "inputs": ["gate_status", "coverage_ratio", "anomalies", "source_diversity"],
             "high": "coverage_ratio >= 0.9, no gate failures, low anomalies, no diversity penalty",
@@ -149,6 +162,8 @@ def methodology() -> dict:
             "Experimental nowcast, not an official CPI release.",
             "APIFY auto-retry is attempted when stale/missing before gate evaluation.",
             "Monthly sources may remain fresh for up to 45 days.",
+            "Communication is represented as a proxy mapped within broader official CPI components.",
+            "Housing asking-rent overlay is a momentum proxy and differs from survey-based transacted-rent methods.",
             "Deprecated compatibility fields remain available: headline.nowcast_mom_pct and headline.consensus_spread_yoy.",
         ],
     }
@@ -202,3 +217,16 @@ def forecast_next_release() -> dict:
     if not isinstance(forecast, dict):
         raise HTTPException(status_code=404, detail="No forecast available.")
     return forecast
+
+
+@app.get("/v1/calibration/status")
+def calibration_status() -> dict:
+    payload = _load_json(PUBLISHED_LATEST_PATH, {})
+    if not payload:
+        payload = _load_json(LATEST_PATH, {})
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=404, detail="No snapshot available.")
+    calibration = payload.get("meta", {}).get("calibration")
+    if not isinstance(calibration, dict):
+        raise HTTPException(status_code=404, detail="No calibration data available.")
+    return calibration

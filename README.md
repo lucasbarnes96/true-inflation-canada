@@ -6,8 +6,8 @@ Experimental open-source nowcast using public data. Not official StatCan CPI.
 ## What changed
 - API-first architecture (`FastAPI + Pydantic`).
 - Strict release gate (runs can fail and stay unpublished).
-- APIFY is required for food and must be recent (<=14 days).
-- Weekly APIFY cadence for free-tier cost control.
+- Food publishability uses resilience rules (fresh + usable source diversity), not APIFY-only dependence.
+- APIFY retries are attempted automatically before final gate evaluation.
 - Source health includes explicit age text (`updated X days ago`).
 
 ## Runtime and dependencies
@@ -79,6 +79,7 @@ Endpoints:
 - `GET /v1/releases/upcoming`
 - `GET /v1/consensus/latest`
 - `GET /v1/forecast/next_release`
+- `GET /v1/calibration/status`
 
 ## Dashboard
 Serve static UI and point it to API:
@@ -117,12 +118,15 @@ Additional headline and metadata fields:
 - `meta.gate_diagnostics` (machine-readable gate checks)
 - `meta.category_signal_inputs` (category source provenance with tier/freshness)
 - `meta.forecast` (next-release forecast with confidence bounds, if eligible)
+- `meta.calibration` (maturity tier and live calibration status)
+- `meta.weights` (auditable StatCan-sourced weight provenance)
 
 ## Startup Phase (First Weeks)
 - Live nowcast series begins on February 16, 2026.
 - Green nowcast line is short initially by design; only authentic live runs are shown.
 - Category Contribution Ranking needs at least 2 consecutive live runs for stable delta calculations.
 - MAE and directional accuracy are low-confidence until roughly 30-60 live days accumulate.
+- Forecast outputs may be withheld while calibration history is short.
 
 ## Glossary
 - `YoY`: change versus the same month 12 months ago; typically less volatile than MoM.
@@ -130,18 +134,20 @@ Additional headline and metadata fields:
 - `Deviation from Expectations`: `nowcast_yoy_pct - consensus_yoy` when consensus is available.
 - `MAE`: Mean Absolute Error versus official values on the tracked evaluation window.
 
-StatCan CPI methodology and basket reference:
+StatCan CPI methodology and basket references:
 - https://www.statcan.gc.ca/en/statistical-programs/document/2301_D2_V4
+- https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000701
+- https://www150.statcan.gc.ca/n1/pub/62f0014m/62f0014m2025003-eng.htm
 
 ## Changelog
-- `v1.3.0` - Reliability hardening: centralized gate policy, food resilience gate, APIFY retry diagnostics, housing overlay normalization, and public forecast endpoint.
+- `v1.3.1` - Alignment hardening: StatCan-linked weights provenance, YoY-first performance metrics, explicit calibration status, and public calibration endpoint.
 
 ## CI
 GitHub Actions (`.github/workflows/scrape.yml`):
 - Uses Python 3.11.
 - Runs ingestion + tests.
 - Enforces gate with `scripts/check_release_gate.py`.
-- Commits generated data only on published runs.
+- Commits generated data for all runs with explicit status flags (`published` vs `failed_gate`) so diagnostics remain fully auditable.
 
 ## Notes
 This remains an experimental nowcast and is not an official CPI release.

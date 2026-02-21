@@ -16,6 +16,7 @@ class DashboardStaticTests(unittest.TestCase):
         self.assertIn("Deviation from Expectations", html)
         self.assertIn("Calculation ID", html)
         self.assertIn("Experimental open-source nowcast using public data. Not official StatCan CPI.", html)
+        self.assertIn("Calibration & Maturity", html)
 
 
 if __name__ == "__main__":

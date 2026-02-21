@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-02-21T20:30:53+00:00",
+  "as_of": "2026-02-21T22:04:56+00:00",
   "source_url": "https://www150.statcan.gc.ca/n1/dai-quo/cal2-eng.htm",
   "events": [
     {
@@ -11,7 +11,9 @@
       "status": "scheduled_fallback"
     }
   ],
-  "errors": [],
+  "errors": [
+    "Failed to fetch URL: https://www150.statcan.gc.ca/n1/dai-quo/cal2-eng.htm: <urlopen error [Errno 8] nodename nor servname provided, or not known>"
+  ],
   "next_release": {},
-  "method_version": "v1.3.0"
+  "method_version": "v1.3.1"
 }
