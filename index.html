@@ -539,6 +539,7 @@
             <tr>
               <th>Data Source</th>
               <th>Category</th>
+              <th>Status</th>
               <th>Last Successful Run</th>
               <th>Observation Period</th>
               <th>Run Age (hrs)</th>
@@ -810,6 +811,7 @@
         tr.innerHTML = `
           <td>${sourceName[row.source] || row.source}</td>
           <td>${categoryName[row.category] || row.category}</td>
+          <td>${(row.status || "--").toUpperCase()}</td>
           <td>${row.last_success_timestamp || "No successful run"}</td>
           <td>${row.last_observation_period || "--"}</td>
           <td>${row.run_age_hours ?? "--"}</td>
@@ -952,18 +954,20 @@
       const ul = document.getElementById("methodology-list");
       ul.innerHTML = "";
       const gate = methodology?.gate_policy || {};
-      const weightsRef = methodology?.weights_reference || {};
+      const weightsRef = methodology?.weights_reference || latest.meta?.weights || {};
+      const trackedShare = weightsRef.tracked_share_total;
+      const repThreshold = gate.representativeness_min_fresh_ratio;
       const topDriver = latest.meta?.top_driver || {};
       const rows = [
         `Method version: ${latest.meta?.method_version || methodology?.method_version || "--"} (how this nowcast is calculated).`,
         `Coverage ratio: ${(100 * (latest.headline?.coverage_ratio || 0)).toFixed(1)}% of the planned basket had usable data today.`,
-        `Tracked basket share in this model: ${(100 * (weightsRef.tracked_share_total ?? 0)).toFixed(1)}% (source: ${weightsRef.source_table || "StatCan"}).`,
+        `Tracked basket share in this model: ${typeof trackedShare === "number" ? (100 * trackedShare).toFixed(1) : "--"}% (source: ${weightsRef.source_table || "StatCan"}).`,
         "Communication is treated as a proxy mapped within broader CPI structures, not a standalone official major component.",
         `Lead signal: ${(latest.headline?.lead_signal || "--").toUpperCase()} means this model currently points to prices moving ${latest.headline?.lead_signal || "--"}.`,
         "Model uses minimal smoothing with transparent calibration diagnostics to reduce tail misses while preserving real-time sensitivity.",
         `Top driver right now: ${topDriver.category || "--"} (${pct(topDriver.contribution_pct, 3)} contribution to current signal).`,
         `Food resilience gate: at least ${gate.food_gate?.min_fresh_sources ?? "--"} fresh and ${gate.food_gate?.min_usable_sources ?? "--"} usable food sources.`,
-        `Representativeness release threshold: ${(100 * (gate.representativeness_min_fresh_ratio ?? 0)).toFixed(0)}% fresh basket coverage.`,
+        `Representativeness release threshold: ${typeof repThreshold === "number" ? (100 * repThreshold).toFixed(0) : "--"}% fresh basket coverage.`,
         "Housing blends a live asking-rent momentum signal with broader housing proxies; this differs from survey-based transacted-rent CPI methods.",
         "Deprecated compatibility fields are still emitted: headline.nowcast_mom_pct and headline.consensus_spread_yoy.",
       ];
@@ -1116,12 +1120,13 @@
       Promise.all([
         fetchLatestSnapshot(),
         fetchJsonWithFallback("/v1/nowcast/history", "data/historical.json"),
-        fetchJsonWithFallback("/v1/methodology", "data/latest.json"),
+        fetchJsonWithFallback("/v1/methodology", "data/published_latest.json"),
         fetchJsonWithFallback("/v1/performance/summary", "data/performance_summary.json"),
         fetchJsonWithFallback("/v1/releases/upcoming", "data/release_events.json"),
         fetchJsonWithFallback("/v1/consensus/latest", "data/consensus_latest.json"),
         fetchJsonWithFallback("/v1/forecast/next_release", "data/latest.json"),
-      ]).then(([latest, historical, methodology, performance, upcomingRelease, consensus, forecast]) => {
+        fetchJsonWithFallback("/v1/calibration/status", "data/latest.json"),
+      ]).then(([latest, historical, methodology, performance, upcomingRelease, consensus, forecast, calibration]) => {
         document.getElementById("asof").textContent = `as of ${latest.as_of_date || "--"}`;
         const items = safeHistoryItems(historical).slice(-365);
         const liveDays = countLiveNowcastDays(items);
@@ -1134,7 +1139,7 @@
         renderSourceTable(latest.source_health || []);
         renderMethodology(methodology, latest);
         renderPerformance(performance, liveDays);
-        renderCalibration(latest.meta?.calibration || {});
+        renderCalibration(calibration?.meta?.calibration || calibration || latest.meta?.calibration || {});
         renderDivergence(items.slice(-90));
         renderCategoryChart(latest);
       }).catch(err => {
