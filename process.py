@@ -4,6 +4,7 @@ import calendar
 import json
 import sqlite3
 import statistics
+import sys
 import time
 import uuid
 from collections import defaultdict
@@ -2158,6 +2159,10 @@ def write_outputs(snapshot: dict) -> None:
 
 
 def main() -> int:
+    if sys.version_info >= (3, 13):
+        print("Runtime guard failed: Python 3.11 is required for stable source ingestion (apify-client compatibility).")
+        print("Use: python3.11 process.py")
+        return 2
     snap = build_snapshot()
     write_outputs(snap)
     status = snap["release"]["status"]

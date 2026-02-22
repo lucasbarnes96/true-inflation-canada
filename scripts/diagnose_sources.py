@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from process import SCRAPER_REGISTRY, SOURCE_SLA_DAYS, source_age_days
+from process import SCRAPER_REGISTRY, SOURCE_SLA_DAYS, recompute_source_health, source_age_days
 from scrapers.common import dns_preflight
 
 
@@ -37,29 +37,20 @@ def main() -> int:
     now = datetime.now(timezone.utc)
     preflight = dns_preflight(ttl_seconds=0)
     rows: list[dict] = []
+    raw_health = []
+    raw_by_source: dict[str, dict] = {}
     for name, scraper in SCRAPER_REGISTRY:
         started = time.time()
         try:
             _, health = scraper()
             elapsed_ms = int((time.time() - started) * 1000)
             for item in health:
-                age = source_age_days(item.last_success_timestamp, now=now)
-                sla = SOURCE_SLA_DAYS.get(item.source)
-                valid = (item.status == "fresh") or (age is not None and sla is not None and age <= sla)
-                rows.append(
-                    {
-                        "scraper": name,
-                        "source": item.source,
-                        "category": item.category,
-                        "status": item.status,
-                        "age_days": age,
-                        "sla_days": sla,
-                        "valid_within_sla": valid,
-                        "error_class": classify_detail(item.detail),
-                        "detail": item.detail,
-                        "elapsed_ms": elapsed_ms,
-                    }
-                )
+                raw_health.append(item)
+                raw_by_source[item.source] = {
+                    "scraper": name,
+                    "detail": item.detail,
+                    "elapsed_ms": elapsed_ms,
+                }
         except Exception as err:  # pragma: no cover - runtime dependent
             elapsed_ms = int((time.time() - started) * 1000)
             rows.append(
@@ -76,6 +67,29 @@ def main() -> int:
                     "elapsed_ms": elapsed_ms,
                 }
             )
+
+    recomputed = recompute_source_health(raw_health, now)
+    for item in recomputed:
+        source = item.get("source")
+        detail = str(item.get("detail") or "")
+        meta = raw_by_source.get(source, {})
+        age = source_age_days(item.get("last_success_timestamp"), now=now)
+        sla = SOURCE_SLA_DAYS.get(source)
+        valid = (item.get("status") == "fresh") or (age is not None and sla is not None and age <= sla)
+        rows.append(
+            {
+                "scraper": meta.get("scraper"),
+                "source": source,
+                "category": item.get("category"),
+                "status": item.get("status"),
+                "age_days": age,
+                "sla_days": sla,
+                "valid_within_sla": valid,
+                "error_class": classify_detail(detail),
+                "detail": detail,
+                "elapsed_ms": meta.get("elapsed_ms"),
+            }
+        )
 
     summary = {
         "timestamp": now.isoformat(),
