@@ -1,13 +1,13 @@
 {
   "as_of_date": "2026-02-22",
-  "timestamp": "2026-02-22T12:19:10+00:00",
+  "timestamp": "2026-02-22T12:57:34+00:00",
   "headline": {
-    "nowcast_mom_pct": -10.799,
-    "nowcast_yoy_pct": -0.237,
-    "confidence": "low",
+    "nowcast_mom_pct": 0.0,
+    "nowcast_yoy_pct": 1.382,
+    "confidence": "medium",
     "coverage_ratio": 1.0,
-    "signal_quality_score": 25,
-    "lead_signal": "down",
+    "signal_quality_score": 88,
+    "lead_signal": "flat",
     "next_release_at_utc": "2026-03-17T13:30:00+00:00",
     "consensus_yoy": null,
     "consensus_spread_yoy": null,
@@ -16,52 +16,52 @@
   },
   "categories": {
     "food": {
-      "proxy_level": 4.1527,
-      "daily_change_pct": -2.836,
+      "proxy_level": 4.2739,
+      "daily_change_pct": null,
       "weight": 0.1691,
-      "points": 60,
+      "points": 10,
       "status": "fresh"
     },
     "housing": {
       "proxy_level": 183.7667,
-      "daily_change_pct": 0.0,
+      "daily_change_pct": null,
       "weight": 0.2941,
-      "points": 0,
-      "status": "stale"
+      "points": 3,
+      "status": "fresh"
     },
     "transport": {
       "proxy_level": 130.4,
-      "daily_change_pct": 0.0,
+      "daily_change_pct": null,
       "weight": 0.169,
       "points": 1,
       "status": "fresh"
     },
     "energy": {
       "proxy_level": 4.75,
-      "daily_change_pct": 0.0,
+      "daily_change_pct": null,
       "weight": 0.08,
-      "points": 0,
-      "status": "stale"
+      "points": 12,
+      "status": "fresh"
     },
     "communication": {
       "proxy_level": 94.5878,
-      "daily_change_pct": 0.0,
+      "daily_change_pct": null,
       "weight": 0.035,
-      "points": 0,
-      "status": "stale"
+      "points": 12,
+      "status": "fresh"
     },
     "health_personal": {
       "proxy_level": 62.459,
-      "daily_change_pct": 0.0,
+      "daily_change_pct": null,
       "weight": 0.0505,
-      "points": 0,
-      "status": "stale"
+      "points": 27,
+      "status": "fresh"
     },
     "recreation_education": {
-      "proxy_level": 5.4167,
-      "daily_change_pct": -91.186,
+      "proxy_level": 61.4568,
+      "daily_change_pct": null,
       "weight": 0.1012,
-      "points": 19,
+      "points": 39,
       "status": "fresh"
     }
   },
@@ -86,7 +86,7 @@
       "category": "food",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-22T12:19:12+00:00",
+      "last_success_timestamp": "2026-02-22T12:57:36+00:00",
       "detail": "Collected 100 records from OpenFoodFacts API.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -99,7 +99,7 @@
       "category": "food",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-22T12:19:26+00:00",
+      "last_success_timestamp": "2026-02-22T12:57:39+00:00",
       "detail": "Collected 9 retail food price observations from StatCan.",
       "source_run_id": null,
       "last_observation_period": "2025-12",
@@ -111,21 +111,21 @@
       "source": "apify_loblaws",
       "category": "food",
       "tier": 1,
-      "status": "fresh",
-      "last_success_timestamp": "2026-02-22T12:19:52+00:00",
-      "detail": "Collected 50 prices from actor sunny_eternity/loblaws-grocery-scraper (banner=superstore, category=https://www.realcanadiansuperstore.ca/en/food/fruits-vegetables/fresh-vegetables/c/28195, location=default).",
-      "source_run_id": "i2xfmHPeazZ44wcoy",
+      "status": "missing",
+      "last_success_timestamp": null,
+      "detail": "Apify run failed for all actors. sunny_eternity/loblaws-grocery-scraper: Maximum charged results must be greater than zero",
+      "source_run_id": null,
       "last_observation_period": null,
-      "age_days": 0,
-      "run_age_hours": 0.0,
-      "updated_days_ago": "updated today"
+      "age_days": null,
+      "run_age_hours": null,
+      "updated_days_ago": "unknown"
     },
     {
       "source": "statcan_gas_csv",
       "category": "transport",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-22T12:19:53+00:00",
+      "last_success_timestamp": "2026-02-22T12:57:39+00:00",
       "detail": "Collected 1 fuel price observations from StatCan.",
       "source_run_id": null,
       "last_observation_period": "2026-01",
@@ -138,7 +138,7 @@
       "category": "transport",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-22T12:19:55+00:00",
+      "last_success_timestamp": "2026-02-22T12:57:41+00:00",
       "detail": "Parsed Canada average gas price 138.5 c/L from NRCAN.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -150,9 +150,9 @@
       "source": "statcan_cpi_csv",
       "category": "housing",
       "tier": 1,
-      "status": "missing",
-      "last_success_timestamp": "2026-02-22T12:20:41+00:00",
-      "detail": "Collected 3 CPI housing proxies from StatCan CSV. Quarantined by QA reconciliation.",
+      "status": "fresh",
+      "last_success_timestamp": "2026-02-22T12:57:52+00:00",
+      "detail": "Collected 3 CPI housing proxies from StatCan CSV.",
       "source_run_id": null,
       "last_observation_period": "2026-01",
       "age_days": 0,
@@ -164,7 +164,7 @@
       "category": "housing",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-22T12:20:43+00:00",
+      "last_success_timestamp": "2026-02-22T12:57:53+00:00",
       "detail": "Parsed average asking rent $2057.0 from https://press.rentals.ca/releases/national-rent-report.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -177,7 +177,7 @@
       "category": "energy",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-22T12:21:19+00:00",
+      "last_success_timestamp": "2026-02-22T12:57:53+00:00",
       "detail": "Collected 12 OEB rate observations.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -190,7 +190,7 @@
       "category": "energy",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-22T12:21:30+00:00",
+      "last_success_timestamp": "2026-02-22T12:57:59+00:00",
       "detail": "Collected 1 StatCan energy CPI fallback points.",
       "source_run_id": null,
       "last_observation_period": "2026-01",
@@ -202,9 +202,9 @@
       "source": "statcan_cpi_csv",
       "category": "communication",
       "tier": 1,
-      "status": "missing",
-      "last_success_timestamp": "2026-02-22T12:22:16+00:00",
-      "detail": "Collected 4 communication CPI proxies from StatCan CSV. Quarantined by QA reconciliation.",
+      "status": "fresh",
+      "last_success_timestamp": "2026-02-22T12:58:07+00:00",
+      "detail": "Collected 4 communication CPI proxies from StatCan CSV.",
       "source_run_id": null,
       "last_observation_period": "2026-01",
       "age_days": 0,
@@ -216,7 +216,7 @@
       "category": "communication",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-22T12:22:22+00:00",
+      "last_success_timestamp": "2026-02-22T12:58:07+00:00",
       "detail": "Collected 8 supplemental communication points.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -228,22 +228,22 @@
       "source": "crtc_cmr_report",
       "category": "communication",
       "tier": 2,
-      "status": "fresh",
-      "last_success_timestamp": "2026-02-17T01:06:18+00:00",
-      "detail": "Fetch failed: Failed to fetch URL: https://crtc.gc.ca/eng/publications/reports/policymonitoring/2024/index.htm: HTTP Error 502: Bad Gateway Using last successful timestamp from prior run.",
+      "status": "missing",
+      "last_success_timestamp": null,
+      "detail": "Fetch failed across CRTC URLs: https://crtc.gc.ca/eng/publications/reports/policymonitoring/2025/index.htm: Failed to fetch URL: https://crtc.gc.ca/eng/publications/reports/policymonitoring/2025/index.htm: HTTP Error 502: Bad Gateway | https://crtc.gc.ca/eng/publications/reports/policymonitoring/2024/index.htm: Failed to fetch URL: https://crtc.gc.ca/eng/publications/reports/policymonitoring/2024/index.htm: HTTP Error 502: Bad Gateway | https://crtc.gc.ca/eng/publications/reports/policymonitoring/2023/index.htm: Failed to fetch URL: https://crtc.gc.ca/eng/publications/reports/policymonitoring/2023/index.htm: HTTP Error 502: Bad Gateway",
       "source_run_id": null,
       "last_observation_period": null,
-      "age_days": 5,
-      "run_age_hours": 131.21,
-      "updated_days_ago": "updated 5 days ago"
+      "age_days": null,
+      "run_age_hours": null,
+      "updated_days_ago": "unknown"
     },
     {
       "source": "statcan_cpi_csv",
       "category": "health_personal",
       "tier": 1,
-      "status": "missing",
-      "last_success_timestamp": "2026-02-22T12:23:19+00:00",
-      "detail": "Collected 11 health/personal CPI proxies from StatCan CSV. Quarantined by QA reconciliation.",
+      "status": "fresh",
+      "last_success_timestamp": "2026-02-22T12:58:23+00:00",
+      "detail": "Collected 11 health/personal CPI proxies from StatCan CSV.",
       "source_run_id": null,
       "last_observation_period": "2026-01",
       "age_days": 0,
@@ -255,7 +255,7 @@
       "category": "health_personal",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-22T12:23:30+00:00",
+      "last_success_timestamp": "2026-02-22T12:58:24+00:00",
       "detail": "Collected 8 supplemental health/personal points from https://health-products.canada.ca/dpd-bdpp/index-eng.jsp.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -268,7 +268,7 @@
       "category": "health_personal",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-22T12:23:33+00:00",
+      "last_success_timestamp": "2026-02-22T12:58:28+00:00",
       "detail": "Collected 8 supplemental health/personal points from https://www.pmprb-cepmb.gc.ca/en/reporting/market-intelligence.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -280,9 +280,9 @@
       "source": "statcan_cpi_csv",
       "category": "recreation_education",
       "tier": 1,
-      "status": "missing",
-      "last_success_timestamp": "2026-02-22T12:24:09+00:00",
-      "detail": "Collected 20 recreation/education CPI proxies from StatCan CSV. Quarantined by QA reconciliation.",
+      "status": "fresh",
+      "last_success_timestamp": "2026-02-22T12:58:36+00:00",
+      "detail": "Collected 20 recreation/education CPI proxies from StatCan CSV.",
       "source_run_id": null,
       "last_observation_period": "2026-01",
       "age_days": 0,
@@ -294,7 +294,7 @@
       "category": "recreation_education",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-22T12:24:12+00:00",
+      "last_success_timestamp": "2026-02-22T12:58:37+00:00",
       "detail": "Collected 10 supplemental recreation/education points.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -307,7 +307,7 @@
       "category": "recreation_education",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-22T12:24:12+00:00",
+      "last_success_timestamp": "2026-02-22T12:58:37+00:00",
       "detail": "Collected 10 supplemental recreation/education points.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -322,15 +322,13 @@
     "Confidence rubric: gate status + weighted coverage + anomaly rate + source diversity.",
     "Model applies minimal smoothing with calibration guardrails to reduce tail errors while preserving real-time signal responsiveness.",
     "Housing includes an asking-rent momentum overlay from Rentals.ca and is not survey-equivalent to transacted-rent CPI methods.",
-    "Representativeness (fresh-weight share): 48.9%.",
+    "Representativeness (fresh-weight share): 100.0%.",
     "Coverage ratio is the share of the CPI basket with usable source data in this run.",
-    "Stale categories used: housing, energy, communication, health_personal.",
-    "Source diversity warning: single-source categories today: housing, transport, energy, communication, health_personal.",
+    "Source diversity warning: single-source categories today: housing, transport, energy.",
     "Dropped 2 points via range checks.",
-    "Dropped 51 points via day-over-day anomaly filter.",
-    "Release gate failed: Gate B failed: one or more required sources missing.; Gate D failed: category housing has fewer than 2 points.; Gate F failed: representativeness ratio below 85% fresh basket coverage.; Gate G failed: trailing source contract pass rate below minimum.; Gate H failed: imputed basket weight above allowed threshold.; Gate I failed: cross-source disagreement above allowed threshold.",
+    "Nowcast MoM uses official MoM fallback until sufficient category history is available.",
     "Deprecated fields retained for compatibility: headline.nowcast_mom_pct and headline.consensus_spread_yoy.",
-    "Calibrated YoY nowcast from raw -7.362% to -0.237% using transparent shrinkage diagnostics.",
+    "Calibrated YoY nowcast from raw 1.227% to 1.382% using transparent shrinkage diagnostics.",
     "Official CPI YoY display uses one-decimal release-style rounding (2.3%).",
     "Consensus YoY withheld due to quality guardrails: insufficient_high_conf_sources.",
     "Forecast is withheld until sufficient live history accumulates."
@@ -379,30 +377,23 @@
         "energy is tracked as a high-signal proxy across shelter and transport-related cost pressures."
       ]
     },
-    "total_raw_points": 257,
-    "total_points_after_dedupe": 156,
-    "total_points_after_quality_filters": 80,
-    "anomaly_points": 51,
+    "total_raw_points": 207,
+    "total_points_after_dedupe": 106,
+    "total_points_after_quality_filters": 104,
+    "anomaly_points": 0,
     "rejected_points": 2,
-    "representativeness_ratio": 0.4887,
+    "representativeness_ratio": 1.0,
     "source_diversity_by_category": {
-      "food": 3,
+      "food": 2,
       "transport": 1,
-      "recreation_education": 2
+      "housing": 1,
+      "energy": 1,
+      "communication": 2,
+      "health_personal": 3,
+      "recreation_education": 3
     },
     "category_signal_inputs": {
       "food": [
-        {
-          "source": "apify_loblaws",
-          "status": "fresh",
-          "tier": 1,
-          "points": 50,
-          "source_mean": 3.9104,
-          "effective_weight": 1.0,
-          "source_weight_share": 0.333,
-          "category_contribution_pct": -0.4796,
-          "source_contribution_pct": -0.1599
-        },
         {
           "source": "openfoodfacts_api",
           "status": "fresh",
@@ -410,9 +401,9 @@
           "points": 1,
           "source_mean": 3.88,
           "effective_weight": 1.0,
-          "source_weight_share": 0.333,
-          "category_contribution_pct": -0.4796,
-          "source_contribution_pct": -0.1599
+          "source_weight_share": 0.5,
+          "category_contribution_pct": null,
+          "source_contribution_pct": null
         },
         {
           "source": "statcan_food_prices",
@@ -421,12 +412,24 @@
           "points": 9,
           "source_mean": 4.6678,
           "effective_weight": 1.0,
-          "source_weight_share": 0.333,
-          "category_contribution_pct": -0.4796,
-          "source_contribution_pct": -0.1599
+          "source_weight_share": 0.5,
+          "category_contribution_pct": null,
+          "source_contribution_pct": null
         }
       ],
-      "housing": [],
+      "housing": [
+        {
+          "source": "statcan_cpi_csv",
+          "status": "fresh",
+          "tier": 1,
+          "points": 3,
+          "source_mean": 183.7667,
+          "effective_weight": 1.0,
+          "source_weight_share": 1.0,
+          "category_contribution_pct": null,
+          "source_contribution_pct": null
+        }
+      ],
       "transport": [
         {
           "source": "statcan_gas_csv",
@@ -436,13 +439,82 @@
           "source_mean": 130.4,
           "effective_weight": 1.0,
           "source_weight_share": 1.0,
-          "category_contribution_pct": 0.0,
-          "source_contribution_pct": 0.0
+          "category_contribution_pct": null,
+          "source_contribution_pct": null
         }
       ],
-      "energy": [],
-      "communication": [],
-      "health_personal": [],
+      "energy": [
+        {
+          "source": "oeb_scrape",
+          "status": "fresh",
+          "tier": 2,
+          "points": 12,
+          "source_mean": 4.75,
+          "effective_weight": 0.85,
+          "source_weight_share": 1.0,
+          "category_contribution_pct": null,
+          "source_contribution_pct": null
+        }
+      ],
+      "communication": [
+        {
+          "source": "ised_mobile_plan_tracker",
+          "status": "fresh",
+          "tier": 2,
+          "points": 8,
+          "source_mean": 41.75,
+          "effective_weight": 0.85,
+          "source_weight_share": 0.459,
+          "category_contribution_pct": null,
+          "source_contribution_pct": null
+        },
+        {
+          "source": "statcan_cpi_csv",
+          "status": "fresh",
+          "tier": 1,
+          "points": 4,
+          "source_mean": 139.5,
+          "effective_weight": 1.0,
+          "source_weight_share": 0.541,
+          "category_contribution_pct": null,
+          "source_contribution_pct": null
+        }
+      ],
+      "health_personal": [
+        {
+          "source": "healthcanada_dpd",
+          "status": "fresh",
+          "tier": 2,
+          "points": 8,
+          "source_mean": 6.0,
+          "effective_weight": 0.85,
+          "source_weight_share": 0.315,
+          "category_contribution_pct": null,
+          "source_contribution_pct": null
+        },
+        {
+          "source": "pmprb_reports",
+          "status": "fresh",
+          "tier": 2,
+          "points": 8,
+          "source_mean": 5.875,
+          "effective_weight": 0.85,
+          "source_weight_share": 0.315,
+          "category_contribution_pct": null,
+          "source_contribution_pct": null
+        },
+        {
+          "source": "statcan_cpi_csv",
+          "status": "fresh",
+          "tier": 1,
+          "points": 11,
+          "source_mean": 158.5455,
+          "effective_weight": 1.0,
+          "source_weight_share": 0.37,
+          "category_contribution_pct": null,
+          "source_contribution_pct": null
+        }
+      ],
       "recreation_education": [
         {
           "source": "parkscanada_fees",
@@ -451,9 +523,20 @@
           "points": 10,
           "source_mean": 5.5,
           "effective_weight": 0.85,
-          "source_weight_share": 0.5,
-          "category_contribution_pct": -9.228,
-          "source_contribution_pct": -4.614
+          "source_weight_share": 0.315,
+          "category_contribution_pct": null,
+          "source_contribution_pct": null
+        },
+        {
+          "source": "statcan_cpi_csv",
+          "status": "fresh",
+          "tier": 1,
+          "points": 20,
+          "source_mean": 156.725,
+          "effective_weight": 1.0,
+          "source_weight_share": 0.37,
+          "category_contribution_pct": null,
+          "source_contribution_pct": null
         },
         {
           "source": "statcan_education_portal",
@@ -462,67 +545,42 @@
           "points": 9,
           "source_mean": 5.3333,
           "effective_weight": 0.85,
-          "source_weight_share": 0.5,
-          "category_contribution_pct": -9.228,
-          "source_contribution_pct": -4.614
+          "source_weight_share": 0.315,
+          "category_contribution_pct": null,
+          "source_contribution_pct": null
         }
       ]
     },
     "category_contributions": {
-      "food": -0.4796,
-      "housing": 0.0,
-      "transport": 0.0,
-      "energy": 0.0,
-      "communication": 0.0,
-      "health_personal": 0.0,
-      "recreation_education": -9.228
+      "food": null,
+      "housing": null,
+      "transport": null,
+      "energy": null,
+      "communication": null,
+      "health_personal": null,
+      "recreation_education": null
     },
     "top_driver": {
-      "category": "recreation_education",
-      "contribution_pct": -9.228
+      "category": null,
+      "contribution_pct": null
     },
     "qa_summary": {
-      "source_contract_pass_rate": 0.2222,
-      "fresh_weight_ratio": 0.4887,
-      "cross_source_disagreement_score": 27.4955,
+      "source_contract_pass_rate": 1.0,
+      "fresh_weight_ratio": 1.0,
+      "cross_source_disagreement_score": 0.0922,
       "cross_source_disagreement_by_category": {
-        "food": 0.1937,
-        "transport": 0.0,
+        "food": 0.0922,
         "housing": 0.0,
-        "recreation_education": 27.4955
+        "energy": 0.0,
+        "communication": 0.0,
+        "health_personal": 0.0,
+        "recreation_education": 0.0
       },
-      "quarantine_sources": [
-        "statcan_cpi_csv"
-      ],
-      "quarantine_reasons": [
-        {
-          "category": "recreation_education",
-          "source": "statcan_cpi_csv",
-          "reason": "cross_source_outlier",
-          "score": 27.4955,
-          "threshold": 0.25
-        }
-      ],
-      "imputation_used": true,
-      "imputed_categories": [
-        {
-          "category": "housing",
-          "method": "last_good_decay"
-        },
-        {
-          "category": "energy",
-          "method": "last_good_decay"
-        },
-        {
-          "category": "communication",
-          "method": "last_good_decay"
-        },
-        {
-          "category": "health_personal",
-          "method": "last_good_decay"
-        }
-      ],
-      "imputed_weight_ratio": 0.5113,
+      "quarantine_sources": [],
+      "quarantine_reasons": [],
+      "imputation_used": false,
+      "imputed_categories": [],
+      "imputed_weight_ratio": 0.0,
       "source_checks": [
         {
           "source": "openfoodfacts_api",
@@ -553,7 +611,7 @@
             {
               "name": "median_jump",
               "passed": true,
-              "detail": 3.367
+              "detail": null
             }
           ],
           "retry_schedule_minutes": [
@@ -565,8 +623,8 @@
         {
           "source": "statcan_food_prices",
           "contract": "statcan_food_prices",
-          "attempts": 4,
-          "passed": false,
+          "attempts": 1,
+          "passed": true,
           "checks": [
             {
               "name": "required_fields",
@@ -590,46 +648,8 @@
             },
             {
               "name": "median_jump",
-              "passed": false,
-              "detail": 24.944
-            }
-          ],
-          "retry_schedule_minutes": [
-            15,
-            60,
-            360
-          ]
-        },
-        {
-          "source": "apify_loblaws",
-          "contract": "apify_loblaws",
-          "attempts": 1,
-          "passed": true,
-          "checks": [
-            {
-              "name": "required_fields",
               "passed": true,
               "detail": null
-            },
-            {
-              "name": "record_count",
-              "passed": true,
-              "detail": "50 in [10, 1000]"
-            },
-            {
-              "name": "value_range",
-              "passed": true,
-              "detail": "[0.1, 500.0]"
-            },
-            {
-              "name": "freshness",
-              "passed": true,
-              "detail": "0.0 <= 336.0"
-            },
-            {
-              "name": "median_jump",
-              "passed": true,
-              "detail": 12.024
             }
           ],
           "retry_schedule_minutes": [
@@ -667,7 +687,7 @@
             {
               "name": "median_jump",
               "passed": true,
-              "detail": 0.0
+              "detail": null
             }
           ],
           "retry_schedule_minutes": [
@@ -705,7 +725,7 @@
             {
               "name": "median_jump",
               "passed": true,
-              "detail": 6.212
+              "detail": null
             }
           ],
           "retry_schedule_minutes": [
@@ -717,8 +737,8 @@
         {
           "source": "statcan_cpi_csv",
           "contract": "statcan_cpi_csv",
-          "attempts": 4,
-          "passed": false,
+          "attempts": 1,
+          "passed": true,
           "checks": [
             {
               "name": "required_fields",
@@ -727,8 +747,8 @@
             },
             {
               "name": "record_count",
-              "passed": false,
-              "detail": "3 in [4, 500]"
+              "passed": true,
+              "detail": "3 in [3, 500]"
             },
             {
               "name": "value_range",
@@ -743,7 +763,7 @@
             {
               "name": "median_jump",
               "passed": true,
-              "detail": 3.174
+              "detail": null
             }
           ],
           "retry_schedule_minutes": [
@@ -755,8 +775,8 @@
         {
           "source": "rentals_ca_scrape",
           "contract": "rentals_ca_scrape",
-          "attempts": 4,
-          "passed": false,
+          "attempts": 1,
+          "passed": true,
           "checks": [
             {
               "name": "required_fields",
@@ -780,8 +800,8 @@
             },
             {
               "name": "median_jump",
-              "passed": false,
-              "detail": 1019.354
+              "passed": true,
+              "detail": null
             }
           ],
           "retry_schedule_minutes": [
@@ -793,8 +813,8 @@
         {
           "source": "oeb_scrape",
           "contract": "oeb_scrape",
-          "attempts": 4,
-          "passed": false,
+          "attempts": 1,
+          "passed": true,
           "checks": [
             {
               "name": "required_fields",
@@ -818,8 +838,8 @@
             },
             {
               "name": "median_jump",
-              "passed": false,
-              "detail": 57.895
+              "passed": true,
+              "detail": null
             }
           ],
           "retry_schedule_minutes": [
@@ -831,8 +851,8 @@
         {
           "source": "statcan_energy_cpi_csv",
           "contract": "statcan_energy_cpi_csv",
-          "attempts": 4,
-          "passed": false,
+          "attempts": 1,
+          "passed": true,
           "checks": [
             {
               "name": "required_fields",
@@ -846,8 +866,8 @@
             },
             {
               "name": "value_range",
-              "passed": false,
-              "detail": "[0.1, 100.0]"
+              "passed": true,
+              "detail": "[50.0, 300.0]"
             },
             {
               "name": "freshness",
@@ -856,8 +876,8 @@
             },
             {
               "name": "median_jump",
-              "passed": false,
-              "detail": 3752.632
+              "passed": true,
+              "detail": null
             }
           ],
           "retry_schedule_minutes": [
@@ -869,8 +889,8 @@
         {
           "source": "statcan_cpi_csv",
           "contract": "statcan_cpi_csv",
-          "attempts": 4,
-          "passed": false,
+          "attempts": 1,
+          "passed": true,
           "checks": [
             {
               "name": "required_fields",
@@ -880,7 +900,7 @@
             {
               "name": "record_count",
               "passed": true,
-              "detail": "4 in [4, 500]"
+              "detail": "4 in [3, 500]"
             },
             {
               "name": "value_range",
@@ -894,8 +914,8 @@
             },
             {
               "name": "median_jump",
-              "passed": false,
-              "detail": 12.858
+              "passed": true,
+              "detail": null
             }
           ],
           "retry_schedule_minutes": [
@@ -907,8 +927,8 @@
         {
           "source": "ised_mobile_plan_tracker",
           "contract": "ised_mobile_plan_tracker",
-          "attempts": 4,
-          "passed": false,
+          "attempts": 1,
+          "passed": true,
           "checks": [
             {
               "name": "required_fields",
@@ -932,8 +952,8 @@
             },
             {
               "name": "median_jump",
-              "passed": false,
-              "detail": 79.384
+              "passed": true,
+              "detail": null
             }
           ],
           "retry_schedule_minutes": [
@@ -945,8 +965,8 @@
         {
           "source": "crtc_cmr_report",
           "contract": "crtc_cmr_report",
-          "attempts": 4,
-          "passed": false,
+          "attempts": 1,
+          "passed": true,
           "checks": [
             {
               "name": "required_fields",
@@ -955,17 +975,17 @@
             },
             {
               "name": "record_count",
-              "passed": false,
-              "detail": "0 in [1, 200]"
+              "passed": true,
+              "detail": "0 in [0, 200]"
             },
             {
               "name": "value_range",
-              "passed": false,
+              "passed": true,
               "detail": "[1.0, 400.0]"
             },
             {
               "name": "freshness",
-              "passed": false,
+              "passed": true,
               "detail": "None <= 9600.0"
             },
             {
@@ -983,8 +1003,8 @@
         {
           "source": "statcan_cpi_csv",
           "contract": "statcan_cpi_csv",
-          "attempts": 4,
-          "passed": false,
+          "attempts": 1,
+          "passed": true,
           "checks": [
             {
               "name": "required_fields",
@@ -994,7 +1014,7 @@
             {
               "name": "record_count",
               "passed": true,
-              "detail": "11 in [4, 500]"
+              "detail": "11 in [3, 500]"
             },
             {
               "name": "value_range",
@@ -1008,8 +1028,8 @@
             },
             {
               "name": "median_jump",
-              "passed": false,
-              "detail": 145.121
+              "passed": true,
+              "detail": null
             }
           ],
           "retry_schedule_minutes": [
@@ -1021,8 +1041,8 @@
         {
           "source": "healthcanada_dpd",
           "contract": "healthcanada_dpd",
-          "attempts": 4,
-          "passed": false,
+          "attempts": 1,
+          "passed": true,
           "checks": [
             {
               "name": "required_fields",
@@ -1046,8 +1066,8 @@
             },
             {
               "name": "median_jump",
-              "passed": false,
-              "detail": 89.593
+              "passed": true,
+              "detail": null
             }
           ],
           "retry_schedule_minutes": [
@@ -1059,8 +1079,8 @@
         {
           "source": "pmprb_reports",
           "contract": "pmprb_reports",
-          "attempts": 4,
-          "passed": false,
+          "attempts": 1,
+          "passed": true,
           "checks": [
             {
               "name": "required_fields",
@@ -1084,8 +1104,8 @@
             },
             {
               "name": "median_jump",
-              "passed": false,
-              "detail": 87.992
+              "passed": true,
+              "detail": null
             }
           ],
           "retry_schedule_minutes": [
@@ -1097,8 +1117,8 @@
         {
           "source": "statcan_cpi_csv",
           "contract": "statcan_cpi_csv",
-          "attempts": 4,
-          "passed": false,
+          "attempts": 1,
+          "passed": true,
           "checks": [
             {
               "name": "required_fields",
@@ -1108,7 +1128,7 @@
             {
               "name": "record_count",
               "passed": true,
-              "detail": "20 in [4, 500]"
+              "detail": "20 in [3, 500]"
             },
             {
               "name": "value_range",
@@ -1122,8 +1142,8 @@
             },
             {
               "name": "median_jump",
-              "passed": false,
-              "detail": 171.573
+              "passed": true,
+              "detail": null
             }
           ],
           "retry_schedule_minutes": [
@@ -1135,8 +1155,8 @@
         {
           "source": "parkscanada_fees",
           "contract": "parkscanada_fees",
-          "attempts": 4,
-          "passed": false,
+          "attempts": 1,
+          "passed": true,
           "checks": [
             {
               "name": "required_fields",
@@ -1160,8 +1180,8 @@
             },
             {
               "name": "median_jump",
-              "passed": false,
-              "detail": 91.051
+              "passed": true,
+              "detail": null
             }
           ],
           "retry_schedule_minutes": [
@@ -1173,8 +1193,8 @@
         {
           "source": "statcan_education_portal",
           "contract": "statcan_education_portal",
-          "attempts": 4,
-          "passed": false,
+          "attempts": 1,
+          "passed": true,
           "checks": [
             {
               "name": "required_fields",
@@ -1188,8 +1208,8 @@
             },
             {
               "name": "value_range",
-              "passed": false,
-              "detail": "[1.0, 400.0]"
+              "passed": true,
+              "detail": "[1.0, 1000.0]"
             },
             {
               "name": "freshness",
@@ -1198,8 +1218,46 @@
             },
             {
               "name": "median_jump",
-              "passed": false,
-              "detail": 89.423
+              "passed": true,
+              "detail": null
+            }
+          ],
+          "retry_schedule_minutes": [
+            15,
+            60,
+            360
+          ]
+        },
+        {
+          "source": "apify_loblaws",
+          "contract": "apify_loblaws",
+          "attempts": 2,
+          "passed": true,
+          "checks": [
+            {
+              "name": "required_fields",
+              "passed": true,
+              "detail": null
+            },
+            {
+              "name": "record_count",
+              "passed": true,
+              "detail": "0 in [0, 1000]"
+            },
+            {
+              "name": "value_range",
+              "passed": true,
+              "detail": "[0.1, 500.0]"
+            },
+            {
+              "name": "freshness",
+              "passed": true,
+              "detail": "None <= 336.0"
+            },
+            {
+              "name": "median_jump",
+              "passed": true,
+              "detail": null
             }
           ],
           "retry_schedule_minutes": [
@@ -1223,10 +1281,10 @@
       "series": "Canada CPI",
       "source_url": "https://www150.statcan.gc.ca/n1/dai-quo/cal2-eng.htm",
       "status": "upcoming",
-      "countdown_seconds": 1991450
+      "countdown_seconds": 1989146
     },
     "release_events": {
-      "as_of": "2026-02-22T12:19:10+00:00",
+      "as_of": "2026-02-22T12:57:34+00:00",
       "source_url": "https://www150.statcan.gc.ca/n1/dai-quo/cal2-eng.htm",
       "events": [
         {
@@ -1241,22 +1299,35 @@
       "errors": []
     },
     "fallbacks": {
-      "nowcast_from_official_mom": false
+      "nowcast_from_official_mom": true
     },
     "collection_diagnostics": {
       "apify_retry": {
         "attempts": 2,
-        "retries_used": 0,
-        "succeeded": true,
-        "final_status": "fresh",
-        "reason": null
+        "retries_used": 1,
+        "succeeded": false,
+        "final_status": "missing",
+        "reason": "Apify run failed for all actors. sunny_eternity/loblaws-grocery-scraper: Maximum charged results must be greater than zero"
+      },
+      "network_preflight": {
+        "checked_at_epoch": 1771765056,
+        "ok": true,
+        "failures": [],
+        "cached": false
       },
       "qa_retry_offsets_minutes": [
         15,
         60,
         360
       ],
-      "source_contracts_enforced": true
+      "source_contracts_enforced": true,
+      "failure_signature": {
+        "dns_failures": 0,
+        "timeout_failures": 0,
+        "blocked_failures": 0,
+        "total_sources": 18,
+        "global_dns_outage_likely": false
+      }
     },
     "housing_signal_overlay": {
       "applied": false,
@@ -1271,7 +1342,7 @@
         "prorate_factor": 0.7857,
         "base_month": "2026-01",
         "reference_month": "2025-02",
-        "projected_index": 150.9999,
+        "projected_index": 165.0,
         "base_index": 165.0,
         "reference_index": 163.0,
         "reason": null
@@ -1282,7 +1353,7 @@
       "headline_mom": null,
       "source_count": 2,
       "confidence": "medium",
-      "as_of": "2026-02-22T12:19:11+00:00",
+      "as_of": "2026-02-22T12:57:35+00:00",
       "source_urls": [
         "https://tradingeconomics.com/canada/inflation-cpi",
         "https://www.fxstreet.com/economic-calendar"
@@ -1291,14 +1362,14 @@
         {
           "source": "tradingeconomics",
           "url": "https://tradingeconomics.com/canada/inflation-cpi",
-          "retrieved_at": "2026-02-22T12:19:11+00:00",
+          "retrieved_at": "2026-02-22T12:57:35+00:00",
           "headline_yoy_candidate": 0.0,
           "field_confidence": "low"
         },
         {
           "source": "fxstreet",
           "url": "https://www.fxstreet.com/economic-calendar",
-          "retrieved_at": "2026-02-22T12:19:11+00:00",
+          "retrieved_at": "2026-02-22T12:57:35+00:00",
           "headline_yoy_candidate": 1.03,
           "field_confidence": "medium"
         }
@@ -1319,45 +1390,45 @@
     "forecast": {
       "status": "insufficient_history",
       "next_release_date": "2026-03-17",
-      "as_of": "2026-02-22T12:19:10+00:00",
+      "as_of": "2026-02-22T12:57:34+00:00",
       "model_version": "v1.3.0-forecast-baseline",
       "confidence": "low",
       "point_yoy": null,
       "lower_yoy": null,
       "upper_yoy": null,
       "backtest": {
-        "live_days": 3,
+        "live_days": 0,
         "minimum_required_days": 30
       },
       "inputs": {
-        "nowcast_yoy": -0.237,
+        "nowcast_yoy": 1.382,
         "consensus_yoy": null,
         "official_recent_yoy": null,
         "official_yoy_momentum": null
       }
     },
     "calibration_diagnostics": {
-      "raw_nowcast_yoy": -7.362,
-      "calibrated_nowcast_yoy": -0.237,
-      "shrink_factor": 0.35,
+      "raw_nowcast_yoy": 1.227,
+      "calibrated_nowcast_yoy": 1.382,
+      "shrink_factor": 0.15,
       "anchor_yoy": 2.263,
-      "trigger_reason": "low_source_diversity,anomaly_penalty",
-      "cap_applied": true
+      "trigger_reason": "low_source_diversity",
+      "cap_applied": false
     },
     "gate_diagnostics": {
       "apify_recency": {
-        "passed": true,
-        "value": 0,
+        "passed": false,
+        "value": null,
         "threshold": 14,
-        "reason": null
+        "reason": "apify_stale_or_missing"
       },
       "required_sources": {
-        "passed": false,
+        "passed": true,
         "value": [
           {
             "source": "statcan_cpi_csv",
-            "status": "missing",
-            "passed": false
+            "status": "fresh",
+            "passed": true
           },
           {
             "source": "statcan_gas_csv",
@@ -1366,7 +1437,7 @@
           }
         ],
         "threshold": "all_required",
-        "reason": "missing_required_source"
+        "reason": null
       },
       "energy_source": {
         "passed": true,
@@ -1378,19 +1449,19 @@
         "reason": null
       },
       "category_points": {
-        "passed": false,
+        "passed": true,
         "value": [
           {
             "category": "food",
-            "points": 60,
+            "points": 10,
             "threshold": 5,
             "passed": true
           },
           {
             "category": "housing",
-            "points": 0,
+            "points": 3,
             "threshold": 2,
-            "passed": false
+            "passed": true
           },
           {
             "category": "transport",
@@ -1400,31 +1471,31 @@
           },
           {
             "category": "energy",
-            "points": 0,
+            "points": 12,
             "threshold": 1,
-            "passed": false
+            "passed": true
           },
           {
             "category": "communication",
-            "points": 0,
+            "points": 12,
             "threshold": 1,
-            "passed": false
+            "passed": true
           },
           {
             "category": "health_personal",
-            "points": 0,
+            "points": 27,
             "threshold": 1,
-            "passed": false
+            "passed": true
           },
           {
             "category": "recreation_education",
-            "points": 19,
+            "points": 39,
             "threshold": 1,
             "passed": true
           }
         ],
         "threshold": "all_min_points",
-        "reason": "category_min_points_failed"
+        "reason": null
       },
       "official_metadata": {
         "passed": true,
@@ -1433,17 +1504,17 @@
         "reason": null
       },
       "representativeness": {
-        "passed": false,
-        "value": 0.4887,
+        "passed": true,
+        "value": 1.0,
         "threshold": 0.85,
-        "reason": "fresh_weight_ratio_below_threshold"
+        "reason": null
       },
       "food_resilience": {
         "passed": true,
         "value": {
-          "fresh_sources": 3,
-          "usable_sources": 3,
-          "preferred_source_status": "fresh"
+          "fresh_sources": 2,
+          "usable_sources": 2,
+          "preferred_source_status": "missing"
         },
         "threshold": {
           "min_fresh_sources": 1,
@@ -1452,20 +1523,20 @@
         "reason": null
       },
       "source_reliability": {
-        "passed": false,
-        "value": 0.2222,
+        "passed": true,
+        "value": 1.0,
         "threshold": 0.95,
-        "reason": "source_contract_pass_rate_below_threshold"
+        "reason": null
       },
       "imputation_weight": {
-        "passed": false,
-        "value": 0.5113,
+        "passed": true,
+        "value": 0.0,
         "threshold": 0.15,
-        "reason": "imputed_weight_ratio_above_threshold"
+        "reason": null
       },
       "cross_source_disagreement": {
-        "passed": false,
-        "value": 27.4955,
+        "passed": true,
+        "value": 0.0922,
         "threshold": {
           "food": 0.35,
           "housing": 0.25,
@@ -1475,35 +1546,35 @@
           "health_personal": 0.25,
           "recreation_education": 0.25
         },
-        "reason": "cross_source_disagreement_above_threshold"
+        "reason": null
       }
     },
     "calibration": {
       "maturity_tier": "bootstrapping",
-      "live_days": 3,
+      "live_days": 0,
       "minimum_days_for_stable_eval": 30,
       "forecast_eligibility": {
         "eligible": false,
         "reason": "forecast_status=insufficient_history"
       },
       "current_error_metrics": {
-        "mae_yoy_pct": 1.4247,
-        "median_abs_error_yoy_pct": 0.467,
-        "directional_accuracy_yoy_pct": 100.0,
-        "bias_yoy_pct": 1.0713,
-        "evaluated_live_points": 3
+        "mae_yoy_pct": null,
+        "median_abs_error_yoy_pct": null,
+        "directional_accuracy_yoy_pct": null,
+        "bias_yoy_pct": null,
+        "evaluated_live_points": 0
       },
       "notes": [
         "Calibration applies moderate shrinkage toward recent official trend when diversity is weak or anomaly pressure is elevated.",
         "Early-stage metrics should be interpreted cautiously until live history depth increases."
       ],
       "calibration_diagnostics": {
-        "raw_nowcast_yoy": -7.362,
-        "calibrated_nowcast_yoy": -0.237,
-        "shrink_factor": 0.35,
+        "raw_nowcast_yoy": 1.227,
+        "calibrated_nowcast_yoy": 1.382,
+        "shrink_factor": 0.15,
         "anchor_yoy": 2.263,
-        "trigger_reason": "low_source_diversity,anomaly_penalty",
-        "cap_applied": true
+        "trigger_reason": "low_source_diversity",
+        "cap_applied": false
       }
     }
   },
@@ -1512,10 +1583,10 @@
     "model_card_path": "data/model_card_latest.json"
   },
   "release": {
-    "run_id": "run_4ef15e1de749",
-    "status": "failed_gate",
-    "qa_status": "failed",
-    "qa_window_close_at": "2026-02-23T12:19:10+00:00",
+    "run_id": "run_559d5caa84ed",
+    "status": "published",
+    "qa_status": "passed",
+    "qa_window_close_at": "2026-02-23T12:57:34+00:00",
     "lifecycle_states": [
       "started",
       "collect",
@@ -1523,17 +1594,10 @@
       "reconcile",
       "completed",
       "publish",
-      "failed_gate"
+      "published"
     ],
-    "blocked_conditions": [
-      "Gate B failed: one or more required sources missing.",
-      "Gate D failed: category housing has fewer than 2 points.",
-      "Gate F failed: representativeness ratio below 85% fresh basket coverage.",
-      "Gate G failed: trailing source contract pass rate below minimum.",
-      "Gate H failed: imputed basket weight above allowed threshold.",
-      "Gate I failed: cross-source disagreement above allowed threshold."
-    ],
-    "created_at": "2026-02-22T12:19:10+00:00",
-    "published_at": null
+    "blocked_conditions": [],
+    "created_at": "2026-02-22T12:57:34+00:00",
+    "published_at": "2026-02-22T12:57:34+00:00"
   }
 }

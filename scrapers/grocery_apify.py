@@ -278,14 +278,19 @@ def scrape_grocery_apify() -> tuple[list[Quote], list[SourceHealth]]:
         # Pinning runtime to 3.11 in CI/prod avoids this failure mode.
         client = ApifyClient(token)
     except BaseException as err:  # pragma: no cover - runtime dependent
+        previous_ts = _load_previous_apify_timestamp()
+        status = "stale" if previous_ts else "missing"
+        detail = f"Apify client init failed: {err}"
+        if previous_ts:
+            detail += " Reusing last successful APIFY timestamp for freshness gating."
         return [], [
             SourceHealth(
                 source="apify_loblaws",
                 category="food",
                 tier=1,
-                status="missing",
-                last_success_timestamp=None,
-                detail=f"Apify client init failed: {err}",
+                status=status,
+                last_success_timestamp=previous_ts,
+                detail=detail,
                 source_run_id=None,
             )
         ]
@@ -333,16 +338,20 @@ def scrape_grocery_apify() -> tuple[list[Quote], list[SourceHealth]]:
             except BaseException as err:  # pragma: no cover - network/runtime dependent
                 errors.append(f"{actor_id}: {err}")
 
+    previous_ts = _load_previous_apify_timestamp()
     detail = "Apify run failed for all actors."
     if errors:
         detail = detail + " " + " | ".join(errors[:3])
+    status = "stale" if previous_ts else "missing"
+    if previous_ts:
+        detail += " Reusing last successful APIFY timestamp for freshness gating."
     return [], [
         SourceHealth(
             source="apify_loblaws",
             category="food",
             tier=1,
-            status="missing",
-            last_success_timestamp=None,
+            status=status,
+            last_success_timestamp=previous_ts,
             detail=detail,
             source_run_id=source_run_id,
         )

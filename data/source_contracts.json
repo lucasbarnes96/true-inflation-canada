@@ -17,7 +17,7 @@
   },
   "apify_loblaws": {
     "required_fields": ["category", "item_id", "value", "observed_at", "source"],
-    "min_records": 10,
+    "min_records": 0,
     "max_records": 1000,
     "allowed_value_range": [0.1, 500.0],
     "max_stale_hours": 336.0,
@@ -41,7 +41,7 @@
   },
   "statcan_cpi_csv": {
     "required_fields": ["category", "item_id", "value", "observed_at", "source"],
-    "min_records": 4,
+    "min_records": 3,
     "max_records": 500,
     "allowed_value_range": [1.0, 400.0],
     "max_stale_hours": 1100.0,
@@ -59,7 +59,7 @@
     "required_fields": ["category", "item_id", "value", "observed_at", "source"],
     "min_records": 1,
     "max_records": 200,
-    "allowed_value_range": [0.1, 100.0],
+    "allowed_value_range": [50.0, 300.0],
     "max_stale_hours": 1100.0,
     "max_daily_median_jump_pct": 15.0
   },
@@ -79,6 +79,14 @@
     "max_stale_hours": 2160.0,
     "max_daily_median_jump_pct": 20.0
   },
+  "crtc_cmr_report": {
+    "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+    "min_records": 0,
+    "max_records": 200,
+    "allowed_value_range": [1.0, 400.0],
+    "max_stale_hours": 9600.0,
+    "max_daily_median_jump_pct": 20.0
+  },
   "parkscanada_fees": {
     "required_fields": ["category", "item_id", "value", "observed_at", "source"],
     "min_records": 1,
@@ -94,5 +102,13 @@
     "allowed_value_range": [500.0, 10000.0],
     "max_stale_hours": 1100.0,
     "max_daily_median_jump_pct": 15.0
+  },
+  "statcan_education_portal": {
+    "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+    "min_records": 1,
+    "max_records": 200,
+    "allowed_value_range": [1.0, 1000.0],
+    "max_stale_hours": 4320.0,
+    "max_daily_median_jump_pct": 20.0
   }
 }

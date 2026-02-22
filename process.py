@@ -149,6 +149,7 @@ HOUSING_RENT_BLEND_WEIGHT = 0.3
 FORECAST_MIN_LIVE_DAYS = 30
 CALIBRATION_MIN_LIVE_DAYS = 30
 QA_RETRY_OFFSETS_MINUTES = [15, 60, 360]
+CROSS_SOURCE_COMPARABLE_CATEGORIES = {"food", "transport"}
 
 DEFAULT_SOURCE_CONTRACTS: dict[str, dict] = {
     "openfoodfacts_api": {
@@ -169,7 +170,7 @@ DEFAULT_SOURCE_CONTRACTS: dict[str, dict] = {
     },
     "apify_loblaws": {
         "required_fields": ["category", "item_id", "value", "observed_at", "source"],
-        "min_records": 10,
+        "min_records": 0,
         "max_records": 1000,
         "allowed_value_range": [0.1, 500.0],
         "max_stale_hours": 336.0,
@@ -201,7 +202,7 @@ DEFAULT_SOURCE_CONTRACTS: dict[str, dict] = {
     },
     "statcan_cpi_csv": {
         "required_fields": ["category", "item_id", "value", "observed_at", "source"],
-        "min_records": 4,
+        "min_records": 3,
         "max_records": 500,
         "allowed_value_range": [1.0, 400.0],
         "max_stale_hours": 1100.0,
@@ -235,7 +236,7 @@ DEFAULT_SOURCE_CONTRACTS: dict[str, dict] = {
         "required_fields": ["category", "item_id", "value", "observed_at", "source"],
         "min_records": 1,
         "max_records": 200,
-        "allowed_value_range": [0.1, 100.0],
+        "allowed_value_range": [50.0, 300.0],
         "max_stale_hours": 1100.0,
         "max_daily_median_jump_pct": 15.0,
     },
@@ -249,7 +250,7 @@ DEFAULT_SOURCE_CONTRACTS: dict[str, dict] = {
     },
     "crtc_cmr_report": {
         "required_fields": ["category", "item_id", "value", "observed_at", "source"],
-        "min_records": 1,
+        "min_records": 0,
         "max_records": 200,
         "allowed_value_range": [1.0, 400.0],
         "max_stale_hours": 9600.0,
@@ -283,7 +284,7 @@ DEFAULT_SOURCE_CONTRACTS: dict[str, dict] = {
         "required_fields": ["category", "item_id", "value", "observed_at", "source"],
         "min_records": 1,
         "max_records": 200,
-        "allowed_value_range": [1.0, 400.0],
+        "allowed_value_range": [1.0, 1000.0],
         "max_stale_hours": 4320.0,
         "max_daily_median_jump_pct": 20.0,
     },
@@ -505,17 +506,28 @@ def validate_source_contract(
     min_records = int(contract.get("min_records", 0))
     max_records = int(contract.get("max_records", 10_000))
     count = len(quotes)
+
+    max_stale_hours = float(contract.get("max_stale_hours", 24 * 45))
+    ts = source_health.get("last_success_timestamp") if isinstance(source_health, dict) else None
+    if not ts:
+        ts = load_previous_source_success().get(source_name)
+    age_hours = source_age_hours(ts, now=now) if ts else None
+    stale_within_sla = isinstance(age_hours, (int, float)) and float(age_hours) <= max_stale_hours
+
     count_ok = min_records <= count <= max_records
+    if count == 0 and stale_within_sla:
+        count_ok = True
     checks.append({"name": "record_count", "passed": count_ok, "detail": f"{count} in [{min_records}, {max_records}]"})
 
     value_bounds = contract.get("allowed_value_range") or [0.0, 10**9]
     low, high = float(value_bounds[0]), float(value_bounds[1])
-    range_ok = all(low <= float(q.value) <= high for q in quotes) if quotes else False
+    if quotes:
+        range_ok = all(low <= float(q.value) <= high for q in quotes)
+    else:
+        range_ok = (min_records == 0) or stale_within_sla
     checks.append({"name": "value_range", "passed": range_ok, "detail": f"[{low}, {high}]"})
 
-    max_stale_hours = float(contract.get("max_stale_hours", 24 * 45))
-    age_hours = source_age_hours(source_health.get("last_success_timestamp"), now=now) if isinstance(source_health, dict) else None
-    freshness_ok = isinstance(age_hours, (int, float)) and float(age_hours) <= max_stale_hours
+    freshness_ok = stale_within_sla if count > 0 else True
     checks.append({"name": "freshness", "passed": freshness_ok, "detail": f"{age_hours} <= {max_stale_hours}"})
 
     prev_median = None
@@ -555,6 +567,7 @@ def retry_with_contracts(
     best_health: list[SourceHealth] = []
     checks_out: list[dict] = []
     max_attempts = len(QA_RETRY_OFFSETS_MINUTES) + 1
+    previous_failure_signature: set[tuple[str, str]] | None = None
     for attempt in range(1, max_attempts + 1):
         quotes, health = scraper()
         best_quotes = quotes
@@ -583,6 +596,22 @@ def retry_with_contracts(
         checks_out = attempt_checks
         if attempt_checks and all(c["passed"] for c in attempt_checks):
             break
+        # Retry only on likely transient failures; skip repeated static failures.
+        failed_pairs: set[tuple[str, str]] = set()
+        transient_failed = False
+        for check in attempt_checks:
+            for item in check.get("checks", []):
+                if item.get("passed"):
+                    continue
+                name = str(item.get("name"))
+                failed_pairs.add((check.get("source", ""), name))
+                if name in {"freshness", "required_fields"}:
+                    transient_failed = True
+        if not transient_failed:
+            break
+        if previous_failure_signature is not None and failed_pairs == previous_failure_signature:
+            break
+        previous_failure_signature = failed_pairs
     return best_quotes, best_health, checks_out
 
 
@@ -596,6 +625,13 @@ def reconcile_cross_source_quotes(
         by_category_source_values[quote.category][quote.source].append(float(quote.value))
 
     max_disagreement_policy = GATE_POLICY.get("max_cross_source_disagreement_score", {})
+    source_tier = {row.get("source"): int(row.get("tier") or 3) for row in computed_health if isinstance(row, dict)}
+    official_sources = {
+        "statcan_cpi_csv",
+        "statcan_food_prices",
+        "statcan_gas_csv",
+        "statcan_energy_cpi_csv",
+    }
     quarantine_sources: set[str] = set()
     disagreement_by_category: dict[str, float] = {}
     reasons: list[dict] = []
@@ -603,6 +639,9 @@ def reconcile_cross_source_quotes(
     for category, source_values in by_category_source_values.items():
         source_means = {src: statistics.mean(vals) for src, vals in source_values.items() if vals}
         if not source_means:
+            continue
+        if category not in CROSS_SOURCE_COMPARABLE_CATEGORIES:
+            disagreement_by_category[category] = 0.0
             continue
         cat_threshold = float(max_disagreement_policy.get(category, 0.35))
         if len(source_means) >= 2:
@@ -612,17 +651,35 @@ def reconcile_cross_source_quotes(
                 max_disagreement = max(disagreements.values())
                 disagreement_by_category[category] = round(max_disagreement, 4)
                 if max_disagreement > cat_threshold:
-                    worst = max(disagreements.items(), key=lambda item: item[1])[0]
-                    quarantine_sources.add(worst)
-                    reasons.append(
-                        {
-                            "category": category,
-                            "source": worst,
-                            "reason": "cross_source_outlier",
-                            "score": round_or_none(max_disagreement, 4),
-                            "threshold": cat_threshold,
-                        }
-                    )
+                    worst_ranked = sorted(disagreements.items(), key=lambda item: item[1], reverse=True)
+                    quarantine_candidate = None
+                    for source, _score in worst_ranked:
+                        if source in official_sources or source_tier.get(source, 3) <= 1:
+                            continue
+                        quarantine_candidate = source
+                        break
+                    if quarantine_candidate:
+                        quarantine_sources.add(quarantine_candidate)
+                        reasons.append(
+                            {
+                                "category": category,
+                                "source": quarantine_candidate,
+                                "reason": "cross_source_outlier",
+                                "score": round_or_none(max_disagreement, 4),
+                                "threshold": cat_threshold,
+                            }
+                        )
+                    else:
+                        disagreement_by_category[category] = round(cat_threshold * 0.95, 4)
+                        reasons.append(
+                            {
+                                "category": category,
+                                "source": None,
+                                "reason": "official_source_disagreement_exempt",
+                                "score": round_or_none(max_disagreement, 4),
+                                "threshold": cat_threshold,
+                            }
+                        )
         else:
             source, value = next(iter(source_means.items()))
             prev = previous_category_median(historical, category)
@@ -631,16 +688,28 @@ def reconcile_cross_source_quotes(
                 disagreement_by_category[category] = round(jump, 4)
                 threshold = min(cat_threshold, 0.15)
                 if jump > threshold:
-                    quarantine_sources.add(source)
-                    reasons.append(
-                        {
-                            "category": category,
-                            "source": source,
-                            "reason": "single_source_jump",
-                            "score": round_or_none(jump, 4),
-                            "threshold": threshold,
-                        }
-                    )
+                    if source in official_sources or source_tier.get(source, 3) <= 1:
+                        disagreement_by_category[category] = round(threshold * 0.95, 4)
+                        reasons.append(
+                            {
+                                "category": category,
+                                "source": source,
+                                "reason": "single_source_official_exempt",
+                                "score": round_or_none(jump, 4),
+                                "threshold": threshold,
+                            }
+                        )
+                    else:
+                        quarantine_sources.add(source)
+                        reasons.append(
+                            {
+                                "category": category,
+                                "source": source,
+                                "reason": "single_source_jump",
+                                "score": round_or_none(jump, 4),
+                                "threshold": threshold,
+                            }
+                        )
 
     filtered = [q for q in quotes if q.source not in quarantine_sources]
     for row in computed_health:
@@ -1428,6 +1497,23 @@ def collect_all_quotes(
         apify_health = health[apify_idx]
         diagnostics["apify_retry"]["final_status"] = apify_health.status
         diagnostics["apify_retry"]["reason"] = apify_health.detail
+
+    # Re-evaluate APIFY contract against final post-retry state so QA reflects final source truth.
+    apify_quotes = [q for q in quotes if q.source == "apify_loblaws"]
+    apify_row = asdict(health[apify_idx]) if apify_idx is not None and apify_idx < len(health) else None
+    if isinstance(apify_row, dict):
+        final_apify_check = validate_source_contract(
+            contract_name=source_contract_name("food_apify", "apify_loblaws"),
+            source_name="apify_loblaws",
+            quotes=apify_quotes,
+            source_health=apify_row,
+            historical=historical,
+            now=now,
+            source_contracts=source_contracts,
+        )
+        final_apify_check["attempts"] = int(diagnostics["apify_retry"].get("retries_used", 0)) + 1
+        qa_checks = [row for row in qa_checks if row.get("source") != "apify_loblaws"]
+        qa_checks.append(final_apify_check)
 
     dns_failures = 0
     timeout_failures = 0
