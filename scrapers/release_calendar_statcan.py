@@ -20,6 +20,20 @@ def _to_utc_iso_from_et(date_str: str, hour: int = 8, minute: int = 30) -> str:
     return dt_utc.replace(microsecond=0).isoformat()
 
 
+def _fallback_next_release_day(now_utc: datetime) -> str:
+    # Heuristic fallback: CPI release tends to occur mid-month around the 17th.
+    year = now_utc.year
+    month = now_utc.month
+    candidate = datetime(year, month, 17, 13, 30, tzinfo=timezone.utc)
+    if candidate <= now_utc:
+        if month == 12:
+            year += 1
+            month = 1
+        else:
+            month += 1
+    return f"{year:04d}-{month:02d}-17"
+
+
 def fetch_release_events() -> dict:
     fetched_at = utc_now_iso()
     events: list[dict] = []
@@ -48,8 +62,7 @@ def fetch_release_events() -> dict:
         errors.append(str(err))
 
     if not events:
-        # Seeded fallback for continuity (known date for Jan-2026 CPI publication).
-        fallback_day = "2026-02-17"
+        fallback_day = _fallback_next_release_day(datetime.now(timezone.utc))
         events = [
             {
                 "event_date": fallback_day,
@@ -67,4 +80,3 @@ def fetch_release_events() -> dict:
         "events": events,
         "errors": errors,
     }
-

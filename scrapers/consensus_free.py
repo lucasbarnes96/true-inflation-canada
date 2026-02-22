@@ -43,13 +43,17 @@ def fetch_consensus_estimate() -> dict:
             if plausible:
                 inferred = plausible[0]
                 consensus_candidates.append(inferred)
+            field_conf = "none"
+            if inferred is not None:
+                # Plausible Canada CPI YoY zone receives medium confidence.
+                field_conf = "medium" if 1.0 <= inferred <= 5.0 else "low"
             source_rows.append(
                 {
                     "source": name,
                     "url": url,
                     "retrieved_at": as_of,
                     "headline_yoy_candidate": inferred,
-                    "field_confidence": "low" if inferred is not None else "none",
+                    "field_confidence": field_conf,
                 }
             )
         except Exception as err:  # pragma: no cover - network dependent
@@ -81,4 +85,3 @@ def fetch_consensus_estimate() -> dict:
         "errors": errors,
         "method_version": "v1.6.0",
     }
-

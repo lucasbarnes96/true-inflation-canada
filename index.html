@@ -836,6 +836,10 @@
       const officialYoy = official.yoy_display_pct ?? official.yoy_pct;
       const consensusYoy = consensus?.headline_yoy ?? latest.headline?.consensus_yoy;
       const consensusMom = consensus?.headline_mom ?? null;
+      const consensusPayload = consensus || latest.meta?.consensus || {};
+      const consensusSources = (consensusPayload.sources || []).map((s) => s.source).filter(Boolean);
+      const consensusSourceLabel = consensusSources.length ? `Sources: ${consensusSources.join(", ")}` : "Sources unavailable";
+      const consensusGuardrailReason = consensusPayload.guardrails?.reason;
       const deviation = latest.headline?.deviation_yoy_pct ?? latest.headline?.consensus_spread_yoy;
       const deviationEnabled = liveDays >= 30 && consensusYoy !== null && consensusYoy !== undefined;
       const nextRelease = upcomingRelease?.next_release || latest.meta?.release_intelligence || {};
@@ -855,13 +859,13 @@
           title: "Consensus YoY (Unofficial)",
           value: consensusYoy === null || consensusYoy === undefined ? "Consensus: Unavailable" : `${Number(consensusYoy).toFixed(2)}%`,
           note: consensusYoy === null || consensusYoy === undefined
-            ? "Consensus forecast not yet available from aggregated sources."
-            : "Free-source estimate",
+            ? `Consensus withheld (${consensusGuardrailReason || "no_usable_sources"}). ${consensusSourceLabel}.`
+            : `${consensusSourceLabel}.`,
         },
         {
           title: "Consensus MoM (Unofficial)",
           value: consensusMom === null || consensusMom === undefined ? "--" : `${Number(consensusMom).toFixed(2)}%`,
-          note: `Free-source estimate`,
+          note: `${consensusSourceLabel}.`,
         },
         {
           title: "Last Actual CPI",
@@ -874,7 +878,7 @@
             ? "Unavailable"
             : `${Number(deviation).toFixed(2)} pp`,
           note: consensusYoy === null || consensusYoy === undefined
-            ? "Consensus forecast not yet available from aggregated sources."
+            ? `Consensus unavailable (${consensusGuardrailReason || "no_usable_sources"}). ${consensusSourceLabel}.`
             : liveDays < 30
               ? "Deviation is hidden until at least 30 live nowcast days are available."
               : "Nowcast YoY - consensus YoY",
