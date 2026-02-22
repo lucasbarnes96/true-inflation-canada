@@ -43,6 +43,24 @@ Projection steps:
 - Signals are filtered and quality-scored, but this is still a research system.
 - Compatibility fields remain temporarily available (`nowcast_mom_pct`, `consensus_spread_yoy`) during migration.
 
+## Reliability QA Runbook
+### Source outage triage
+1. Check `/v1/qa/status` and inspect `blocked_conditions`, `qa_summary.quarantine_sources`, and source pass rates.
+2. Confirm whether failure is contract-level (`record_count`, `freshness`, `value_range`) or reconciliation-level (`cross_source_disagreement`).
+3. Re-run ingestion within the 24-hour QA window; publish remains held until QA passes.
+
+### Quarantine override process
+1. Default policy is automatic source quarantine when disagreement thresholds are breached.
+2. Override only after confirming source-side issue is resolved and cross-source agreement returns inside threshold.
+3. Document override rationale in run notes and keep `source_run_checks` evidence in `data/qa_runs.db`.
+
+### Manual unblock criteria
+1. `release.qa_status` must be `passed`.
+2. `source_contract_pass_rate` must meet policy minimum.
+3. `imputed_weight_ratio` must be at or below policy maximum.
+4. `cross_source_disagreement` must pass category thresholds.
+5. All legacy release gates must still pass before `published_latest.json` updates.
+
 ## Reference
 Statistics Canada CPI program and methodology:
 - https://www.statcan.gc.ca/en/statistical-programs/document/2301_D2_V4

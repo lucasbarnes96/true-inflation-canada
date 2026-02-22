@@ -21,6 +21,7 @@ RELEASE_DB_PATH = DATA_DIR / "releases.db"
 PERFORMANCE_SUMMARY_PATH = DATA_DIR / "performance_summary.json"
 RELEASE_EVENTS_PATH = DATA_DIR / "release_events.json"
 CONSENSUS_LATEST_PATH = DATA_DIR / "consensus_latest.json"
+QA_DB_PATH = DATA_DIR / "qa_runs.db"
 
 app = FastAPI(title="True Inflation Canada API", version=METHOD_VERSION)
 
@@ -230,3 +231,41 @@ def calibration_status() -> dict:
     if not isinstance(calibration, dict):
         raise HTTPException(status_code=404, detail="No calibration data available.")
     return calibration
+
+
+@app.get("/v1/qa/status")
+def qa_status() -> dict:
+    payload = _load_json(LATEST_PATH, {})
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=404, detail="No snapshot available.")
+    release = payload.get("release", {})
+    qa_summary = payload.get("meta", {}).get("qa_summary", {})
+    reliability: list[dict] = []
+    if QA_DB_PATH.exists():
+        as_of_date = payload.get("as_of_date")
+        if isinstance(as_of_date, str):
+            with sqlite3.connect(QA_DB_PATH) as conn:
+                rows = conn.execute(
+                    "SELECT source, pass_rate_30d, freshness_pass_rate_30d, runs_30d "
+                    "FROM daily_source_reliability WHERE as_of_date = ? ORDER BY source",
+                    (as_of_date,),
+                ).fetchall()
+            reliability = [
+                {
+                    "source": source,
+                    "pass_rate_30d": pass_rate,
+                    "freshness_pass_rate_30d": freshness,
+                    "runs_30d": runs,
+                }
+                for source, pass_rate, freshness, runs in rows
+            ]
+
+    return {
+        "run_id": release.get("run_id"),
+        "release_status": release.get("status"),
+        "qa_status": release.get("qa_status", "pending"),
+        "qa_window_close_at": release.get("qa_window_close_at"),
+        "blocked_conditions": release.get("blocked_conditions", []),
+        "qa_summary": qa_summary,
+        "source_reliability_30d": reliability,
+    }

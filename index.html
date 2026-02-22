@@ -989,10 +989,36 @@
       }).length;
     }
 
-    function renderDivergence(items) {
+    function emaSeries(values, period) {
+      const alpha = 2 / (period + 1);
+      let ema = null;
+      return values.map((value) => {
+        if (value === null || value === undefined) return ema;
+        ema = ema === null ? Number(value) : (Number(value) * alpha) + (ema * (1 - alpha));
+        return Number(ema.toFixed(3));
+      });
+    }
+
+    function confidenceBandHalfWidth(latest, liveDays) {
+      const tier = latest?.meta?.calibration?.maturity_tier || "bootstrapping";
+      const qaStatus = latest?.release?.qa_status || "pending";
+      const freshWeight = Number(latest?.meta?.qa_summary?.fresh_weight_ratio || 0);
+      let width = 0.3;
+      if (tier === "bootstrapping" || liveDays < 30) width = 1.5;
+      else if (tier === "developing" || liveDays < 60) width = 0.8;
+      if (qaStatus !== "passed") width = Math.max(width, 1.0);
+      if (freshWeight < 0.85) width = Math.max(width, 1.2);
+      return width;
+    }
+
+    function renderDivergence(items, latest, liveDays) {
       const days = items.map(d => d.date);
       const nowcast = items.map(d => d.headline?.nowcast_yoy_pct ?? null);
+      const nowcastEma = emaSeries(nowcast, 7);
       const official = items.map(d => d.official_cpi?.yoy_pct ?? null);
+      const band = confidenceBandHalfWidth(latest, liveDays);
+      const bandUpper = nowcastEma.map(v => (v === null || v === undefined) ? null : Number((v + band).toFixed(3)));
+      const bandLower = nowcastEma.map(v => (v === null || v === undefined) ? null : Number((v - band).toFixed(3)));
       const firstLiveIndex = items.findIndex((d) => {
         const seeded = Boolean(d.meta && d.meta.seeded);
         const yoy = d.headline?.nowcast_yoy_pct;
@@ -1054,8 +1080,46 @@
           datasets: [
             {
               type: "line",
-              label: "Nowcast YoY",
+              label: "Nowcast confidence (upper)",
+              data: bandUpper,
+              borderColor: "rgba(140,140,150,0.0)",
+              backgroundColor: "rgba(130,130,140,0.06)",
+              tension: 0.25,
+              spanGaps: false,
+              yAxisID: "y",
+              pointRadius: 0,
+              borderWidth: 0,
+            },
+            {
+              type: "line",
+              label: "Nowcast confidence band",
+              data: bandLower,
+              borderColor: "rgba(140,140,150,0.0)",
+              backgroundColor: "rgba(130,130,140,0.10)",
+              fill: "-1",
+              tension: 0.25,
+              spanGaps: false,
+              yAxisID: "y",
+              pointRadius: 0,
+              borderWidth: 0,
+            },
+            {
+              type: "line",
+              label: "Nowcast YoY (raw)",
               data: nowcast,
+              borderColor: "rgba(0,113,227,0.25)",
+              backgroundColor: "rgba(0,113,227,0.08)",
+              tension: 0.18,
+              spanGaps: false,
+              yAxisID: "y",
+              pointRadius: 1.5,
+              pointHoverRadius: 2,
+              borderWidth: 1,
+            },
+            {
+              type: "line",
+              label: "Nowcast YoY",
+              data: nowcastEma,
               borderColor: "#0071e3",
               backgroundColor: "rgba(0,113,227,0.08)",
               tension: 0.25,
@@ -1388,10 +1452,14 @@
       });
     }
 
-    function applyReleaseBanner(latest) {
+    function applyReleaseBanner(latest, liveDays) {
       const release = latest.release || {};
       const banner = document.getElementById("release-banner");
       banner.style.display = "block";
+      if ((release.qa_status && release.qa_status !== "passed") || liveDays < 30) {
+        banner.textContent = `Calibrating: ${release.qa_status || "pending"} QA and early live history can increase volatility.`;
+        return;
+      }
       if (release.status && release.status !== "published") {
         banner.textContent = `Release status: ${release.status}. ${(release.blocked_conditions || []).join(" | ")}`;
         return;
@@ -1523,7 +1591,7 @@
         document.getElementById("asof").textContent = `as of ${latest.as_of_date || "--"}`;
         const items = safeHistoryItems(historical).slice(-365);
         const liveDays = countLiveNowcastDays(items);
-        applyReleaseBanner(latest);
+        applyReleaseBanner(latest, liveDays);
         renderHero(latest);
         renderPulse(latest.meta || {});
         renderReleaseIntel(latest, upcomingRelease, consensus, forecast?.meta?.forecast || forecast, liveDays);
@@ -1533,7 +1601,7 @@
         renderMethodology(methodology, latest);
         renderPerformance(performance, liveDays);
         renderCalibration(calibration?.meta?.calibration || calibration || latest.meta?.calibration || {});
-        renderDivergence(items.slice(-90));
+        renderDivergence(items.slice(-90), latest, liveDays);
         renderCategoryChart(latest);
       }).catch(err => {
         document.body.innerHTML = `<main class='page'><section class='card'><h2 style='margin-bottom:.5rem;'>Data load error</h2><p style='color:var(--text-secondary);'>${String(err)}</p></section></main>`;

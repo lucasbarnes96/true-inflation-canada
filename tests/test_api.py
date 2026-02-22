@@ -24,6 +24,7 @@ class ApiContractTests(unittest.TestCase):
         self.published_latest = self.data_dir / "published_latest.json"
         self.historical = self.data_dir / "historical.json"
         self.releases_db = self.data_dir / "releases.db"
+        self.qa_db = self.data_dir / "qa_runs.db"
 
         snapshot = {
             "as_of_date": "2026-02-15",
@@ -81,6 +82,16 @@ class ApiContractTests(unittest.TestCase):
                     "forecast_eligibility": {"eligible": False, "reason": "forecast_status=insufficient_history"},
                     "current_error_metrics": {"mae_yoy_pct": 0.4},
                 },
+                "qa_summary": {
+                    "source_contract_pass_rate": 0.98,
+                    "fresh_weight_ratio": 0.9,
+                    "cross_source_disagreement_score": 0.12,
+                    "cross_source_disagreement_by_category": {"food": 0.12},
+                    "quarantine_sources": [],
+                    "imputation_used": False,
+                    "imputed_categories": [],
+                    "imputed_weight_ratio": 0.0,
+                },
             },
             "performance_ref": {
                 "summary_path": "data/performance_summary.json",
@@ -89,6 +100,8 @@ class ApiContractTests(unittest.TestCase):
             "release": {
                 "run_id": "run_123",
                 "status": "published",
+                "qa_status": "passed",
+                "qa_window_close_at": "2026-02-16T00:00:00+00:00",
                 "lifecycle_states": ["started", "completed", "published"],
                 "blocked_conditions": [],
                 "created_at": "2026-02-15T00:00:00+00:00",
@@ -169,6 +182,15 @@ class ApiContractTests(unittest.TestCase):
                 ("run_123", "2026-02-15T00:00:00+00:00", "published", "[]", "data/runs/run_123.json"),
             )
             conn.commit()
+        with sqlite3.connect(self.qa_db) as conn:
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS daily_source_reliability (as_of_date TEXT NOT NULL, source TEXT NOT NULL, pass_rate_30d REAL NOT NULL, freshness_pass_rate_30d REAL NOT NULL, runs_30d INTEGER NOT NULL, PRIMARY KEY (as_of_date, source))"
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO daily_source_reliability (as_of_date, source, pass_rate_30d, freshness_pass_rate_30d, runs_30d) VALUES (?, ?, ?, ?, ?)",
+                ("2026-02-15", "apify_loblaws", 0.97, 0.92, 12),
+            )
+            conn.commit()
 
         self.client = TestClient(app)
 
@@ -227,6 +249,13 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         body = resp.json()
         self.assertIn("maturity_tier", body)
+
+    def test_qa_status_endpoint(self) -> None:
+        resp = self.client.get("/v1/qa/status")
+        self.assertEqual(200, resp.status_code)
+        body = resp.json()
+        self.assertEqual("passed", body["qa_status"])
+        self.assertIn("qa_summary", body)
 
     def test_history_preserves_seeded_meta(self) -> None:
         resp = self.client.get("/v1/nowcast/history")

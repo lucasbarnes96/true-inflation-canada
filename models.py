@@ -83,6 +83,8 @@ class HeadlineModel(BaseModel):
 class ReleaseMeta(BaseModel):
     run_id: str
     status: Literal["published", "failed_gate", "completed", "started"]
+    qa_status: Literal["pending", "passed", "failed"] = "pending"
+    qa_window_close_at: datetime | None = None
     lifecycle_states: list[str] = Field(default_factory=list)
     blocked_conditions: list[str] = Field(default_factory=list)
     created_at: datetime

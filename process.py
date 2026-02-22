@@ -8,12 +8,13 @@ import time
 import uuid
 from collections import defaultdict
 from dataclasses import asdict
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from gate_policy import BASKET_WEIGHTS, GATE_POLICY, METHOD_VERSION, weights_payload
 from models import NowcastSnapshot
 from performance import compute_performance_summary, write_performance_summary
+from scrapers.common import dns_preflight
 from scrapers import (
     Quote,
     SourceHealth,
@@ -48,6 +49,8 @@ PERFORMANCE_SUMMARY_PATH = DATA_DIR / "performance_summary.json"
 MODEL_CARD_PATH = DATA_DIR / "model_card_latest.json"
 RELEASE_EVENTS_PATH = DATA_DIR / "release_events.json"
 CONSENSUS_LATEST_PATH = DATA_DIR / "consensus_latest.json"
+SOURCE_CONTRACTS_PATH = DATA_DIR / "source_contracts.json"
+QA_DB_PATH = DATA_DIR / "qa_runs.db"
 
 CATEGORY_REGISTRY: dict[str, dict] = {
     "food": {
@@ -123,7 +126,9 @@ SOURCE_SLA_DAYS = {
     "statcan_energy_cpi_csv": 45,
     "statcan_food_prices": 45,
     "statcan_gas_csv": 45,
+    "nrcan_fuel_scrape": 8,
     "statcan_cpi_csv": 45,
+    "rentals_ca_scrape": 45,
     "ised_mobile_plan_tracker": 60,
     "crtc_cmr_report": 400,
     "healthcanada_dpd": 90,
@@ -142,6 +147,146 @@ SOURCE_STATUS_MULTIPLIER = {"fresh": 1.0, "stale": 0.9, "missing": 0.0}
 HOUSING_RENT_BLEND_WEIGHT = 0.3
 FORECAST_MIN_LIVE_DAYS = 30
 CALIBRATION_MIN_LIVE_DAYS = 30
+QA_RETRY_OFFSETS_MINUTES = [15, 60, 360]
+
+DEFAULT_SOURCE_CONTRACTS: dict[str, dict] = {
+    "openfoodfacts_api": {
+        "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+        "min_records": 25,
+        "max_records": 500,
+        "allowed_value_range": [0.1, 500.0],
+        "max_stale_hours": 48.0,
+        "max_daily_median_jump_pct": 20.0,
+    },
+    "statcan_food_prices": {
+        "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+        "min_records": 1,
+        "max_records": 500,
+        "allowed_value_range": [0.1, 500.0],
+        "max_stale_hours": 1100.0,
+        "max_daily_median_jump_pct": 15.0,
+    },
+    "apify_loblaws": {
+        "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+        "min_records": 10,
+        "max_records": 1000,
+        "allowed_value_range": [0.1, 500.0],
+        "max_stale_hours": 336.0,
+        "max_daily_median_jump_pct": 20.0,
+    },
+    "statcan_gas_csv": {
+        "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+        "min_records": 1,
+        "max_records": 300,
+        "allowed_value_range": [50.0, 300.0],
+        "max_stale_hours": 1100.0,
+        "max_daily_median_jump_pct": 15.0,
+    },
+    "transport_fuel_scrappy": {
+        "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+        "min_records": 1,
+        "max_records": 300,
+        "allowed_value_range": [50.0, 300.0],
+        "max_stale_hours": 48.0,
+        "max_daily_median_jump_pct": 20.0,
+    },
+    "nrcan_fuel_scrape": {
+        "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+        "min_records": 1,
+        "max_records": 300,
+        "allowed_value_range": [50.0, 300.0],
+        "max_stale_hours": 192.0,
+        "max_daily_median_jump_pct": 20.0,
+    },
+    "statcan_cpi_csv": {
+        "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+        "min_records": 4,
+        "max_records": 500,
+        "allowed_value_range": [1.0, 400.0],
+        "max_stale_hours": 1100.0,
+        "max_daily_median_jump_pct": 10.0,
+    },
+    "housing_listings_scrappy": {
+        "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+        "min_records": 1,
+        "max_records": 200,
+        "allowed_value_range": [500.0, 10000.0],
+        "max_stale_hours": 48.0,
+        "max_daily_median_jump_pct": 15.0,
+    },
+    "rentals_ca_scrape": {
+        "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+        "min_records": 1,
+        "max_records": 200,
+        "allowed_value_range": [500.0, 10000.0],
+        "max_stale_hours": 1100.0,
+        "max_daily_median_jump_pct": 15.0,
+    },
+    "oeb_scrape": {
+        "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+        "min_records": 1,
+        "max_records": 100,
+        "allowed_value_range": [0.1, 100.0],
+        "max_stale_hours": 48.0,
+        "max_daily_median_jump_pct": 20.0,
+    },
+    "statcan_energy_cpi_csv": {
+        "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+        "min_records": 1,
+        "max_records": 200,
+        "allowed_value_range": [0.1, 100.0],
+        "max_stale_hours": 1100.0,
+        "max_daily_median_jump_pct": 15.0,
+    },
+    "ised_mobile_plan_tracker": {
+        "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+        "min_records": 1,
+        "max_records": 200,
+        "allowed_value_range": [1.0, 400.0],
+        "max_stale_hours": 1440.0,
+        "max_daily_median_jump_pct": 20.0,
+    },
+    "crtc_cmr_report": {
+        "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+        "min_records": 1,
+        "max_records": 200,
+        "allowed_value_range": [1.0, 400.0],
+        "max_stale_hours": 9600.0,
+        "max_daily_median_jump_pct": 20.0,
+    },
+    "healthcanada_dpd": {
+        "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+        "min_records": 1,
+        "max_records": 200,
+        "allowed_value_range": [1.0, 400.0],
+        "max_stale_hours": 2160.0,
+        "max_daily_median_jump_pct": 20.0,
+    },
+    "pmprb_reports": {
+        "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+        "min_records": 1,
+        "max_records": 200,
+        "allowed_value_range": [1.0, 400.0],
+        "max_stale_hours": 9600.0,
+        "max_daily_median_jump_pct": 20.0,
+    },
+    "parkscanada_fees": {
+        "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+        "min_records": 1,
+        "max_records": 200,
+        "allowed_value_range": [1.0, 400.0],
+        "max_stale_hours": 4320.0,
+        "max_daily_median_jump_pct": 20.0,
+    },
+    "statcan_education_portal": {
+        "required_fields": ["category", "item_id", "value", "observed_at", "source"],
+        "min_records": 1,
+        "max_records": 200,
+        "allowed_value_range": [1.0, 400.0],
+        "max_stale_hours": 4320.0,
+        "max_daily_median_jump_pct": 20.0,
+    },
+}
 
 
 def utc_now() -> datetime:
@@ -204,6 +349,17 @@ def load_json(path: Path, default: dict | list) -> dict | list:
 def load_historical() -> dict:
     data = load_json(HISTORICAL_PATH, {})
     return data if isinstance(data, dict) else {}
+
+
+def load_source_contracts() -> dict[str, dict]:
+    payload = load_json(SOURCE_CONTRACTS_PATH, DEFAULT_SOURCE_CONTRACTS)
+    if not isinstance(payload, dict):
+        return DEFAULT_SOURCE_CONTRACTS
+    merged = dict(DEFAULT_SOURCE_CONTRACTS)
+    for source, contract in payload.items():
+        if isinstance(contract, dict):
+            merged[source] = {**merged.get(source, {}), **contract}
+    return merged
 
 
 def load_previous_source_success() -> dict[str, str]:
@@ -316,6 +472,235 @@ def recompute_source_health(raw_health: list[SourceHealth], now: datetime) -> li
         payload["updated_days_ago"] = human_age(age_days)
         computed.append(payload)
     return computed
+
+
+def source_contract_name(scraper_name: str, source_name: str) -> str:
+    return source_name if source_name in DEFAULT_SOURCE_CONTRACTS else scraper_name
+
+
+def validate_source_contract(
+    contract_name: str,
+    source_name: str,
+    quotes: list[Quote],
+    source_health: dict | None,
+    historical: dict,
+    now: datetime,
+    source_contracts: dict[str, dict],
+) -> dict:
+    contract = source_contracts.get(contract_name) or {}
+    checks: list[dict] = []
+    required_fields = contract.get("required_fields", ["category", "item_id", "value", "observed_at", "source"])
+    field_ok = True
+    missing_field = None
+    for required in required_fields:
+        if not quotes:
+            break
+        if any(getattr(q, required, None) is None for q in quotes):
+            field_ok = False
+            missing_field = required
+            break
+    checks.append({"name": "required_fields", "passed": field_ok, "detail": missing_field})
+
+    min_records = int(contract.get("min_records", 0))
+    max_records = int(contract.get("max_records", 10_000))
+    count = len(quotes)
+    count_ok = min_records <= count <= max_records
+    checks.append({"name": "record_count", "passed": count_ok, "detail": f"{count} in [{min_records}, {max_records}]"})
+
+    value_bounds = contract.get("allowed_value_range") or [0.0, 10**9]
+    low, high = float(value_bounds[0]), float(value_bounds[1])
+    range_ok = all(low <= float(q.value) <= high for q in quotes) if quotes else False
+    checks.append({"name": "value_range", "passed": range_ok, "detail": f"[{low}, {high}]"})
+
+    max_stale_hours = float(contract.get("max_stale_hours", 24 * 45))
+    age_hours = source_age_hours(source_health.get("last_success_timestamp"), now=now) if isinstance(source_health, dict) else None
+    freshness_ok = isinstance(age_hours, (int, float)) and float(age_hours) <= max_stale_hours
+    checks.append({"name": "freshness", "passed": freshness_ok, "detail": f"{age_hours} <= {max_stale_hours}"})
+
+    prev_median = None
+    category = quotes[0].category if quotes else (source_health.get("category") if isinstance(source_health, dict) else None)
+    if isinstance(category, str):
+        prev_median = previous_category_median(historical, category)
+    max_jump = float(contract.get("max_daily_median_jump_pct", 50.0))
+    if quotes and prev_median not in (None, 0):
+        current_median = statistics.median(float(q.value) for q in quotes)
+        jump_pct = abs((current_median / float(prev_median) - 1) * 100)
+        jump_ok = jump_pct <= max_jump
+        jump_detail = round_or_none(jump_pct, 3)
+    else:
+        jump_ok = True
+        jump_detail = None
+    checks.append({"name": "median_jump", "passed": jump_ok, "detail": jump_detail})
+
+    passed = all(check["passed"] for check in checks)
+    return {
+        "source": source_name,
+        "contract": contract_name,
+        "attempts": 1,
+        "passed": passed,
+        "checks": checks,
+        "retry_schedule_minutes": QA_RETRY_OFFSETS_MINUTES,
+    }
+
+
+def retry_with_contracts(
+    scraper_name: str,
+    scraper,
+    historical: dict,
+    now: datetime,
+    source_contracts: dict[str, dict],
+) -> tuple[list[Quote], list[SourceHealth], list[dict]]:
+    best_quotes: list[Quote] = []
+    best_health: list[SourceHealth] = []
+    checks_out: list[dict] = []
+    max_attempts = len(QA_RETRY_OFFSETS_MINUTES) + 1
+    for attempt in range(1, max_attempts + 1):
+        quotes, health = scraper()
+        best_quotes = quotes
+        best_health = health
+        source_rows = [asdict(h) for h in health]
+        by_source_quotes: dict[str, list[Quote]] = defaultdict(list)
+        for q in quotes:
+            by_source_quotes[q.source].append(q)
+        attempt_checks: list[dict] = []
+        for row in source_rows:
+            source = row.get("source")
+            if not isinstance(source, str):
+                continue
+            contract_name = source_contract_name(scraper_name, source)
+            check = validate_source_contract(
+                contract_name=contract_name,
+                source_name=source,
+                quotes=by_source_quotes.get(source, []),
+                source_health=row,
+                historical=historical,
+                now=now,
+                source_contracts=source_contracts,
+            )
+            check["attempts"] = attempt
+            attempt_checks.append(check)
+        checks_out = attempt_checks
+        if attempt_checks and all(c["passed"] for c in attempt_checks):
+            break
+    return best_quotes, best_health, checks_out
+
+
+def reconcile_cross_source_quotes(
+    quotes: list[Quote],
+    computed_health: list[dict],
+    historical: dict,
+) -> tuple[list[Quote], dict]:
+    by_category_source_values: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+    for quote in quotes:
+        by_category_source_values[quote.category][quote.source].append(float(quote.value))
+
+    max_disagreement_policy = GATE_POLICY.get("max_cross_source_disagreement_score", {})
+    quarantine_sources: set[str] = set()
+    disagreement_by_category: dict[str, float] = {}
+    reasons: list[dict] = []
+
+    for category, source_values in by_category_source_values.items():
+        source_means = {src: statistics.mean(vals) for src, vals in source_values.items() if vals}
+        if not source_means:
+            continue
+        cat_threshold = float(max_disagreement_policy.get(category, 0.35))
+        if len(source_means) >= 2:
+            med = statistics.median(source_means.values())
+            if med > 0:
+                disagreements = {src: abs((val / med) - 1) for src, val in source_means.items()}
+                max_disagreement = max(disagreements.values())
+                disagreement_by_category[category] = round(max_disagreement, 4)
+                if max_disagreement > cat_threshold:
+                    worst = max(disagreements.items(), key=lambda item: item[1])[0]
+                    quarantine_sources.add(worst)
+                    reasons.append(
+                        {
+                            "category": category,
+                            "source": worst,
+                            "reason": "cross_source_outlier",
+                            "score": round_or_none(max_disagreement, 4),
+                            "threshold": cat_threshold,
+                        }
+                    )
+        else:
+            source, value = next(iter(source_means.items()))
+            prev = previous_category_median(historical, category)
+            if prev not in (None, 0):
+                jump = abs((value / float(prev)) - 1)
+                disagreement_by_category[category] = round(jump, 4)
+                threshold = min(cat_threshold, 0.15)
+                if jump > threshold:
+                    quarantine_sources.add(source)
+                    reasons.append(
+                        {
+                            "category": category,
+                            "source": source,
+                            "reason": "single_source_jump",
+                            "score": round_or_none(jump, 4),
+                            "threshold": threshold,
+                        }
+                    )
+
+    filtered = [q for q in quotes if q.source not in quarantine_sources]
+    for row in computed_health:
+        if row.get("source") in quarantine_sources:
+            row["status"] = "missing"
+            detail = row.get("detail", "")
+            row["detail"] = f"{detail} Quarantined by QA reconciliation.".strip()
+
+    overall = max(disagreement_by_category.values()) if disagreement_by_category else 0.0
+    return filtered, {
+        "cross_source_disagreement_score": round_or_none(overall, 4),
+        "cross_source_disagreement_by_category": disagreement_by_category,
+        "quarantine_sources": sorted(quarantine_sources),
+        "quarantine_reasons": reasons,
+    }
+
+
+def impute_missing_categories(categories: dict, historical: dict) -> dict:
+    diagnostics = {
+        "imputation_used": False,
+        "imputed_categories": [],
+        "imputed_weight_ratio": 0.0,
+    }
+    if not historical:
+        return diagnostics
+
+    ordered = sorted(historical.keys(), reverse=True)
+    total_weight = sum(CATEGORY_WEIGHTS.values()) or 1.0
+    imputed_weight = 0.0
+    for category, payload in categories.items():
+        if payload.get("proxy_level") is not None:
+            continue
+
+        imputed = None
+        method = None
+        for day in ordered[:3]:
+            prev = historical.get(day, {}).get("categories", {}).get(category, {}).get("proxy_level")
+            if isinstance(prev, (int, float)):
+                imputed = float(prev)
+                method = "last_good_decay"
+                break
+
+        if imputed is None:
+            for day in ordered:
+                prev = historical.get(day, {}).get("categories", {}).get(category, {}).get("proxy_level")
+                if isinstance(prev, (int, float)):
+                    imputed = float(prev)
+                    method = "official_proxy_carry_forward"
+                    break
+
+        if imputed is None:
+            continue
+
+        payload["proxy_level"] = round_or_none(imputed, 4)
+        payload["status"] = "stale"
+        diagnostics["imputation_used"] = True
+        diagnostics["imputed_categories"].append({"category": category, "method": method})
+        imputed_weight += float(payload.get("weight", 0.0))
+
+    diagnostics["imputed_weight_ratio"] = round_or_none(imputed_weight / total_weight, 4)
+    return diagnostics
 
 
 def source_effective_weight(source_row: dict | None) -> float:
@@ -938,6 +1323,7 @@ def build_notes(
     blocked_conditions: list[str],
     diversity_by_category: dict[str, int],
     representativeness_ratio: float,
+    collection_diagnostics: dict | None = None,
 ) -> list[str]:
     notes: list[str] = [
         "This is an experimental nowcast estimate and not an official CPI release.",
@@ -969,13 +1355,22 @@ def build_notes(
         notes.append(f"Dropped {anomalies} points via day-over-day anomaly filter.")
     if blocked_conditions:
         notes.append("Release gate failed: " + "; ".join(blocked_conditions))
+    signature = (collection_diagnostics or {}).get("failure_signature", {})
+    if isinstance(signature, dict) and signature.get("global_dns_outage_likely"):
+        notes.append("Network diagnostic: DNS resolver outage likely during collection; multiple sources failed host resolution.")
 
     return notes
 
 
-def collect_all_quotes() -> tuple[list[Quote], list[SourceHealth], dict]:
+def collect_all_quotes(
+    historical: dict,
+    now: datetime,
+    source_contracts: dict[str, dict],
+) -> tuple[list[Quote], list[SourceHealth], dict, list[dict]]:
     quotes: list[Quote] = []
     health: list[SourceHealth] = []
+    qa_checks: list[dict] = []
+    preflight = dns_preflight(ttl_seconds=60)
     diagnostics = {
         "apify_retry": {
             "attempts": 0,
@@ -983,13 +1378,23 @@ def collect_all_quotes() -> tuple[list[Quote], list[SourceHealth], dict]:
             "succeeded": False,
             "final_status": "missing",
             "reason": None,
-        }
+        },
+        "network_preflight": preflight,
+        "qa_retry_offsets_minutes": QA_RETRY_OFFSETS_MINUTES,
+        "source_contracts_enforced": True,
     }
 
-    for _, scraper in SCRAPER_REGISTRY:
-        scraper_quotes, scraper_health = scraper()
+    for scraper_name, scraper in SCRAPER_REGISTRY:
+        scraper_quotes, scraper_health, checks = retry_with_contracts(
+            scraper_name=scraper_name,
+            scraper=scraper,
+            historical=historical,
+            now=now,
+            source_contracts=source_contracts,
+        )
         quotes.extend(scraper_quotes)
         health.extend(scraper_health)
+        qa_checks.extend(checks)
 
     apify_idx = next((idx for idx, row in enumerate(health) if row.source == "apify_loblaws"), None)
     retry_cfg = GATE_POLICY.get("apify_retry", {})
@@ -998,7 +1403,7 @@ def collect_all_quotes() -> tuple[list[Quote], list[SourceHealth], dict]:
     diagnostics["apify_retry"]["attempts"] = max_attempts
     if apify_idx is None:
         diagnostics["apify_retry"]["reason"] = "apify_source_not_registered"
-        return quotes, health, diagnostics
+        return quotes, health, diagnostics, qa_checks
 
     for attempt in range(2, max_attempts + 1):
         apify_health = health[apify_idx]
@@ -1023,7 +1428,26 @@ def collect_all_quotes() -> tuple[list[Quote], list[SourceHealth], dict]:
         diagnostics["apify_retry"]["final_status"] = apify_health.status
         diagnostics["apify_retry"]["reason"] = apify_health.detail
 
-    return quotes, health, diagnostics
+    dns_failures = 0
+    timeout_failures = 0
+    blocked_failures = 0
+    for row in health:
+        detail = (row.detail or "").lower()
+        if "dns resolver unavailable" in detail or "nodename nor servname" in detail or "name or service not known" in detail:
+            dns_failures += 1
+        if "timed out" in detail or "timeout" in detail:
+            timeout_failures += 1
+        if "403" in detail or "forbidden" in detail or "anti-bot" in detail:
+            blocked_failures += 1
+    diagnostics["failure_signature"] = {
+        "dns_failures": dns_failures,
+        "timeout_failures": timeout_failures,
+        "blocked_failures": blocked_failures,
+        "total_sources": len(health),
+        "global_dns_outage_likely": bool(preflight.get("ok") is False and dns_failures > 0),
+    }
+
+    return quotes, health, diagnostics, qa_checks
 
 
 def extract_hero_indicators(quotes: list[Quote]) -> dict[str, float | None]:
@@ -1151,6 +1575,43 @@ def build_gate_diagnostics(snapshot: dict) -> dict:
         },
         "reason": None if food_passed else "food_source_resilience_failed",
     }
+    qa_summary = snapshot.get("meta", {}).get("qa_summary", {})
+    source_pass_rate = qa_summary.get("source_contract_pass_rate")
+    min_pass_rate = float(policy.get("min_source_pass_rate_30d", 0.95))
+    source_passed = isinstance(source_pass_rate, (int, float)) and float(source_pass_rate) >= min_pass_rate
+    diagnostics["source_reliability"] = {
+        "passed": source_passed,
+        "value": source_pass_rate,
+        "threshold": min_pass_rate,
+        "reason": None if source_passed else "source_contract_pass_rate_below_threshold",
+    }
+
+    imputed_weight_ratio = qa_summary.get("imputed_weight_ratio")
+    max_imputed = float(policy.get("max_imputed_weight_ratio", 0.15))
+    imputation_passed = isinstance(imputed_weight_ratio, (int, float)) and float(imputed_weight_ratio) <= max_imputed
+    diagnostics["imputation_weight"] = {
+        "passed": imputation_passed,
+        "value": imputed_weight_ratio,
+        "threshold": max_imputed,
+        "reason": None if imputation_passed else "imputed_weight_ratio_above_threshold",
+    }
+
+    disagreement_score = qa_summary.get("cross_source_disagreement_score")
+    disagreement_by_category = qa_summary.get("cross_source_disagreement_by_category", {})
+    max_disagreement_policy = policy.get("max_cross_source_disagreement_score", {})
+    disagreement_passed = True
+    if isinstance(disagreement_by_category, dict):
+        for category, score in disagreement_by_category.items():
+            threshold = float(max_disagreement_policy.get(category, 0.35))
+            if isinstance(score, (int, float)) and float(score) > threshold:
+                disagreement_passed = False
+                break
+    diagnostics["cross_source_disagreement"] = {
+        "passed": disagreement_passed,
+        "value": disagreement_score,
+        "threshold": max_disagreement_policy,
+        "reason": None if disagreement_passed else "cross_source_disagreement_above_threshold",
+    }
     return diagnostics
 
 
@@ -1174,6 +1635,12 @@ def evaluate_gate(snapshot: dict) -> list[str]:
         blocked.append(f"Gate F failed: representativeness ratio below {int(threshold * 100)}% fresh basket coverage.")
     if not diagnostics["food_resilience"]["passed"]:
         blocked.append("Gate A failed: food source resilience below minimum fresh/diversity threshold.")
+    if not diagnostics["source_reliability"]["passed"]:
+        blocked.append("Gate G failed: trailing source contract pass rate below minimum.")
+    if not diagnostics["imputation_weight"]["passed"]:
+        blocked.append("Gate H failed: imputed basket weight above allowed threshold.")
+    if not diagnostics["cross_source_disagreement"]["passed"]:
+        blocked.append("Gate I failed: cross-source disagreement above allowed threshold.")
 
     return blocked
 
@@ -1211,6 +1678,107 @@ def record_release_run(run_id: str, created_at: str, status: str, blocked_condit
             (run_id, created_at, status, json.dumps(blocked_conditions), snapshot_path),
         )
         conn.commit()
+
+
+def ensure_qa_db() -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(QA_DB_PATH) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS source_run_checks (
+                run_id TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                source TEXT NOT NULL,
+                category TEXT,
+                passed INTEGER NOT NULL,
+                attempts INTEGER NOT NULL,
+                freshness_hours REAL,
+                record_count INTEGER,
+                details_json TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS daily_source_reliability (
+                as_of_date TEXT NOT NULL,
+                source TEXT NOT NULL,
+                pass_rate_30d REAL NOT NULL,
+                freshness_pass_rate_30d REAL NOT NULL,
+                runs_30d INTEGER NOT NULL,
+                PRIMARY KEY (as_of_date, source)
+            )
+            """
+        )
+        conn.commit()
+
+
+def record_qa_checks(run_id: str, created_at: str, checks: list[dict], source_health: list[dict], as_of_date: str) -> None:
+    ensure_qa_db()
+    health_by_source = {row.get("source"): row for row in source_health if isinstance(row, dict)}
+    with sqlite3.connect(QA_DB_PATH) as conn:
+        for check in checks:
+            source = check.get("source")
+            if not isinstance(source, str):
+                continue
+            health = health_by_source.get(source, {})
+            category = health.get("category")
+            freshness_hours = health.get("run_age_hours")
+            record_count = None
+            for item in check.get("checks", []):
+                if item.get("name") == "record_count":
+                    detail = item.get("detail", "")
+                    try:
+                        record_count = int(str(detail).split(" ", 1)[0])
+                    except Exception:
+                        record_count = None
+            conn.execute(
+                "INSERT INTO source_run_checks (run_id, created_at, source, category, passed, attempts, freshness_hours, record_count, details_json) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    run_id,
+                    created_at,
+                    source,
+                    category,
+                    1 if check.get("passed") else 0,
+                    int(check.get("attempts") or 1),
+                    float(freshness_hours) if isinstance(freshness_hours, (int, float)) else None,
+                    record_count,
+                    json.dumps(check),
+                ),
+            )
+
+        window_start = (date.fromisoformat(as_of_date) - timedelta(days=30)).isoformat()
+        rows = conn.execute(
+            "SELECT source, COUNT(*) AS runs, AVG(passed * 1.0) AS pass_rate, "
+            "AVG(CASE WHEN freshness_hours IS NOT NULL AND freshness_hours <= 48 THEN 1.0 ELSE 0.0 END) AS freshness_rate "
+            "FROM source_run_checks WHERE DATE(created_at) >= DATE(?) GROUP BY source",
+            (window_start,),
+        ).fetchall()
+        for source, runs, pass_rate, freshness_rate in rows:
+            conn.execute(
+                "INSERT OR REPLACE INTO daily_source_reliability (as_of_date, source, pass_rate_30d, freshness_pass_rate_30d, runs_30d) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (
+                    as_of_date,
+                    source,
+                    round(float(pass_rate or 0.0), 4),
+                    round(float(freshness_rate or 0.0), 4),
+                    int(runs or 0),
+                ),
+            )
+        conn.commit()
+
+
+def source_pass_rate_30d(as_of_date: str) -> dict[str, float]:
+    if not QA_DB_PATH.exists():
+        return {}
+    with sqlite3.connect(QA_DB_PATH) as conn:
+        rows = conn.execute(
+            "SELECT source, pass_rate_30d FROM daily_source_reliability WHERE as_of_date = ?",
+            (as_of_date,),
+        ).fetchall()
+    return {str(source): float(rate) for source, rate in rows}
 
 
 def update_historical(snapshot: dict, historical: dict) -> dict:
@@ -1273,31 +1841,40 @@ def build_snapshot() -> dict:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
     historical = load_historical()
+    source_contracts = load_source_contracts()
 
     run_id = f"run_{uuid.uuid4().hex[:12]}"
     now = utc_now().replace(microsecond=0)
+    qa_window_close_at = (now + timedelta(hours=24)).isoformat()
     release_events = fetch_release_events()
     consensus_latest = fetch_consensus_estimate()
     next_release = compute_next_release(release_events, now)
 
-    quotes, source_health, collection_diagnostics = collect_all_quotes()
-    
+    quotes, source_health, collection_diagnostics, qa_checks = collect_all_quotes(
+        historical=historical,
+        now=now,
+        source_contracts=source_contracts,
+    )
+
     # Filter out "scrappy" raw price quotes from the main index calculation
     # to prevent mixing Index (100-basis) with Prices ($2000).
     # We keep them only for the 'indicators' metadata.
     scrappy_ids = {"average_asking_rent_canada", "gasoline_regular_canada_avg"}
     index_quotes = [q for q in quotes if q.item_id not in scrappy_ids]
-    
+
     indicators = extract_hero_indicators(quotes)
-    
+
     computed_health = recompute_source_health(source_health, now)
-    
+
     # Use index_quotes for the main calculation
     deduped = dedupe_quotes(index_quotes)
     valid_quotes, rejected_points = apply_range_checks(deduped)
     filtered, anomalies = apply_outlier_filter(valid_quotes, historical)
+    reconciled_quotes, reconciliation = reconcile_cross_source_quotes(filtered, computed_health, historical)
+    filtered = reconciled_quotes
 
     categories, category_signal_inputs = summarize_categories(filtered, computed_health)
+    imputation = impute_missing_categories(categories, historical)
     compute_daily_changes(categories, historical)
     housing_overlay = apply_housing_signal_overlay(categories, indicators)
 
@@ -1349,6 +1926,30 @@ def build_snapshot() -> dict:
         deviation_yoy = round_or_none(float(nowcast_yoy) - float(consensus_yoy), 3)
     # Deprecated alias retained for compatibility during transition.
     consensus_spread_yoy = deviation_yoy
+    this_run_contract_pass_rate = 0.0
+    if qa_checks:
+        this_run_contract_pass_rate = sum(1 for c in qa_checks if c.get("passed")) / len(qa_checks)
+
+    trailing_by_source = source_pass_rate_30d(now.date().isoformat())
+    source_contract_pass_rate = (
+        round_or_none(sum(trailing_by_source.values()) / len(trailing_by_source), 4)
+        if trailing_by_source
+        else round_or_none(this_run_contract_pass_rate, 4)
+    )
+
+    qa_summary = {
+        "source_contract_pass_rate": source_contract_pass_rate,
+        "fresh_weight_ratio": representativeness_ratio,
+        "cross_source_disagreement_score": reconciliation["cross_source_disagreement_score"],
+        "cross_source_disagreement_by_category": reconciliation["cross_source_disagreement_by_category"],
+        "quarantine_sources": reconciliation["quarantine_sources"],
+        "quarantine_reasons": reconciliation["quarantine_reasons"],
+        "imputation_used": imputation["imputation_used"],
+        "imputed_categories": imputation["imputed_categories"],
+        "imputed_weight_ratio": imputation["imputed_weight_ratio"],
+        "source_checks": qa_checks,
+        "retry_schedule_minutes": QA_RETRY_OFFSETS_MINUTES,
+    }
 
     snapshot = {
         "as_of_date": now.date().isoformat(),
@@ -1384,6 +1985,7 @@ def build_snapshot() -> dict:
             "category_signal_inputs": category_signal_inputs,
             "category_contributions": category_contributions,
             "top_driver": compute_top_driver(category_contributions),
+            "qa_summary": qa_summary,
             "province_overlays": [],
             "release_intelligence": next_release or {},
             "release_events": release_events,
@@ -1417,15 +2019,20 @@ def build_snapshot() -> dict:
         "release": {
             "run_id": run_id,
             "status": "started",
-            "lifecycle_states": ["started"],
+            "qa_status": "pending",
+            "qa_window_close_at": qa_window_close_at,
+            "lifecycle_states": ["started", "collect"],
             "blocked_conditions": [],
             "created_at": now.isoformat(),
             "published_at": None,
         },
     }
 
+    snapshot["release"]["lifecycle_states"].append("validate")
+    snapshot["release"]["lifecycle_states"].append("reconcile")
     snapshot["release"]["status"] = "completed"
     snapshot["release"]["lifecycle_states"].append("completed")
+    snapshot["release"]["lifecycle_states"].append("publish")
     gate_diagnostics = build_gate_diagnostics(snapshot)
     snapshot["meta"]["gate_diagnostics"] = gate_diagnostics
     blocked_conditions = evaluate_gate(snapshot)
@@ -1435,6 +2042,7 @@ def build_snapshot() -> dict:
     snapshot["release"]["status"] = status
     snapshot["release"]["lifecycle_states"].append(status)
     snapshot["release"]["blocked_conditions"] = blocked_conditions
+    snapshot["release"]["qa_status"] = "passed" if status == "published" else "failed"
     if status == "published":
         snapshot["release"]["published_at"] = now.isoformat()
 
@@ -1459,6 +2067,7 @@ def build_snapshot() -> dict:
         blocked_conditions=blocked_conditions,
         diversity_by_category=diversity_by_category,
         representativeness_ratio=representativeness_ratio,
+        collection_diagnostics=collection_diagnostics,
     )
     if fallback_used:
         snapshot["notes"].append("Nowcast MoM uses official MoM fallback until sufficient category history is available.")
@@ -1499,6 +2108,8 @@ def write_outputs(snapshot: dict) -> None:
 
     LATEST_PATH.write_text(json.dumps(snapshot, indent=2))
     run_path.write_text(json.dumps(snapshot, indent=2))
+    if not SOURCE_CONTRACTS_PATH.exists():
+        SOURCE_CONTRACTS_PATH.write_text(json.dumps(DEFAULT_SOURCE_CONTRACTS, indent=2))
 
     status = snapshot["release"]["status"]
     if status == "published":
@@ -1516,6 +2127,13 @@ def write_outputs(snapshot: dict) -> None:
         }
     RELEASE_EVENTS_PATH.write_text(json.dumps(release_payload, indent=2))
     CONSENSUS_LATEST_PATH.write_text(json.dumps(snapshot.get("meta", {}).get("consensus", {}), indent=2))
+    record_qa_checks(
+        run_id=run_id,
+        created_at=snapshot["release"]["created_at"],
+        checks=snapshot.get("meta", {}).get("qa_summary", {}).get("source_checks", []),
+        source_health=snapshot.get("source_health", []),
+        as_of_date=snapshot["as_of_date"],
+    )
 
     performance_summary = write_performance_summary(PERFORMANCE_SUMMARY_PATH, historical)
     model_card = {

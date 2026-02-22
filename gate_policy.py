@@ -73,6 +73,17 @@ GATE_POLICY: dict = {
         "max_attempts": 2,
         "backoff_seconds": 2,
     },
+    "min_source_pass_rate_30d": 0.95,
+    "max_imputed_weight_ratio": 0.15,
+    "max_cross_source_disagreement_score": {
+        "food": 0.35,
+        "housing": 0.25,
+        "transport": 0.30,
+        "energy": 0.35,
+        "communication": 0.25,
+        "health_personal": 0.25,
+        "recreation_education": 0.25,
+    },
 }
 
 

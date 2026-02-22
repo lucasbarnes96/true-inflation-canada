@@ -138,7 +138,15 @@ class ProcessTests(unittest.TestCase):
                 "energy": {"points": 1},
             },
             "official_cpi": {"latest_release_month": "2025-12"},
-            "meta": {"representativeness_ratio": 0.95},
+            "meta": {
+                "representativeness_ratio": 0.95,
+                "qa_summary": {
+                    "source_contract_pass_rate": 1.0,
+                    "imputed_weight_ratio": 0.0,
+                    "cross_source_disagreement_score": 0.1,
+                    "cross_source_disagreement_by_category": {"food": 0.1},
+                },
+            },
         }
         self.assertEqual([], evaluate_gate(snapshot))
 
@@ -157,7 +165,15 @@ class ProcessTests(unittest.TestCase):
                 "energy": {"points": 1},
             },
             "official_cpi": {"latest_release_month": "2025-12"},
-            "meta": {"representativeness_ratio": 0.95},
+            "meta": {
+                "representativeness_ratio": 0.95,
+                "qa_summary": {
+                    "source_contract_pass_rate": 1.0,
+                    "imputed_weight_ratio": 0.0,
+                    "cross_source_disagreement_score": 0.1,
+                    "cross_source_disagreement_by_category": {"food": 0.1},
+                },
+            },
         }
         blocked = evaluate_gate(snapshot)
         self.assertTrue(any("Gate A failed" in item for item in blocked))
@@ -181,10 +197,50 @@ class ProcessTests(unittest.TestCase):
                 "recreation_education": {"points": 1},
             },
             "official_cpi": {"latest_release_month": "2025-12"},
-            "meta": {"representativeness_ratio": 0.9},
+            "meta": {
+                "representativeness_ratio": 0.9,
+                "qa_summary": {
+                    "source_contract_pass_rate": 1.0,
+                    "imputed_weight_ratio": 0.0,
+                    "cross_source_disagreement_score": 0.1,
+                    "cross_source_disagreement_by_category": {"food": 0.1},
+                },
+            },
         }
         diagnostics = build_gate_diagnostics(snapshot)
         self.assertTrue(diagnostics["representativeness"]["passed"])
+
+    def test_evaluate_gate_fail_when_source_reliability_low(self) -> None:
+        snapshot = {
+            "source_health": [
+                {"source": "apify_loblaws", "category": "food", "status": "fresh", "age_days": 1},
+                {"source": "statcan_food_prices", "category": "food", "status": "fresh", "age_days": 2},
+                {"source": "statcan_cpi_csv", "status": "fresh", "age_days": 2},
+                {"source": "statcan_gas_csv", "status": "fresh", "age_days": 2},
+                {"source": "oeb_scrape", "status": "fresh", "age_days": 0},
+            ],
+            "categories": {
+                "food": {"points": 10},
+                "housing": {"points": 3},
+                "transport": {"points": 1},
+                "energy": {"points": 1},
+                "communication": {"points": 1},
+                "health_personal": {"points": 1},
+                "recreation_education": {"points": 1},
+            },
+            "official_cpi": {"latest_release_month": "2025-12"},
+            "meta": {
+                "representativeness_ratio": 0.9,
+                "qa_summary": {
+                    "source_contract_pass_rate": 0.5,
+                    "imputed_weight_ratio": 0.0,
+                    "cross_source_disagreement_score": 0.1,
+                    "cross_source_disagreement_by_category": {"food": 0.1},
+                },
+            },
+        }
+        blocked = evaluate_gate(snapshot)
+        self.assertTrue(any("Gate G failed" in item for item in blocked))
 
 
 if __name__ == "__main__":

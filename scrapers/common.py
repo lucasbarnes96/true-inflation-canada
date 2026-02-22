@@ -3,14 +3,27 @@ from __future__ import annotations
 import json
 import re
 import ssl
+import socket
 import time
 import urllib.request
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlparse
+from urllib.error import URLError
 
 DEFAULT_TIMEOUT_SECONDS = 20
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+DNS_PREFLIGHT_HOSTS = (
+    "www150.statcan.gc.ca",
+    "www2.nrcan.gc.ca",
+    "rentals.ca",
+)
+
+_DNS_PREFLIGHT_CACHE: dict[str, Any] = {
+    "checked_at_epoch": None,
+    "ok": None,
+    "failures": [],
+}
 
 
 class FetchError(Exception):
@@ -19,6 +32,52 @@ class FetchError(Exception):
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def _is_dns_error(err: Exception) -> bool:
+    text = str(err).lower()
+    if "nodename nor servname provided" in text or "name or service not known" in text:
+        return True
+    if isinstance(err, URLError):
+        reason = getattr(err, "reason", None)
+        if isinstance(reason, socket.gaierror):
+            return True
+        if reason and isinstance(reason, Exception):
+            rtext = str(reason).lower()
+            if "nodename nor servname provided" in rtext or "name or service not known" in rtext:
+                return True
+    return False
+
+
+def dns_preflight(ttl_seconds: int = 300, hosts: tuple[str, ...] = DNS_PREFLIGHT_HOSTS) -> dict:
+    now_epoch = int(time.time())
+    checked = _DNS_PREFLIGHT_CACHE.get("checked_at_epoch")
+    cached_ok = _DNS_PREFLIGHT_CACHE.get("ok")
+    if isinstance(checked, int) and (now_epoch - checked) < ttl_seconds and cached_ok is not None:
+        return {
+            "checked_at_epoch": checked,
+            "ok": bool(cached_ok),
+            "failures": list(_DNS_PREFLIGHT_CACHE.get("failures") or []),
+            "cached": True,
+        }
+
+    failures: list[dict] = []
+    for host in hosts:
+        try:
+            socket.gethostbyname(host)
+        except Exception as err:  # pragma: no cover - network dependent
+            failures.append({"host": host, "error": str(err)})
+
+    ok = len(failures) == 0
+    _DNS_PREFLIGHT_CACHE["checked_at_epoch"] = now_epoch
+    _DNS_PREFLIGHT_CACHE["ok"] = ok
+    _DNS_PREFLIGHT_CACHE["failures"] = failures
+    return {
+        "checked_at_epoch": now_epoch,
+        "ok": ok,
+        "failures": failures,
+        "cached": False,
+    }
 
 
 def fetch_url(
@@ -53,6 +112,13 @@ def fetch_url(
                 return response.read().decode("utf-8", errors="ignore")
         except Exception as err:  # pragma: no cover - network dependent
             last_err = err
+            if _is_dns_error(err):
+                preflight = dns_preflight(ttl_seconds=60)
+                if not preflight["ok"]:
+                    failed = ", ".join(item["host"] for item in preflight.get("failures", [])[:3])
+                    raise FetchError(
+                        f"DNS resolver unavailable. Preflight failed for: {failed}. Original error: {err}"
+                    )
             if attempt < retries:
                 time.sleep(1.5 * (attempt + 1))
     raise FetchError(f"Failed to fetch URL: {url}: {last_err}")

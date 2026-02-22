@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import ssl
+import socket
 import unittest
 from unittest.mock import patch
+from urllib.error import URLError
 
 from scrapers.common import FetchError, fetch_url
 
@@ -46,6 +48,18 @@ class ScrapersCommonTests(unittest.TestCase):
                 verify=False,
                 allowed_insecure_hosts={"crtc.gc.ca"},
             )
+
+    def test_fetch_url_dns_outage_fast_fails_without_retries(self) -> None:
+        dns_err = URLError(socket.gaierror(8, "nodename nor servname provided, or not known"))
+        with patch("urllib.request.urlopen", side_effect=dns_err) as urlopen:
+            with patch(
+                "scrapers.common.dns_preflight",
+                return_value={"ok": False, "failures": [{"host": "www150.statcan.gc.ca", "error": "dns"}]},
+            ):
+                with self.assertRaises(FetchError) as ctx:
+                    fetch_url("https://example.com", retries=2)
+        self.assertIn("DNS resolver unavailable", str(ctx.exception))
+        self.assertEqual(1, urlopen.call_count)
 
 
 if __name__ == "__main__":

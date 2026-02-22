@@ -9,6 +9,7 @@ Experimental open-source nowcast using public data. Not official StatCan CPI.
 - Food publishability uses resilience rules (fresh + usable source diversity), not APIFY-only dependence.
 - APIFY retries are attempted automatically before final gate evaluation.
 - Source health includes explicit age text (`updated X days ago`).
+- Collection now records DNS preflight diagnostics and failure signatures (DNS vs timeout vs anti-bot) for faster outage triage.
 
 ## Runtime and dependencies
 - Python `3.11` is required (`.python-version`).
@@ -41,6 +42,12 @@ APIFY_TOKEN=your_token
 python3 process.py
 ```
 
+Quick source/network diagnosis:
+
+```bash
+python3 scripts/diagnose_sources.py
+```
+
 Bootstrap history first (recommended for first-time setup):
 
 ```bash
@@ -57,6 +64,8 @@ Output artifacts:
 - `data/historical.json` (published history)
 - `data/runs/*.json` (versioned run snapshots)
 - `data/releases.db` (run metadata table)
+- `data/qa_runs.db` (source QA checks + 30-day reliability rollups)
+- `data/source_contracts.json` (source-level QA contracts)
 
 Exit code:
 - `0` when published
@@ -80,6 +89,7 @@ Endpoints:
 - `GET /v1/consensus/latest`
 - `GET /v1/forecast/next_release`
 - `GET /v1/calibration/status`
+- `GET /v1/qa/status`
 
 ## Dashboard
 Serve static UI and point it to API:
@@ -99,6 +109,9 @@ A run is blocked (`failed_gate`) if any condition fails:
 5. Official CPI metadata missing (`latest_release_month`).
 6. Representativeness ratio below 85% fresh basket coverage.
 7. APIFY retry diagnostics are recorded; stale APIFY does not automatically block if food resilience still passes.
+8. Trailing source contract pass rate falls below policy threshold.
+9. Imputed basket share exceeds policy threshold.
+10. Cross-source disagreement exceeds per-category thresholds.
 
 ## Methodology v1.3.0 confidence rubric
 - Inputs: release gate status, weighted coverage ratio, anomaly counts, and source diversity.
