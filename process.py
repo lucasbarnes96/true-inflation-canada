@@ -1843,11 +1843,22 @@ def ensure_qa_db() -> None:
                 passed INTEGER NOT NULL,
                 attempts INTEGER NOT NULL,
                 freshness_hours REAL,
+                freshness_sla_hours REAL,
+                freshness_passed INTEGER,
                 record_count INTEGER,
                 details_json TEXT NOT NULL
             )
             """
         )
+        existing_cols = {
+            row[1]
+            for row in conn.execute("PRAGMA table_info(source_run_checks)").fetchall()
+            if len(row) >= 2
+        }
+        if "freshness_sla_hours" not in existing_cols:
+            conn.execute("ALTER TABLE source_run_checks ADD COLUMN freshness_sla_hours REAL")
+        if "freshness_passed" not in existing_cols:
+            conn.execute("ALTER TABLE source_run_checks ADD COLUMN freshness_passed INTEGER")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS daily_source_reliability (
@@ -1874,17 +1885,33 @@ def record_qa_checks(run_id: str, created_at: str, checks: list[dict], source_he
             health = health_by_source.get(source, {})
             category = health.get("category")
             freshness_hours = health.get("run_age_hours")
+            freshness_sla_hours = None
+            freshness_passed = None
             record_count = None
             for item in check.get("checks", []):
-                if item.get("name") == "record_count":
+                check_name = item.get("name")
+                if check_name == "record_count":
                     detail = item.get("detail", "")
                     try:
                         record_count = int(str(detail).split(" ", 1)[0])
                     except Exception:
                         record_count = None
+                if check_name == "freshness":
+                    freshness_passed = 1 if item.get("passed") else 0
+                    detail = str(item.get("detail", ""))
+                    if "<=" in detail:
+                        rhs = detail.split("<=", 1)[1].strip()
+                        try:
+                            freshness_sla_hours = float(rhs)
+                        except ValueError:
+                            freshness_sla_hours = None
+            if freshness_sla_hours is None:
+                sla_days = SOURCE_SLA_DAYS.get(source)
+                if isinstance(sla_days, (int, float)):
+                    freshness_sla_hours = float(sla_days) * 24.0
             conn.execute(
-                "INSERT INTO source_run_checks (run_id, created_at, source, category, passed, attempts, freshness_hours, record_count, details_json) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO source_run_checks (run_id, created_at, source, category, passed, attempts, freshness_hours, freshness_sla_hours, freshness_passed, record_count, details_json) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     run_id,
                     created_at,
@@ -1893,6 +1920,8 @@ def record_qa_checks(run_id: str, created_at: str, checks: list[dict], source_he
                     1 if check.get("passed") else 0,
                     int(check.get("attempts") or 1),
                     float(freshness_hours) if isinstance(freshness_hours, (int, float)) else None,
+                    float(freshness_sla_hours) if isinstance(freshness_sla_hours, (int, float)) else None,
+                    int(freshness_passed) if isinstance(freshness_passed, int) else None,
                     record_count,
                     json.dumps(check),
                 ),
@@ -1901,7 +1930,11 @@ def record_qa_checks(run_id: str, created_at: str, checks: list[dict], source_he
         window_start = (date.fromisoformat(as_of_date) - timedelta(days=30)).isoformat()
         rows = conn.execute(
             "SELECT source, COUNT(*) AS runs, AVG(passed * 1.0) AS pass_rate, "
-            "AVG(CASE WHEN freshness_hours IS NOT NULL AND freshness_hours <= 48 THEN 1.0 ELSE 0.0 END) AS freshness_rate "
+            "AVG(CASE "
+            "WHEN freshness_passed IS NOT NULL THEN freshness_passed * 1.0 "
+            "WHEN freshness_hours IS NOT NULL AND freshness_sla_hours IS NOT NULL AND freshness_hours <= freshness_sla_hours THEN 1.0 "
+            "WHEN freshness_hours IS NOT NULL AND freshness_hours <= 48 THEN 1.0 "
+            "ELSE 0.0 END) AS freshness_rate "
             "FROM source_run_checks WHERE DATE(created_at) >= DATE(?) GROUP BY source",
             (window_start,),
         ).fetchall()

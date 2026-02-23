@@ -1,6 +1,6 @@
 {
-  "as_of_date": "2026-02-22",
-  "timestamp": "2026-02-23T00:04:41+00:00",
+  "as_of_date": "2026-02-23",
+  "timestamp": "2026-02-23T14:58:17+00:00",
   "headline": {
     "nowcast_mom_pct": 0.0,
     "nowcast_yoy_pct": 1.382,
@@ -24,7 +24,7 @@
     },
     "housing": {
       "proxy_level": 183.7667,
-      "daily_change_pct": null,
+      "daily_change_pct": 0.0,
       "weight": 0.2941,
       "points": 3,
       "status": "fresh"
@@ -86,7 +86,7 @@
       "category": "food",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-23T00:04:43+00:00",
+      "last_success_timestamp": "2026-02-23T14:58:19+00:00",
       "detail": "Collected 100 records from OpenFoodFacts API.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -99,7 +99,7 @@
       "category": "food",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-23T00:04:46+00:00",
+      "last_success_timestamp": "2026-02-23T14:58:23+00:00",
       "detail": "Collected 9 retail food price observations from StatCan.",
       "source_run_id": null,
       "last_observation_period": "2025-12",
@@ -111,21 +111,21 @@
       "source": "apify_loblaws",
       "category": "food",
       "tier": 1,
-      "status": "missing",
-      "last_success_timestamp": null,
-      "detail": "Apify run failed for all actors. sunny_eternity/loblaws-grocery-scraper: Maximum charged results must be greater than zero",
+      "status": "fresh",
+      "last_success_timestamp": "2026-02-14T00:00:00+00:00",
+      "detail": "Apify run failed for all actors. sunny_eternity/loblaws-grocery-scraper: Maximum charged results must be greater than zero Reusing last successful APIFY timestamp for freshness gating.",
       "source_run_id": null,
       "last_observation_period": null,
-      "age_days": null,
-      "run_age_hours": null,
-      "updated_days_ago": "unknown"
+      "age_days": 9,
+      "run_age_hours": 230.97,
+      "updated_days_ago": "updated 9 days ago"
     },
     {
       "source": "statcan_gas_csv",
       "category": "transport",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-23T00:04:48+00:00",
+      "last_success_timestamp": "2026-02-23T14:58:23+00:00",
       "detail": "Collected 1 fuel price observations from StatCan.",
       "source_run_id": null,
       "last_observation_period": "2026-01",
@@ -139,11 +139,11 @@
       "tier": 2,
       "status": "fresh",
       "last_success_timestamp": "2026-02-23T00:04:50+00:00",
-      "detail": "Parsed Canada average gas price 138.5 c/L from NRCAN.",
+      "detail": "Fetch failed: Failed to fetch URL: https://www2.nrcan.gc.ca/eneene/sources/pripri/prices_bycity_e.cfm?productID=1&locationID=66,17,39,11,8,59,73,35,46,2,7,4,66&frequency=W&priceYear=0: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1016)> Using last successful timestamp from prior run.",
       "source_run_id": null,
       "last_observation_period": null,
       "age_days": 0,
-      "run_age_hours": 0.0,
+      "run_age_hours": 14.89,
       "updated_days_ago": "updated today"
     },
     {
@@ -151,7 +151,7 @@
       "category": "housing",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-23T00:05:08+00:00",
+      "last_success_timestamp": "2026-02-23T14:58:47+00:00",
       "detail": "Collected 3 CPI housing proxies from StatCan CSV.",
       "source_run_id": null,
       "last_observation_period": "2026-01",
@@ -164,7 +164,7 @@
       "category": "housing",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-23T00:05:10+00:00",
+      "last_success_timestamp": "2026-02-23T14:58:48+00:00",
       "detail": "Parsed average asking rent $2057.0 from https://press.rentals.ca/releases/national-rent-report.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -177,7 +177,7 @@
       "category": "energy",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-23T00:05:11+00:00",
+      "last_success_timestamp": "2026-02-23T14:58:48+00:00",
       "detail": "Collected 12 OEB rate observations.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -190,7 +190,7 @@
       "category": "energy",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-23T00:05:30+00:00",
+      "last_success_timestamp": "2026-02-23T14:59:08+00:00",
       "detail": "Collected 1 StatCan energy CPI fallback points.",
       "source_run_id": null,
       "last_observation_period": "2026-01",
@@ -203,7 +203,7 @@
       "category": "communication",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-23T00:05:46+00:00",
+      "last_success_timestamp": "2026-02-23T14:59:27+00:00",
       "detail": "Collected 4 communication CPI proxies from StatCan CSV.",
       "source_run_id": null,
       "last_observation_period": "2026-01",
@@ -216,7 +216,7 @@
       "category": "communication",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-23T00:05:47+00:00",
+      "last_success_timestamp": "2026-02-23T14:59:27+00:00",
       "detail": "Collected 8 supplemental communication points.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -229,7 +229,7 @@
       "category": "communication",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-23T00:05:48+00:00",
+      "last_success_timestamp": "2026-02-23T14:59:27+00:00",
       "detail": "Collected 4 supplemental communication points from https://crtc.gc.ca/eng/publications/reports/policymonitoring/2025/index.htm. TLS verify disabled for pinned CRTC host.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -242,7 +242,7 @@
       "category": "health_personal",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-23T00:06:06+00:00",
+      "last_success_timestamp": "2026-02-23T14:59:49+00:00",
       "detail": "Collected 11 health/personal CPI proxies from StatCan CSV.",
       "source_run_id": null,
       "last_observation_period": "2026-01",
@@ -255,7 +255,7 @@
       "category": "health_personal",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-23T00:06:08+00:00",
+      "last_success_timestamp": "2026-02-23T14:59:50+00:00",
       "detail": "Collected 8 supplemental health/personal points from https://health-products.canada.ca/dpd-bdpp/index-eng.jsp.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -268,7 +268,7 @@
       "category": "health_personal",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-23T00:06:11+00:00",
+      "last_success_timestamp": "2026-02-23T14:59:54+00:00",
       "detail": "Collected 8 supplemental health/personal points from https://www.pmprb-cepmb.gc.ca/en/reporting/market-intelligence.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -281,7 +281,7 @@
       "category": "recreation_education",
       "tier": 1,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-23T00:06:21+00:00",
+      "last_success_timestamp": "2026-02-23T15:00:09+00:00",
       "detail": "Collected 20 recreation/education CPI proxies from StatCan CSV.",
       "source_run_id": null,
       "last_observation_period": "2026-01",
@@ -294,7 +294,7 @@
       "category": "recreation_education",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-23T00:06:22+00:00",
+      "last_success_timestamp": "2026-02-23T15:00:10+00:00",
       "detail": "Collected 10 supplemental recreation/education points.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -307,7 +307,7 @@
       "category": "recreation_education",
       "tier": 2,
       "status": "fresh",
-      "last_success_timestamp": "2026-02-23T00:06:22+00:00",
+      "last_success_timestamp": "2026-02-23T15:00:10+00:00",
       "detail": "Collected 10 supplemental recreation/education points.",
       "source_run_id": null,
       "last_observation_period": null,
@@ -326,7 +326,6 @@
     "Coverage ratio is the share of the CPI basket with usable source data in this run.",
     "Source diversity warning: single-source categories today: housing, transport, energy.",
     "Dropped 2 points via range checks.",
-    "Nowcast MoM uses official MoM fallback until sufficient category history is available.",
     "Deprecated fields retained for compatibility: headline.nowcast_mom_pct and headline.consensus_spread_yoy.",
     "Calibrated YoY nowcast from raw 1.227% to 1.382% using transparent shrinkage diagnostics.",
     "Official CPI YoY display uses one-decimal release-style rounding (2.3%).",
@@ -377,7 +376,7 @@
         "energy is tracked as a high-signal proxy across shelter and transport-related cost pressures."
       ]
     },
-    "total_raw_points": 211,
+    "total_raw_points": 210,
     "total_points_after_dedupe": 110,
     "total_points_after_quality_filters": 108,
     "anomaly_points": 0,
@@ -426,8 +425,8 @@
           "source_mean": 183.7667,
           "effective_weight": 1.0,
           "source_weight_share": 1.0,
-          "category_contribution_pct": null,
-          "source_contribution_pct": null
+          "category_contribution_pct": 0.0,
+          "source_contribution_pct": 0.0
         }
       ],
       "transport": [
@@ -564,7 +563,7 @@
     },
     "category_contributions": {
       "food": null,
-      "housing": null,
+      "housing": 0.0,
       "transport": null,
       "energy": null,
       "communication": null,
@@ -572,12 +571,12 @@
       "recreation_education": null
     },
     "top_driver": {
-      "category": null,
-      "contribution_pct": null
+      "category": "housing",
+      "contribution_pct": 0.0
     },
     "qa_summary": {
-      "source_contract_pass_rate": 0.9444,
-      "source_freshness_pass_rate": 0.9444,
+      "source_contract_pass_rate": 1.0,
+      "source_freshness_pass_rate": 1.0,
       "fresh_weight_ratio": 1.0,
       "cross_source_disagreement_score": 0.0922,
       "cross_source_disagreement_by_category": {
@@ -758,7 +757,7 @@
             {
               "name": "record_count",
               "passed": true,
-              "detail": "1 in [1, 300]"
+              "detail": "0 in [1, 300]"
             },
             {
               "name": "value_range",
@@ -768,7 +767,7 @@
             {
               "name": "freshness",
               "passed": true,
-              "detail": "0.0 <= 192.0"
+              "detail": "14.89 <= 192.0"
             },
             {
               "name": "median_jump",
@@ -1280,7 +1279,7 @@
           "source": "apify_loblaws",
           "contract": "apify_loblaws",
           "attempts": 2,
-          "passed": false,
+          "passed": true,
           "checks": [
             {
               "name": "required_fields",
@@ -1289,18 +1288,18 @@
             },
             {
               "name": "record_count",
-              "passed": false,
+              "passed": true,
               "detail": "0 in [0, 1000]"
             },
             {
               "name": "value_range",
-              "passed": false,
+              "passed": true,
               "detail": "[0.1, 500.0]"
             },
             {
               "name": "freshness",
-              "passed": false,
-              "detail": "None <= 336.0"
+              "passed": true,
+              "detail": "230.97 <= 336.0"
             },
             {
               "name": "median_jump",
@@ -1329,10 +1328,10 @@
       "series": "Canada CPI",
       "source_url": "https://www150.statcan.gc.ca/n1/dai-quo/cal2-eng.htm",
       "status": "upcoming",
-      "countdown_seconds": 1949119
+      "countdown_seconds": 1895503
     },
     "release_events": {
-      "as_of": "2026-02-23T00:04:41+00:00",
+      "as_of": "2026-02-23T14:58:17+00:00",
       "source_url": "https://www150.statcan.gc.ca/n1/dai-quo/cal2-eng.htm",
       "events": [
         {
@@ -1347,18 +1346,18 @@
       "errors": []
     },
     "fallbacks": {
-      "nowcast_from_official_mom": true
+      "nowcast_from_official_mom": false
     },
     "collection_diagnostics": {
       "apify_retry": {
         "attempts": 2,
         "retries_used": 1,
         "succeeded": false,
-        "final_status": "missing",
-        "reason": "Apify run failed for all actors. sunny_eternity/loblaws-grocery-scraper: Maximum charged results must be greater than zero"
+        "final_status": "stale",
+        "reason": "Apify run failed for all actors. sunny_eternity/loblaws-grocery-scraper: Maximum charged results must be greater than zero Reusing last successful APIFY timestamp for freshness gating."
       },
       "network_preflight": {
-        "checked_at_epoch": 1771805083,
+        "checked_at_epoch": 1771858699,
         "ok": true,
         "failures": [],
         "cached": false
@@ -1378,16 +1377,16 @@
       }
     },
     "housing_signal_overlay": {
-      "applied": false,
+      "applied": true,
       "blend_weight": 0.3,
-      "rent_delta_pct": null,
-      "previous_rent": null,
+      "rent_delta_pct": 0.0,
+      "previous_rent": 2057.0,
       "current_rent": 2057.0,
-      "reason": "missing_or_invalid_indicator_history"
+      "reason": null
     },
     "projection": {
       "nowcast_yoy_prorated": {
-        "prorate_factor": 0.7857,
+        "prorate_factor": 0.8214,
         "base_month": "2026-01",
         "reference_month": "2025-02",
         "projected_index": 165.0,
@@ -1401,7 +1400,7 @@
       "headline_mom": null,
       "source_count": 2,
       "confidence": "medium",
-      "as_of": "2026-02-23T00:04:41+00:00",
+      "as_of": "2026-02-23T14:58:18+00:00",
       "source_urls": [
         "https://tradingeconomics.com/canada/inflation-cpi",
         "https://www.fxstreet.com/economic-calendar"
@@ -1410,14 +1409,14 @@
         {
           "source": "tradingeconomics",
           "url": "https://tradingeconomics.com/canada/inflation-cpi",
-          "retrieved_at": "2026-02-23T00:04:41+00:00",
+          "retrieved_at": "2026-02-23T14:58:18+00:00",
           "headline_yoy_candidate": 0.0,
           "field_confidence": "low"
         },
         {
           "source": "fxstreet",
           "url": "https://www.fxstreet.com/economic-calendar",
-          "retrieved_at": "2026-02-23T00:04:41+00:00",
+          "retrieved_at": "2026-02-23T14:58:18+00:00",
           "headline_yoy_candidate": 1.03,
           "field_confidence": "medium"
         }
@@ -1433,12 +1432,12 @@
     },
     "indicators": {
       "average_asking_rent": 2057.0,
-      "gasoline_canada_avg": 138.5
+      "gasoline_canada_avg": null
     },
     "forecast": {
       "status": "insufficient_history",
       "next_release_date": "2026-03-17",
-      "as_of": "2026-02-23T00:04:41+00:00",
+      "as_of": "2026-02-23T14:58:17+00:00",
       "model_version": "v1.3.0-forecast-baseline",
       "confidence": "low",
       "point_yoy": null,
@@ -1465,10 +1464,10 @@
     },
     "gate_diagnostics": {
       "apify_recency": {
-        "passed": false,
-        "value": null,
+        "passed": true,
+        "value": 9,
         "threshold": 14,
-        "reason": "apify_stale_or_missing"
+        "reason": null
       },
       "required_sources": {
         "passed": true,
@@ -1560,9 +1559,9 @@
       "food_resilience": {
         "passed": true,
         "value": {
-          "fresh_sources": 2,
-          "usable_sources": 2,
-          "preferred_source_status": "missing"
+          "fresh_sources": 3,
+          "usable_sources": 3,
+          "preferred_source_status": "fresh"
         },
         "threshold": {
           "min_fresh_sources": 1,
@@ -1572,13 +1571,13 @@
       },
       "source_reliability": {
         "passed": true,
-        "value": 0.9444,
+        "value": 1.0,
         "threshold": 0.85,
         "reason": null
       },
       "source_freshness_reliability": {
         "passed": true,
-        "value": 0.9444,
+        "value": 1.0,
         "threshold": 0.9,
         "reason": null
       },
@@ -1646,10 +1645,10 @@
     "model_card_path": "data/model_card_latest.json"
   },
   "release": {
-    "run_id": "run_c72c1da95c2c",
+    "run_id": "run_db9b14e003e7",
     "status": "published",
     "qa_status": "passed",
-    "qa_window_close_at": "2026-02-24T00:04:41+00:00",
+    "qa_window_close_at": "2026-02-24T14:58:17+00:00",
     "lifecycle_states": [
       "started",
       "collect",
@@ -1660,7 +1659,7 @@
       "published"
     ],
     "blocked_conditions": [],
-    "created_at": "2026-02-23T00:04:41+00:00",
-    "published_at": "2026-02-23T00:04:41+00:00"
+    "created_at": "2026-02-23T14:58:17+00:00",
+    "published_at": "2026-02-23T14:58:17+00:00"
   }
 }

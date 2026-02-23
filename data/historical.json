@@ -1,5 +1,25 @@
 {
-  "2026-02-22": {
+  "2026-02-15": {
+    "headline": {
+      "nowcast_mom_pct": 0.1,
+      "nowcast_yoy_pct": 2.4,
+      "lead_signal": "up"
+    },
+    "official_cpi": {
+      "mom_pct": 0.2,
+      "yoy_pct": 2.5,
+      "latest_release_month": "2025-12"
+    },
+    "category_contributions": {
+      "food": 0.02
+    },
+    "meta": {
+      "seeded": true,
+      "seed_type": "official_monthly_baseline",
+      "seed_source": "statcan_cpi_csv"
+    }
+  },
+  "2026-02-23": {
     "headline": {
       "nowcast_mom_pct": 0.0,
       "nowcast_yoy_pct": 1.382,
@@ -27,7 +47,7 @@
       },
       "housing": {
         "proxy_level": 183.7667,
-        "daily_change_pct": null,
+        "daily_change_pct": 0.0,
         "status": "fresh"
       },
       "transport": {
@@ -58,7 +78,7 @@
     },
     "category_contributions": {
       "food": null,
-      "housing": null,
+      "housing": 0.0,
       "transport": null,
       "energy": null,
       "communication": null,
@@ -72,7 +92,7 @@
         "category": "food",
         "tier": 1,
         "age_days": 0,
-        "last_success_timestamp": "2026-02-23T00:04:43+00:00",
+        "last_success_timestamp": "2026-02-23T14:58:19+00:00",
         "last_observation_period": null
       },
       {
@@ -81,16 +101,16 @@
         "category": "food",
         "tier": 1,
         "age_days": 0,
-        "last_success_timestamp": "2026-02-23T00:04:46+00:00",
+        "last_success_timestamp": "2026-02-23T14:58:23+00:00",
         "last_observation_period": "2025-12"
       },
       {
         "source": "apify_loblaws",
-        "status": "missing",
+        "status": "fresh",
         "category": "food",
         "tier": 1,
-        "age_days": null,
-        "last_success_timestamp": null,
+        "age_days": 9,
+        "last_success_timestamp": "2026-02-14T00:00:00+00:00",
         "last_observation_period": null
       },
       {
@@ -99,7 +119,7 @@
         "category": "transport",
         "tier": 1,
         "age_days": 0,
-        "last_success_timestamp": "2026-02-23T00:04:48+00:00",
+        "last_success_timestamp": "2026-02-23T14:58:23+00:00",
         "last_observation_period": "2026-01"
       },
       {
@@ -117,7 +137,7 @@
         "category": "housing",
         "tier": 1,
         "age_days": 0,
-        "last_success_timestamp": "2026-02-23T00:05:08+00:00",
+        "last_success_timestamp": "2026-02-23T14:58:47+00:00",
         "last_observation_period": "2026-01"
       },
       {
@@ -126,7 +146,7 @@
         "category": "housing",
         "tier": 2,
         "age_days": 0,
-        "last_success_timestamp": "2026-02-23T00:05:10+00:00",
+        "last_success_timestamp": "2026-02-23T14:58:48+00:00",
         "last_observation_period": null
       },
       {
@@ -135,7 +155,7 @@
         "category": "energy",
         "tier": 2,
         "age_days": 0,
-        "last_success_timestamp": "2026-02-23T00:05:11+00:00",
+        "last_success_timestamp": "2026-02-23T14:58:48+00:00",
         "last_observation_period": null
       },
       {
@@ -144,7 +164,7 @@
         "category": "energy",
         "tier": 1,
         "age_days": 0,
-        "last_success_timestamp": "2026-02-23T00:05:30+00:00",
+        "last_success_timestamp": "2026-02-23T14:59:08+00:00",
         "last_observation_period": "2026-01"
       },
       {
@@ -153,7 +173,7 @@
         "category": "communication",
         "tier": 1,
         "age_days": 0,
-        "last_success_timestamp": "2026-02-23T00:05:46+00:00",
+        "last_success_timestamp": "2026-02-23T14:59:27+00:00",
         "last_observation_period": "2026-01"
       },
       {
@@ -162,7 +182,7 @@
         "category": "communication",
         "tier": 2,
         "age_days": 0,
-        "last_success_timestamp": "2026-02-23T00:05:47+00:00",
+        "last_success_timestamp": "2026-02-23T14:59:27+00:00",
         "last_observation_period": null
       },
       {
@@ -171,7 +191,7 @@
         "category": "communication",
         "tier": 2,
         "age_days": 0,
-        "last_success_timestamp": "2026-02-23T00:05:48+00:00",
+        "last_success_timestamp": "2026-02-23T14:59:27+00:00",
         "last_observation_period": null
       },
       {
@@ -180,7 +200,7 @@
         "category": "health_personal",
         "tier": 1,
         "age_days": 0,
-        "last_success_timestamp": "2026-02-23T00:06:06+00:00",
+        "last_success_timestamp": "2026-02-23T14:59:49+00:00",
         "last_observation_period": "2026-01"
       },
       {
@@ -189,7 +209,7 @@
         "category": "health_personal",
         "tier": 2,
         "age_days": 0,
-        "last_success_timestamp": "2026-02-23T00:06:08+00:00",
+        "last_success_timestamp": "2026-02-23T14:59:50+00:00",
         "last_observation_period": null
       },
       {
@@ -198,7 +218,7 @@
         "category": "health_personal",
         "tier": 2,
         "age_days": 0,
-        "last_success_timestamp": "2026-02-23T00:06:11+00:00",
+        "last_success_timestamp": "2026-02-23T14:59:54+00:00",
         "last_observation_period": null
       },
       {
@@ -207,7 +227,7 @@
         "category": "recreation_education",
         "tier": 1,
         "age_days": 0,
-        "last_success_timestamp": "2026-02-23T00:06:21+00:00",
+        "last_success_timestamp": "2026-02-23T15:00:09+00:00",
         "last_observation_period": "2026-01"
       },
       {
@@ -216,7 +236,7 @@
         "category": "recreation_education",
         "tier": 2,
         "age_days": 0,
-        "last_success_timestamp": "2026-02-23T00:06:22+00:00",
+        "last_success_timestamp": "2026-02-23T15:00:10+00:00",
         "last_observation_period": null
       },
       {
@@ -225,15 +245,15 @@
         "category": "recreation_education",
         "tier": 2,
         "age_days": 0,
-        "last_success_timestamp": "2026-02-23T00:06:22+00:00",
+        "last_success_timestamp": "2026-02-23T15:00:10+00:00",
         "last_observation_period": null
       }
     ],
     "release": {
-      "run_id": "run_c72c1da95c2c",
+      "run_id": "run_db9b14e003e7",
       "status": "published",
       "qa_status": "passed",
-      "qa_window_close_at": "2026-02-24T00:04:41+00:00",
+      "qa_window_close_at": "2026-02-24T14:58:17+00:00",
       "lifecycle_states": [
         "started",
         "collect",
@@ -244,8 +264,8 @@
         "published"
       ],
       "blocked_conditions": [],
-      "created_at": "2026-02-23T00:04:41+00:00",
-      "published_at": "2026-02-23T00:04:41+00:00"
+      "created_at": "2026-02-23T14:58:17+00:00",
+      "published_at": "2026-02-23T14:58:17+00:00"
     }
   }
 }
