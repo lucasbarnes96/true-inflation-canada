@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>About - True Inflation Canada</title>
+  <meta name="description"
+    content="About True Inflation Canada: goals, methodology, source transparency, strengths, shortcomings, and long-term vision." />
+  <link rel="icon" type="image/png" href="logo.png" />
+  <style>
+    :root {
+      --bg: #fcfbfa;
+      --surface: #ffffff;
+      --surface-2: #f6f5f3;
+      --border: rgba(0, 0, 0, 0.08);
+      --border-strong: rgba(0, 0, 0, 0.14);
+      --text: #2c211f;
+      --text-secondary: #7a6e69;
+      --text-tertiary: #a09793;
+      --blue: #0071e3;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Fira Code", monospace;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(245, 245, 247, 0.78);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-bottom: 1px solid var(--border);
+      padding: 0 1.1rem;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .logo {
+      width: 30px;
+      height: 30px;
+      object-fit: contain;
+      border-radius: var(--radius-sm);
+    }
+
+    .title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    .nav-links a {
+      font-size: 0.77rem;
+      color: var(--blue);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.2rem 0.55rem;
+      background: var(--surface);
+    }
+
+    .page {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 1.2rem;
+      display: grid;
+      gap: 0.9rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      padding: 1.2rem;
+    }
+
+    .hero h1 {
+      font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+      letter-spacing: -0.02em;
+      margin-bottom: 0.35rem;
+    }
+
+    .hero p {
+      color: var(--text-secondary);
+      max-width: 920px;
+    }
+
+    .kpi-grid {
+      margin-top: 0.85rem;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.55rem;
+    }
+
+    @media (max-width: 800px) {
+      .kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    .kpi {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface-2);
+      padding: 0.7rem 0.8rem;
+    }
+
+    .kpi .label {
+      font-size: 0.67rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-tertiary);
+      margin-bottom: 0.2rem;
+    }
+
+    .kpi .value {
+      font-size: 0.94rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--text);
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.65rem;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.7rem;
+    }
+
+    @media (max-width: 900px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface-2);
+      padding: 0.85rem 0.95rem;
+    }
+
+    .panel h3 {
+      font-size: 0.83rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-bottom: 0.45rem;
+    }
+
+    .panel p,
+    .panel li {
+      color: var(--text-secondary);
+      font-size: 0.88rem;
+    }
+
+    .panel ul {
+      padding-left: 1rem;
+      display: grid;
+      gap: 0.32rem;
+    }
+
+    .formula-list code {
+      font-family: var(--font-mono);
+      font-size: 0.83rem;
+      background: #f1efec;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.08rem 0.35rem;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 0.42rem;
+      margin-top: 0.55rem;
+    }
+
+    .timeline li {
+      list-style: none;
+      border-left: 2px solid rgba(0, 113, 227, 0.25);
+      padding-left: 0.65rem;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+      font-size: 0.8rem;
+    }
+
+    th,
+    td {
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--border);
+      padding: 0.55rem 0.6rem;
+    }
+
+    th {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-tertiary);
+      background: #f9f8f6;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    td {
+      color: var(--text-secondary);
+      overflow-wrap: anywhere;
+    }
+
+    td code {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: #5a524f;
+      background: #f1efec;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.06rem 0.3rem;
+    }
+
+    .footer {
+      text-align: center;
+      color: var(--text-tertiary);
+      font-size: 0.75rem;
+      padding: 0.4rem 0 1rem;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="nav">
+    <div class="brand">
+      <img class="logo" src="logo.png" alt="True Inflation Canada logo" />
+      <span class="title">True Inflation Canada - About</span>
+    </div>
+    <div class="nav-links">
+      <a href="/">Dashboard</a>
+      <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </div>
+  </nav>
+
+  <main class="page">
+    <section class="card hero">
+      <h1>Transparent Inflation Nowcast Built on Public Data</h1>
+      <p>
+        True Inflation Canada is an experimental open-source project that estimates inflation pressure between official CPI releases.
+        The goal is to provide transparent, auditable signal tracking using public data sources, while clearly documenting caveats and
+        uncertainty.
+      </p>
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="label">Latest Snapshot</div>
+          <div id="kpi-asof" class="value">--</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Nowcast YoY</div>
+          <div id="kpi-nowcast" class="value">--</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Official CPI YoY</div>
+          <div id="kpi-official" class="value">--</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Live Days</div>
+          <div id="kpi-live-days" class="value">--</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">Project Goal, Strengths, and Long-Term Vision</div>
+      <div class="grid-2">
+        <article class="panel">
+          <h3>Primary Goal</h3>
+          <p>
+            Build a public, reproducible inflation nowcast that is useful before official release dates, without requiring paid data feeds.
+            The project prioritizes transparency, auditability, and explicit quality gates over cosmetic precision.
+          </p>
+        </article>
+        <article class="panel">
+          <h3>Core Strengths</h3>
+          <ul>
+            <li>Open-source ingestion and methodology; assumptions are inspectable.</li>
+            <li>Source-level diagnostics, freshness checks, and publish gates.</li>
+            <li>Robust fallback behavior to avoid silent failures.</li>
+            <li>Explicit confidence and quality scoring tied to measurable inputs.</li>
+          </ul>
+        </article>
+        <article class="panel">
+          <h3>Known Shortcomings</h3>
+          <ul>
+            <li>Early live-history period is volatile and less statistically stable.</li>
+            <li>Some CPI components are omitted in v1 due to high-frequency data quality constraints.</li>
+            <li>Public source outages, anti-bot behavior, or certificate issues can temporarily degrade signal freshness.</li>
+            <li>This is not an official CPI publication and should not be treated as a replacement.</li>
+          </ul>
+        </article>
+        <article class="panel">
+          <h3>Long-Term Vision</h3>
+          <ul>
+            <li>Expand source diversity and reduce single-source category dependence.</li>
+            <li>Increase tracked basket coverage and improve representativeness over time.</li>
+            <li>Improve calibration quality as live history accumulates.</li>
+            <li>Maintain an open, finance-grade public benchmark for high-frequency inflation tracking.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">How the Math Works</div>
+      <div class="grid-2">
+        <article class="panel">
+          <h3>Core Formulas</h3>
+          <ul class="formula-list">
+            <li><code>category_contribution = weight x daily_change_pct</code></li>
+            <li><code>nowcast_mom = weighted aggregate of category deltas</code></li>
+            <li><code>projected_index = prior_index x (1 + mom_signal x prorate_factor)</code></li>
+            <li><code>nowcast_yoy = (projected_index / prior_year_index - 1) x 100</code></li>
+          </ul>
+        </article>
+        <article class="panel">
+          <h3>Signal Lifecycle vs CPI</h3>
+          <ul class="timeline">
+            <li><strong>Stage 1:</strong> Official CPI history provides anchor context and denominator reference.</li>
+            <li><strong>Stage 2:</strong> Daily/weekly/monthly public inputs populate category proxies.</li>
+            <li><strong>Stage 3:</strong> As live days accumulate, nowcast series lengthens and error metrics stabilize.</li>
+            <li><strong>Stage 4:</strong> Deviation and forecast outputs are published only when guardrails pass.</li>
+            <li><strong>Stage 5:</strong> Relative usefulness improves over time as non-seeded live history grows.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">Data Source Transparency (All Tracked Sources)</div>
+      <div class="table-wrap">
+        <table aria-label="Source transparency table">
+          <thead>
+            <tr>
+              <th>Source</th>
+              <th>Categories</th>
+              <th>Cadence</th>
+              <th>Proxy Type</th>
+              <th>Fallback Policy</th>
+              <th>License/Terms</th>
+              <th>Proof URL</th>
+            </tr>
+          </thead>
+          <tbody id="source-table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">Methodology & Governance Notes</div>
+      <div class="grid-2">
+        <article class="panel">
+          <h3>Policy and QA</h3>
+          <ul id="policy-list"></ul>
+        </article>
+        <article class="panel">
+          <h3>Transparency Commitments</h3>
+          <ul>
+            <li>All published runs include source diagnostics and release gate status.</li>
+            <li>Confidence and quality are tied to explicit coverage/diversity/anomaly criteria.</li>
+            <li>Fallback usage is surfaced in notes rather than hidden.</li>
+            <li>Method limits are disclosed in the dashboard and this page.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    Experimental open-source nowcast. Not official StatCan CPI.
+  </footer>
+
+  <script>
+    function el(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+
+    function pct(value, digits = 2) {
+      if (value === null || value === undefined || Number.isNaN(value)) return "--";
+      return `${Number(value).toFixed(digits)}%`;
+    }
+
+    function fetchFirstJson(urls) {
+      const list = (Array.isArray(urls) ? urls : []).filter(Boolean);
+      let chain = Promise.reject(new Error("no_urls"));
+      for (const url of list) {
+        chain = chain.catch(() =>
+          fetch(url).then((r) => {
+            if (!r.ok) throw new Error(`HTTP ${r.status} from ${url}`);
+            return r.text().then((text) => JSON.parse(text));
+          })
+        );
+      }
+      return chain.catch(() => ({}));
+    }
+
+    function safeHistoryItems(historical) {
+      if (Array.isArray(historical.items)) return historical.items;
+      return Object.keys(historical || {}).sort().map(day => ({ date: day, ...(historical[day] || {}) }));
+    }
+
+    function countLiveNowcastDays(items) {
+      return items.filter((d) => {
+        const seeded = Boolean(d.meta && d.meta.seeded);
+        const yoy = d.headline?.nowcast_yoy_pct;
+        return !seeded && yoy !== null && yoy !== undefined;
+      }).length;
+    }
+
+    function renderKpis(latest, liveDays) {
+      document.getElementById("kpi-asof").textContent = latest.as_of_date || "--";
+      document.getElementById("kpi-nowcast").textContent = pct(latest.headline?.nowcast_yoy_pct, 3);
+      document.getElementById("kpi-official").textContent = pct(latest.official_cpi?.yoy_display_pct ?? latest.official_cpi?.yoy_pct, 1);
+      document.getElementById("kpi-live-days").textContent = String(liveDays);
+    }
+
+    function renderSourceTable(catalog) {
+      const body = document.getElementById("source-table-body");
+      body.innerHTML = "";
+      const items = Array.isArray(catalog?.items) ? catalog.items : [];
+      if (items.length === 0) {
+        const tr = document.createElement("tr");
+        const td = el("td", null, "No source catalog available.");
+        td.colSpan = 7;
+        tr.appendChild(td);
+        body.appendChild(tr);
+        return;
+      }
+
+      items.forEach((item) => {
+        const tr = document.createElement("tr");
+        tr.appendChild(el("td", null, item.source || "--"));
+        tr.appendChild(el("td", null, Array.isArray(item.categories) ? item.categories.join(", ") : "--"));
+        tr.appendChild(el("td", null, item.cadence || "--"));
+        tr.appendChild(el("td", null, item.proxy_type || "--"));
+        tr.appendChild(el("td", null, item.fallback_policy || "--"));
+        tr.appendChild(el("td", null, item.license || "--"));
+
+        const urlCell = document.createElement("td");
+        if (item.proof_url) {
+          const link = document.createElement("a");
+          link.href = item.proof_url;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = item.proof_url;
+          urlCell.appendChild(link);
+        } else {
+          urlCell.textContent = "--";
+        }
+        tr.appendChild(urlCell);
+
+        body.appendChild(tr);
+      });
+    }
+
+    function renderPolicy(methodology) {
+      const policyList = document.getElementById("policy-list");
+      policyList.innerHTML = "";
+      const gate = methodology?.gate_policy || {};
+      const rows = [
+        `Method version: ${methodology?.method_version || "--"}`,
+        `Representativeness minimum: ${(Number(gate.representativeness_min_fresh_ratio || 0) * 100).toFixed(0)}% fresh basket coverage.`,
+        `Food gate minimums: ${gate.food_gate?.min_fresh_sources ?? "--"} fresh / ${gate.food_gate?.min_usable_sources ?? "--"} usable sources.`,
+        `Required sources: ${(gate.required_sources || []).join(", ") || "--"}.`,
+        `Cross-source disagreement checks are enforced per category before publish.`,
+      ];
+      rows.forEach((text) => policyList.appendChild(el("li", null, text)));
+    }
+
+    Promise.all([
+      fetchFirstJson(["data/published_latest.json", "data/latest.json", "/v1/nowcast/latest"]),
+      fetchFirstJson(["data/historical.json", "/v1/nowcast/history"]),
+      fetchFirstJson(["data/methodology.json", "/v1/methodology"]),
+      fetchFirstJson(["data/source_catalog.json", "/v1/sources/catalog"]),
+    ]).then(([latest, historical, methodology, sourceCatalog]) => {
+      const items = safeHistoryItems(historical).slice(-365);
+      const liveDays = countLiveNowcastDays(items);
+      renderKpis(latest || {}, liveDays);
+      renderSourceTable(sourceCatalog || {});
+      renderPolicy(methodology || {});
+    }).catch((err) => {
+      const fallback = document.getElementById("source-table-body");
+      fallback.innerHTML = "";
+      const tr = document.createElement("tr");
+      const td = el("td", null, `Failed to load about-page data: ${String(err)}`);
+      td.colSpan = 7;
+      tr.appendChild(td);
+      fallback.appendChild(tr);
+    });
+  </script>
+</body>
+
+</html>

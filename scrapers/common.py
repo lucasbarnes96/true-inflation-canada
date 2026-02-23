@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import re
-import ssl
 import socket
 import time
 import urllib.request
@@ -87,13 +86,11 @@ def fetch_url(
     verify: bool = True,
     allowed_insecure_hosts: set[str] | None = None,
 ) -> str:
+    # Keep compatibility args but do not allow insecure TLS transport.
+    _ = allowed_insecure_hosts
     if not verify:
         host = (urlparse(url).hostname or "").lower()
-        if not host:
-            raise FetchError(f"Cannot disable TLS verification for invalid URL host: {url}")
-        allowed = {h.lower() for h in (allowed_insecure_hosts or set())}
-        if host not in allowed:
-            raise FetchError(f"Insecure TLS mode not permitted for host: {host}")
+        raise FetchError(f"Insecure TLS mode is disabled for host: {host or 'unknown'}")
 
     last_err: Exception | None = None
     for attempt in range(retries + 1):
@@ -105,10 +102,7 @@ def fetch_url(
                 "Referer": "https://www.google.com/",
             }
             req = urllib.request.Request(url, headers=headers)
-            context = None
-            if not verify:
-                context = ssl._create_unverified_context()
-            with urllib.request.urlopen(req, timeout=timeout, context=context) as response:
+            with urllib.request.urlopen(req, timeout=timeout, context=None) as response:
                 return response.read().decode("utf-8", errors="ignore")
         except Exception as err:  # pragma: no cover - network dependent
             last_err = err

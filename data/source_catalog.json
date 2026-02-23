@@ -1,0 +1,232 @@
+{
+  "items": [
+    {
+      "source": "openfoodfacts_api",
+      "license": "Open Database License (ODbL)",
+      "geography": "Canada",
+      "cadence": "daily",
+      "categories": [
+        "food"
+      ],
+      "free_public": true,
+      "proof_url": "https://prices.openfoodfacts.org/",
+      "proxy_type": "retail_price_quotes",
+      "official_open_priority": 2,
+      "fallback_policy": "fallback_only",
+      "legal_notes": "ODbL attribution required."
+    },
+    {
+      "source": "apify_loblaws",
+      "license": "Website terms apply; free-tier collection",
+      "geography": "Canada",
+      "cadence": "weekly",
+      "categories": [
+        "food"
+      ],
+      "free_public": true,
+      "proof_url": "https://apify.com/store",
+      "proxy_type": "retail_scrape",
+      "official_open_priority": 3,
+      "fallback_policy": "fallback_only",
+      "legal_notes": "Respect retailer site terms and robots policies."
+    },
+    {
+      "source": "statcan_food_prices",
+      "license": "Open Government Licence - Canada",
+      "geography": "Canada",
+      "cadence": "monthly",
+      "categories": [
+        "food"
+      ],
+      "free_public": true,
+      "proof_url": "https://www150.statcan.gc.ca/",
+      "proxy_type": "official_price_table",
+      "official_open_priority": 1,
+      "fallback_policy": "primary",
+      "legal_notes": "Open Government Licence - Canada."
+    },
+    {
+      "source": "statcan_cpi_csv",
+      "license": "Open Government Licence - Canada",
+      "geography": "Canada",
+      "cadence": "monthly",
+      "categories": [
+        "housing",
+        "communication",
+        "health_personal",
+        "recreation_education"
+      ],
+      "free_public": true,
+      "proof_url": "https://www150.statcan.gc.ca/n1/en/tbl/csv/18100004-eng.zip",
+      "proxy_type": "official_cpi_index_proxy",
+      "official_open_priority": 1,
+      "fallback_policy": "primary",
+      "legal_notes": "Open Government Licence - Canada."
+    },
+    {
+      "source": "statcan_gas_csv",
+      "license": "Open Government Licence - Canada",
+      "geography": "Canada",
+      "cadence": "monthly",
+      "categories": [
+        "transport"
+      ],
+      "free_public": true,
+      "proof_url": "https://www150.statcan.gc.ca/n1/en/tbl/csv/18100001-eng.zip",
+      "proxy_type": "official_price_table",
+      "official_open_priority": 1,
+      "fallback_policy": "primary",
+      "legal_notes": "Open Government Licence - Canada."
+    },
+    {
+      "source": "nrcan_fuel_scrape",
+      "license": "Government of Canada public web content",
+      "geography": "Canada",
+      "cadence": "weekly",
+      "categories": [
+        "transport"
+      ],
+      "free_public": true,
+      "proof_url": "https://natural-resources.canada.ca/our-natural-resources/domestic-and-international-markets/transportation-fuel-prices",
+      "proxy_type": "official_weekly_fuel_prices",
+      "official_open_priority": 2,
+      "fallback_policy": "secondary",
+      "legal_notes": "Public federal fuel price reporting page; parse responsibly."
+    },
+    {
+      "source": "oeb_scrape",
+      "license": "Public website terms apply",
+      "geography": "Ontario",
+      "cadence": "daily",
+      "categories": [
+        "energy"
+      ],
+      "free_public": true,
+      "proof_url": "https://www.oeb.ca/consumer-information-and-protection/electricity-rates",
+      "proxy_type": "regulator_rate_page",
+      "official_open_priority": 2,
+      "fallback_policy": "fallback_if_national_unavailable",
+      "legal_notes": "Public regulator webpage; scrape responsibly."
+    },
+    {
+      "source": "statcan_energy_cpi_csv",
+      "license": "Open Government Licence - Canada",
+      "geography": "Canada",
+      "cadence": "monthly",
+      "categories": [
+        "energy"
+      ],
+      "free_public": true,
+      "proof_url": "https://www150.statcan.gc.ca/n1/en/tbl/csv/18100004-eng.zip",
+      "proxy_type": "official_cpi_index_proxy",
+      "official_open_priority": 1,
+      "fallback_policy": "primary",
+      "legal_notes": "Open Government Licence - Canada."
+    },
+    {
+      "source": "ised_mobile_plan_tracker",
+      "license": "Public Government of Canada website",
+      "geography": "Canada",
+      "cadence": "monthly",
+      "categories": [
+        "communication"
+      ],
+      "free_public": true,
+      "proof_url": "https://ised-isde.canada.ca/site/mobile-plans/en",
+      "proxy_type": "public_plan_tracker",
+      "official_open_priority": 2,
+      "fallback_policy": "secondary",
+      "legal_notes": "Public web content; no guaranteed machine-readable schema."
+    },
+    {
+      "source": "crtc_cmr_report",
+      "license": "Public regulator publication",
+      "geography": "Canada",
+      "cadence": "annual",
+      "categories": [
+        "communication"
+      ],
+      "free_public": true,
+      "proof_url": "https://crtc.gc.ca/eng/publications/reports/policymonitoring/2024/index.htm",
+      "proxy_type": "regulator_publication",
+      "official_open_priority": 2,
+      "fallback_policy": "secondary",
+      "legal_notes": "Lower frequency, used as calibration supplement."
+    },
+    {
+      "source": "healthcanada_dpd",
+      "license": "Public Government of Canada website",
+      "geography": "Canada",
+      "cadence": "daily",
+      "categories": [
+        "health_personal"
+      ],
+      "free_public": true,
+      "proof_url": "https://health-products.canada.ca/dpd-bdpp/index-eng.jsp",
+      "proxy_type": "public_health_reference",
+      "official_open_priority": 2,
+      "fallback_policy": "secondary",
+      "legal_notes": "Reference dataset; not a direct CPI series."
+    },
+    {
+      "source": "pmprb_reports",
+      "license": "Public Government of Canada publication",
+      "geography": "Canada",
+      "cadence": "annual",
+      "categories": [
+        "health_personal"
+      ],
+      "free_public": true,
+      "proof_url": "https://www.pmprb-cepmb.gc.ca/en/reporting/market-intelligence",
+      "proxy_type": "regulator_publication",
+      "official_open_priority": 2,
+      "fallback_policy": "secondary",
+      "legal_notes": "Low frequency, used as supplementary check. Endpoint can rotate; scraper uses fallback URLs."
+    },
+    {
+      "source": "parkscanada_fees",
+      "license": "Public Government of Canada website",
+      "geography": "Canada",
+      "cadence": "as_posted",
+      "categories": [
+        "recreation_education"
+      ],
+      "free_public": true,
+      "proof_url": "https://parks.canada.ca/voyage-travel/tarifs-fees",
+      "proxy_type": "public_fee_page",
+      "official_open_priority": 2,
+      "fallback_policy": "secondary",
+      "legal_notes": "Supplemental, not a full national recreation basket."
+    },
+    {
+      "source": "statcan_education_portal",
+      "license": "Open Government Licence - Canada",
+      "geography": "Canada",
+      "cadence": "varies",
+      "categories": [
+        "recreation_education"
+      ],
+      "free_public": true,
+      "proof_url": "https://www.statcan.gc.ca/en/subjects-start/education_training_and_learning",
+      "proxy_type": "official_public_portal",
+      "official_open_priority": 2,
+      "fallback_policy": "secondary",
+      "legal_notes": "Supplementary education-fee context signals."
+    },
+    {
+      "source": "rentals_ca_scrape",
+      "license": "Website terms apply",
+      "geography": "Canada",
+      "cadence": "monthly",
+      "categories": [
+        "housing"
+      ],
+      "free_public": true,
+      "proof_url": "https://press.rentals.ca/releases/national-rent-report",
+      "proxy_type": "national_rent_report_scrape",
+      "official_open_priority": 2,
+      "fallback_policy": "secondary",
+      "legal_notes": "Public report content; anti-bot controls may intermittently block direct scraping."
+    }
+  ]
+}

@@ -25,6 +25,25 @@ class ApiContractTests(unittest.TestCase):
         self.historical = self.data_dir / "historical.json"
         self.releases_db = self.data_dir / "releases.db"
         self.qa_db = self.data_dir / "qa_runs.db"
+        self.methodology_json = self.data_dir / "methodology.json"
+        self.source_catalog_json = self.data_dir / "source_catalog.json"
+        self.performance_summary = self.data_dir / "performance_summary.json"
+        self.release_events = self.data_dir / "release_events.json"
+        self.consensus_latest = self.data_dir / "consensus_latest.json"
+        self._backup_paths = [
+            self.published_latest,
+            self.historical,
+            self.releases_db,
+            self.qa_db,
+            self.performance_summary,
+            self.release_events,
+            self.consensus_latest,
+            self.methodology_json,
+            self.source_catalog_json,
+        ]
+        self._backups: dict[Path, bytes | None] = {}
+        for path in self._backup_paths:
+            self._backups[path] = path.read_bytes() if path.exists() else None
 
         snapshot = {
             "as_of_date": "2026-02-15",
@@ -121,7 +140,7 @@ class ApiContractTests(unittest.TestCase):
                 }
             )
         )
-        (self.data_dir / "performance_summary.json").write_text(
+        self.performance_summary.write_text(
             json.dumps(
                 {
                     "method_version": "v1.5.0",
@@ -138,7 +157,7 @@ class ApiContractTests(unittest.TestCase):
                 }
             )
         )
-        (self.data_dir / "release_events.json").write_text(
+        self.release_events.write_text(
             json.dumps(
                 {
                     "events": [
@@ -161,7 +180,7 @@ class ApiContractTests(unittest.TestCase):
                 }
             )
         )
-        (self.data_dir / "consensus_latest.json").write_text(
+        self.consensus_latest.write_text(
             json.dumps(
                 {
                     "as_of": "2026-02-16T12:00:00+00:00",
@@ -172,6 +191,16 @@ class ApiContractTests(unittest.TestCase):
                 }
             )
         )
+        self.methodology_json.write_text(
+            json.dumps(
+                {
+                    "method_version": "v1.5.0-test-static",
+                    "gate_policy": {"representativeness_min_fresh_ratio": 0.8},
+                    "weights_reference": {"tracked_share_total": 0.9},
+                }
+            )
+        )
+        self.source_catalog_json.write_text(json.dumps({"items": [{"source": "static_source"}]}))
 
         with sqlite3.connect(self.releases_db) as conn:
             conn.execute(
@@ -194,6 +223,14 @@ class ApiContractTests(unittest.TestCase):
 
         self.client = TestClient(app)
 
+    def tearDown(self) -> None:
+        for path, content in self._backups.items():
+            if content is None:
+                if path.exists():
+                    path.unlink()
+                continue
+            path.write_bytes(content)
+
     def test_latest_endpoint(self) -> None:
         resp = self.client.get("/v1/nowcast/latest")
         self.assertEqual(200, resp.status_code)
@@ -208,6 +245,7 @@ class ApiContractTests(unittest.TestCase):
         resp = self.client.get("/v1/methodology")
         self.assertEqual(200, resp.status_code)
         body = resp.json()
+        self.assertEqual("v1.5.0-test-static", body["method_version"])
         self.assertIn("gate_policy", body)
         self.assertIn("weights_reference", body)
 
@@ -222,7 +260,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         body = resp.json()
         self.assertIn("items", body)
-        self.assertGreater(len(body["items"]), 0)
+        self.assertEqual("static_source", body["items"][0]["source"])
 
     def test_releases_upcoming_endpoint(self) -> None:
         resp = self.client.get("/v1/releases/upcoming")
@@ -264,6 +302,19 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(1, len(items))
         self.assertTrue(items[0]["meta"]["seeded"])
         self.assertEqual(2.4, items[0]["headline"]["nowcast_yoy_pct"])
+
+    def test_data_asset_route_blocks_path_traversal(self) -> None:
+        resp = self.client.get("/data/../../api/main.py")
+        self.assertIn(resp.status_code, {403, 404})
+
+    def test_about_routes(self) -> None:
+        resp = self.client.get("/about")
+        self.assertEqual(200, resp.status_code)
+        self.assertIn("text/html", resp.headers.get("content-type", ""))
+
+        resp_html = self.client.get("/about.html")
+        self.assertEqual(200, resp_html.status_code)
+        self.assertIn("text/html", resp_html.headers.get("content-type", ""))
 
 
 if __name__ == "__main__":

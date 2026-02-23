@@ -42,6 +42,7 @@ class SourceHealthModel(BaseModel):
     category: str
     tier: int
     status: Literal["fresh", "stale", "missing"]
+    ingestion_state: Literal["live_collected", "reused_last_success", "missing"] | None = None
     last_success_timestamp: str | None = None
     detail: str
     source_run_id: str | None = None

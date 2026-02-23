@@ -6,7 +6,6 @@ from datetime import date
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from gate_policy import METHOD_VERSION, gate_policy_payload, weights_payload
@@ -22,16 +21,53 @@ PERFORMANCE_SUMMARY_PATH = DATA_DIR / "performance_summary.json"
 RELEASE_EVENTS_PATH = DATA_DIR / "release_events.json"
 CONSENSUS_LATEST_PATH = DATA_DIR / "consensus_latest.json"
 QA_DB_PATH = DATA_DIR / "qa_runs.db"
+METHODOLOGY_PATH = DATA_DIR / "methodology.json"
+SOURCE_CATALOG_PATH = DATA_DIR / "source_catalog.json"
 
 app = FastAPI(title="True Inflation Canada API", version=METHOD_VERSION)
 
 # Serve index.html at root
 @app.get("/")
 async def read_index():
-    return FileResponse('index.html')
+    return FileResponse("index.html")
 
-# Mount static files (if any other assets needed, though index.html is main one)
-app.mount("/static", StaticFiles(directory="."), name="static")
+
+@app.get("/index.html")
+async def read_index_file():
+    return FileResponse("index.html")
+
+
+@app.get("/about")
+async def read_about():
+    return FileResponse("about.html")
+
+
+@app.get("/about.html")
+async def read_about_file():
+    return FileResponse("about.html")
+
+
+@app.get("/logo.png")
+async def read_logo():
+    return FileResponse("logo.png")
+
+
+@app.get("/favicon.ico")
+async def read_favicon():
+    return FileResponse("favicon.ico")
+
+
+@app.get("/data/{asset_path:path}")
+async def read_data_asset(asset_path: str):
+    candidate = (DATA_DIR / asset_path).resolve()
+    data_root = DATA_DIR.resolve()
+    try:
+        candidate.relative_to(data_root)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="Forbidden path.") from exc
+    if not candidate.exists() or not candidate.is_file():
+        raise HTTPException(status_code=404, detail="Asset not found.")
+    return FileResponse(candidate)
 
 
 def _load_json(path: Path, default: dict | list) -> dict | list:
@@ -136,6 +172,10 @@ def releases_latest() -> dict:
 
 @app.get("/v1/methodology")
 def methodology() -> dict:
+    file_payload = _load_json(METHODOLOGY_PATH, {})
+    if isinstance(file_payload, dict) and file_payload:
+        return file_payload
+
     weights = weights_payload()
     latest_payload = _load_json(PUBLISHED_LATEST_PATH, {})
     as_of_utc = latest_payload.get("timestamp") if isinstance(latest_payload, dict) else None
@@ -182,6 +222,9 @@ def performance_summary() -> dict:
 
 @app.get("/v1/sources/catalog")
 def sources_catalog() -> dict:
+    file_payload = _load_json(SOURCE_CATALOG_PATH, {})
+    if isinstance(file_payload, dict) and isinstance(file_payload.get("items"), list):
+        return file_payload
     return {"items": SOURCE_CATALOG}
 
 

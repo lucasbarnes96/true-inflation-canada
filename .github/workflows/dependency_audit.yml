@@ -1,0 +1,93 @@
+name: Weekly Dependency Audit
+
+on:
+  schedule:
+    - cron: "0 13 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pip-audit
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pip-audit
+
+      - name: Run dependency audit
+        id: audit
+        run: |
+          set +e
+          pip-audit -r requirements.lock --format json --output pip-audit.json
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          set -e
+
+      - name: Publish audit summary
+        id: summarize
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          summary_path = os.environ["GITHUB_STEP_SUMMARY"]
+          output_path = Path(os.environ["GITHUB_OUTPUT"])
+          report = Path("pip-audit.json")
+          findings = []
+          if report.exists():
+            payload = json.loads(report.read_text())
+            findings = payload.get("dependencies", [])
+          vulnerable = []
+          for dep in findings:
+            vulns = dep.get("vulns", [])
+            if vulns:
+              vulnerable.append({"name": dep.get("name"), "version": dep.get("version"), "count": len(vulns)})
+
+          with open(output_path, "a", encoding="utf-8") as out:
+            out.write(f"has_findings={'true' if vulnerable else 'false'}\n")
+            out.write(f"count={len(vulnerable)}\n")
+
+          with open(summary_path, "a", encoding="utf-8") as f:
+            f.write("## Weekly Dependency Audit\n")
+            f.write(f"- Vulnerable packages: **{len(vulnerable)}**\n")
+            if vulnerable:
+              f.write("\n### Packages with advisories\n")
+              for item in vulnerable[:20]:
+                f.write(f"- `{item['name']}` {item['version']} ({item['count']} advisories)\n")
+          PY
+
+      - name: Escalate dependency findings
+        if: steps.summarize.outputs.has_findings == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const count = `${{ steps.summarize.outputs.count }}`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[Security] Weekly dependency audit findings (${count})`,
+              body: [
+                "Automated dependency audit detected vulnerable packages.",
+                "",
+                `- Vulnerable package count: **${count}**`,
+                "- Review workflow run details and pip-audit output.",
+              ].join("\n"),
+              labels: ["security", "dependency-audit"],
+            });
+
+      - name: Fail on findings
+        if: steps.summarize.outputs.has_findings == 'true'
+        run: exit 1

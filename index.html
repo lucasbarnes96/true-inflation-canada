@@ -7,7 +7,7 @@
   <title>True Inflation Canada</title>
   <meta name="description" content="Finance-first Canadian inflation nowcast with transparent source diagnostics." />
   <link rel="icon" type="image/png" href="logo.png" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3"></script>
   <style>
     /* =========================================================
        DESIGN TOKENS — Apple-inspired
@@ -129,6 +129,22 @@
       display: flex;
       align-items: center;
       gap: 0.5rem;
+    }
+
+    .nav-link {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--blue);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 999px;
+      padding: 0.2rem 0.55rem;
+      line-height: 1.2;
+    }
+
+    .nav-link:hover {
+      background: var(--surface-2);
     }
 
     .nav-date {
@@ -566,6 +582,27 @@
       font-weight: 600;
     }
 
+    .source-notes-cell {
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      max-width: 420px;
+    }
+
+    .source-ingestion-badge {
+      display: inline-block;
+      margin-top: 0.4rem;
+      font-size: 0.69rem;
+      line-height: 1.35;
+      color: #7a4700;
+      background: var(--amber-light);
+      border: 1px solid rgba(255, 159, 10, 0.24);
+      border-radius: 6px;
+      padding: 0.14rem 0.45rem;
+      font-family: var(--font-mono);
+    }
+
     /* =========================================================
        ACCORDION / DETAILS
     ========================================================= */
@@ -748,6 +785,104 @@
       color: var(--text-tertiary);
       font-family: var(--font-mono);
     }
+
+    .maturity-note {
+      margin-bottom: 0.75rem;
+      padding: 0.6rem 0.75rem;
+      border-radius: 10px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 0.77rem;
+      font-family: var(--font-mono);
+      line-height: 1.5;
+    }
+
+    .readiness-wrap {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface-2);
+      padding: 0.85rem 0.9rem;
+    }
+
+    .readiness-note {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.55rem;
+    }
+
+    .readiness-table {
+      width: 100%;
+      min-width: 0;
+      border-collapse: collapse;
+      font-size: 0.79rem;
+    }
+
+    .readiness-table th,
+    .readiness-table td {
+      padding: 0.42rem 0.2rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-secondary);
+      text-align: left;
+    }
+
+    .readiness-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .readiness-table th {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-tertiary);
+      font-weight: 600;
+    }
+
+    .about-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.8rem;
+    }
+
+    @media (max-width: 768px) {
+      .about-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .about-item {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 0.9rem 1rem;
+    }
+
+    .about-item h4 {
+      font-size: 0.84rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 0.45rem;
+    }
+
+    .about-item p,
+    .about-item ul {
+      font-size: 0.84rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    .about-item p + p {
+      margin-top: 0.35rem;
+    }
+
+    .about-item ul {
+      padding-left: 1rem;
+    }
+
+    .about-item li + li {
+      margin-top: 0.3rem;
+    }
   </style>
 </head>
 
@@ -761,6 +896,7 @@
     </div>
     <div class="nav-meta">
       <span class="nav-date" id="asof">—</span>
+      <a class="nav-link" href="/about">About</a>
       <span class="pill"
         style="background:var(--copper-light); color:var(--copper-dark); font-size:0.7rem; padding:0.2rem 0.6rem;">NOWCAST</span>
     </div>
@@ -832,6 +968,7 @@
     <!-- NOWCAST CHART -->
     <section class="card">
       <div class="panel-title">Nowcast vs Official CPI (Year-over-Year)</div>
+      <div id="chart-maturity" class="maturity-note">Live nowcast days: -- (target 30 for stable interpretation).</div>
       <div class="chart-container">
         <canvas id="divergenceChart"></canvas>
       </div>
@@ -842,6 +979,21 @@
       <section class="card">
         <div class="panel-title">Category Contribution Ranking</div>
         <p id="category-placeholder" class="chart-placeholder" style="display:none;"></p>
+        <div id="category-readiness" class="readiness-wrap" style="display:none;">
+          <div class="readiness-note">Movement ranking is withheld until enough day-over-day history exists. Category data readiness is shown below.</div>
+          <table class="readiness-table" aria-label="Category readiness table">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Status</th>
+                <th>Points</th>
+                <th>Diversity</th>
+                <th>Delta Ready</th>
+              </tr>
+            </thead>
+            <tbody id="category-readiness-body"></tbody>
+          </table>
+        </div>
         <div class="chart-container" style="height:260px;">
           <canvas id="categoryChart"></canvas>
         </div>
@@ -862,6 +1014,12 @@
     <section class="card card-sm">
       <div class="panel-title">How To Read This Dashboard</div>
       <div class="explainer-grid" id="explain-grid"></div>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="card card-sm">
+      <div class="panel-title">About This Project</div>
+      <div class="about-grid" id="about-grid"></div>
     </section>
 
     <!-- PERFORMANCE & CALIBRATION -->
@@ -911,7 +1069,7 @@
     <!-- FOOTER -->
     <footer class="footer">
       Experimental open-source nowcast using public Statistics Canada data.<br />
-      Not official StatCan CPI. <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank">View on
+      Not official StatCan CPI. <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank" rel="noopener noreferrer">View on
         GitHub</a>
     </footer>
 
@@ -921,6 +1079,30 @@
     const UI_MODE_V2 = new URLSearchParams(window.location.search).get("ui_v2") !== "0";
     let divergenceChart = null;
     let categoryChart = null;
+
+    function el(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+
+    function setDataLoadError(err) {
+      const body = document.body;
+      body.innerHTML = "";
+      const main = el("main", "page");
+      const section = el("section", "card");
+      const heading = el("h2");
+      heading.style.marginBottom = ".5rem";
+      heading.textContent = "Data load error";
+      const detail = el("p");
+      detail.style.color = "var(--text-secondary)";
+      detail.textContent = String(err);
+      section.appendChild(heading);
+      section.appendChild(detail);
+      main.appendChild(section);
+      body.appendChild(main);
+    }
 
     function pct(v, digits = 2) {
       if (v === null || v === undefined || Number.isNaN(v)) return "--";
@@ -1021,19 +1203,26 @@
       return width;
     }
 
+    function renderChartMaturity(liveDays) {
+      const maturity = document.getElementById("chart-maturity");
+      const phase = liveDays < 30 ? "calibration phase" : (liveDays < 60 ? "developing phase" : "stable phase");
+      maturity.textContent = `Live nowcast days: ${liveDays} (target 30 for stable interpretation) — ${phase}.`;
+    }
+
     function renderDivergence(items, latest, liveDays) {
       const days = items.map(d => d.date);
-      const nowcast = items.map(d => d.headline?.nowcast_yoy_pct ?? null);
+      const nowcast = items.map((d) => {
+        const seeded = Boolean(d.meta && d.meta.seeded);
+        return seeded ? null : (d.headline?.nowcast_yoy_pct ?? null);
+      });
       const nowcastEma = emaSeries(nowcast, 7);
       const official = items.map(d => d.official_cpi?.yoy_pct ?? null);
       const band = confidenceBandHalfWidth(latest, liveDays);
       const bandUpper = nowcastEma.map(v => (v === null || v === undefined) ? null : Number((v + band).toFixed(3)));
       const bandLower = nowcastEma.map(v => (v === null || v === undefined) ? null : Number((v - band).toFixed(3)));
-      const firstLiveIndex = items.findIndex((d) => {
-        const seeded = Boolean(d.meta && d.meta.seeded);
-        const yoy = d.headline?.nowcast_yoy_pct;
-        return !seeded && yoy !== null && yoy !== undefined;
-      });
+      const firstLiveIndex = nowcast.findIndex(v => v !== null && v !== undefined);
+      const showConfidenceBand = liveDays >= 7;
+
       const decorPlugin = {
         id: "liveNowcastDecor",
         beforeDatasetsDraw(chart) {
@@ -1082,75 +1271,83 @@
         },
       };
 
+      const datasets = [];
+      if (showConfidenceBand) {
+        datasets.push(
+          {
+            type: "line",
+            label: "Nowcast confidence (upper)",
+            data: bandUpper,
+            borderColor: "rgba(140,140,150,0.0)",
+            backgroundColor: "rgba(130,130,140,0.06)",
+            tension: 0.25,
+            spanGaps: false,
+            yAxisID: "y",
+            pointRadius: 0,
+            borderWidth: 0,
+          },
+          {
+            type: "line",
+            label: "Nowcast confidence band",
+            data: bandLower,
+            borderColor: "rgba(140,140,150,0.0)",
+            backgroundColor: "rgba(130,130,140,0.10)",
+            fill: "-1",
+            tension: 0.25,
+            spanGaps: false,
+            yAxisID: "y",
+            pointRadius: 0,
+            borderWidth: 0,
+          },
+        );
+      }
+
+      datasets.push(
+        {
+          type: "line",
+          label: "Nowcast YoY (raw)",
+          data: nowcast,
+          borderColor: "rgba(0,113,227,0.25)",
+          backgroundColor: "rgba(0,113,227,0.08)",
+          tension: 0.18,
+          spanGaps: false,
+          yAxisID: "y",
+          pointRadius: 1.5,
+          pointHoverRadius: 2,
+          borderWidth: 1,
+        },
+        {
+          type: "line",
+          label: "Nowcast YoY",
+          data: nowcastEma,
+          borderColor: "#0071e3",
+          backgroundColor: "rgba(0,113,227,0.08)",
+          tension: 0.25,
+          spanGaps: false,
+          yAxisID: "y",
+          pointRadius: 0,
+          borderWidth: 2,
+        },
+        {
+          type: "line",
+          label: "Official CPI YoY",
+          data: official,
+          borderColor: "#ff9f0a",
+          borderDash: [6, 4],
+          backgroundColor: "rgba(0,0,0,0)",
+          tension: 0.25,
+          yAxisID: "y",
+          pointRadius: 0,
+          borderWidth: 2,
+        },
+      );
+
       if (divergenceChart) divergenceChart.destroy();
       const canvas = document.getElementById("divergenceChart");
       divergenceChart = new Chart(canvas, {
         data: {
           labels: days,
-          datasets: [
-            {
-              type: "line",
-              label: "Nowcast confidence (upper)",
-              data: bandUpper,
-              borderColor: "rgba(140,140,150,0.0)",
-              backgroundColor: "rgba(130,130,140,0.06)",
-              tension: 0.25,
-              spanGaps: false,
-              yAxisID: "y",
-              pointRadius: 0,
-              borderWidth: 0,
-            },
-            {
-              type: "line",
-              label: "Nowcast confidence band",
-              data: bandLower,
-              borderColor: "rgba(140,140,150,0.0)",
-              backgroundColor: "rgba(130,130,140,0.10)",
-              fill: "-1",
-              tension: 0.25,
-              spanGaps: false,
-              yAxisID: "y",
-              pointRadius: 0,
-              borderWidth: 0,
-            },
-            {
-              type: "line",
-              label: "Nowcast YoY (raw)",
-              data: nowcast,
-              borderColor: "rgba(0,113,227,0.25)",
-              backgroundColor: "rgba(0,113,227,0.08)",
-              tension: 0.18,
-              spanGaps: false,
-              yAxisID: "y",
-              pointRadius: 1.5,
-              pointHoverRadius: 2,
-              borderWidth: 1,
-            },
-            {
-              type: "line",
-              label: "Nowcast YoY",
-              data: nowcastEma,
-              borderColor: "#0071e3",
-              backgroundColor: "rgba(0,113,227,0.08)",
-              tension: 0.25,
-              spanGaps: false,
-              yAxisID: "y",
-              pointRadius: 0,
-              borderWidth: 2,
-            },
-            {
-              type: "line",
-              label: "Official CPI YoY",
-              data: official,
-              borderColor: "#ff9f0a",
-              borderDash: [6, 4],
-              backgroundColor: "rgba(0,0,0,0)",
-              tension: 0.25,
-              yAxisID: "y",
-              pointRadius: 0,
-              borderWidth: 2,
-            },
-          ],
+          datasets,
         },
         options: {
           responsive: true,
@@ -1190,11 +1387,20 @@
         .map(k => {
           const c = latest.categories[k] || {};
           const contribution = c.proxy_level === null || c.daily_change_pct === null ? null : Number(c.weight) * Number(c.daily_change_pct);
-          return { key: k, contribution, points: c.points || 0 };
+          return {
+            key: k,
+            contribution,
+            points: c.points || 0,
+            status: c.status || "missing",
+            deltaReady: c.daily_change_pct !== null && c.daily_change_pct !== undefined,
+            diversity: latest.meta?.source_diversity_by_category?.[k] ?? 0,
+          };
         })
         .sort((a, b) => Math.abs(b.contribution || 0) - Math.abs(a.contribution || 0));
 
       const placeholder = document.getElementById("category-placeholder");
+      const readiness = document.getElementById("category-readiness");
+      const readinessBody = document.getElementById("category-readiness-body");
       const hasSignal = sorted.some(s => s.contribution !== null && Math.abs(Number(s.contribution)) > 0);
       const canvas = document.getElementById("categoryChart");
       if (!hasSignal) {
@@ -1204,10 +1410,26 @@
         }
         placeholder.style.display = "block";
         placeholder.textContent = "Insufficient day-over-day history for category contribution ranking.";
+        readiness.style.display = "block";
+        readinessBody.innerHTML = "";
+        const readinessRows = [...sorted].sort((a, b) => {
+          if (b.points !== a.points) return b.points - a.points;
+          return b.diversity - a.diversity;
+        });
+        readinessRows.forEach((row) => {
+          const tr = document.createElement("tr");
+          tr.appendChild(el("td", null, row.key.replace(/_/g, " ")));
+          tr.appendChild(el("td", null, row.status.toUpperCase()));
+          tr.appendChild(el("td", null, String(row.points)));
+          tr.appendChild(el("td", null, String(row.diversity)));
+          tr.appendChild(el("td", null, row.deltaReady ? "Yes" : "No"));
+          readinessBody.appendChild(tr);
+        });
         canvas.style.display = "none";
         return;
       }
       placeholder.style.display = "none";
+      readiness.style.display = "none";
       canvas.style.display = "block";
 
       if (categoryChart) categoryChart.destroy();
@@ -1279,22 +1501,45 @@
       };
       if (!Array.isArray(sourceHealth) || sourceHealth.length === 0) {
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td colspan="7">No source diagnostics available for this snapshot.</td>`;
+        const td = document.createElement("td");
+        td.colSpan = 7;
+        td.textContent = "No source diagnostics available for this snapshot.";
+        tr.appendChild(td);
         tbody.appendChild(tr);
         return;
       }
       sourceHealth.forEach(row => {
         const tr = document.createElement("tr");
-        const statusClass = row.status === "ok" ? "status-ok" : row.status === "warn" ? "status-warn" : "status-err";
-        tr.innerHTML = `
-          <td>${sourceName[row.source] || row.source}</td>
-          <td>${categoryName[row.category] || row.category}</td>
-          <td class="${statusClass}">${(row.status || "--").toUpperCase()}</td>
-          <td style="font-family:var(--font-mono);font-size:0.78rem;">${row.last_success_timestamp || "No successful run"}</td>
-          <td style="font-family:var(--font-mono);font-size:0.78rem;">${row.last_observation_period || "--"}</td>
-          <td style="font-family:var(--font-mono);">${row.run_age_hours ?? "--"}</td>
-          <td style="color:var(--text-secondary);font-size:0.82rem;">${row.detail || "--"}</td>
-        `;
+        const status = String(row.status || "missing").toLowerCase();
+        const statusClass = status === "fresh" ? "status-ok" : status === "stale" ? "status-warn" : "status-err";
+
+        tr.appendChild(el("td", null, sourceName[row.source] || row.source || "--"));
+        tr.appendChild(el("td", null, categoryName[row.category] || row.category || "--"));
+
+        const statusTd = el("td", statusClass, status.toUpperCase());
+        tr.appendChild(statusTd);
+
+        const runTd = el("td", null, row.last_success_timestamp || "No successful run");
+        runTd.style.fontFamily = "var(--font-mono)";
+        runTd.style.fontSize = "0.78rem";
+        tr.appendChild(runTd);
+
+        const periodTd = el("td", null, row.last_observation_period || "--");
+        periodTd.style.fontFamily = "var(--font-mono)";
+        periodTd.style.fontSize = "0.78rem";
+        tr.appendChild(periodTd);
+
+        const ageTd = el("td", null, row.run_age_hours === null || row.run_age_hours === undefined ? "--" : String(row.run_age_hours));
+        ageTd.style.fontFamily = "var(--font-mono)";
+        tr.appendChild(ageTd);
+
+        const notesTd = el("td", "source-notes-cell", row.detail || "--");
+        notesTd.title = row.detail || "--";
+        if (row.ingestion_state === "reused_last_success" || String(row.detail || "").includes("Using last successful timestamp from prior run.")) {
+          notesTd.appendChild(el("div", "source-ingestion-badge", "Reused prior successful timestamp"));
+        }
+        tr.appendChild(notesTd);
+
         tbody.appendChild(tr);
       });
     }
@@ -1373,15 +1618,13 @@
       ];
       grid.innerHTML = "";
       cards.forEach((card) => {
-        const el = document.createElement("article");
-        el.className = "intel-chip";
-        el.title = card.note;
-        el.innerHTML = `
-          <div class="eyebrow">${card.title}</div>
-          <div class="chip-value">${card.value}</div>
-          <div class="chip-note">${card.note}</div>
-        `;
-        grid.appendChild(el);
+        const cardEl = document.createElement("article");
+        cardEl.className = "intel-chip";
+        cardEl.title = card.note;
+        cardEl.appendChild(el("div", "eyebrow", card.title));
+        cardEl.appendChild(el("div", "chip-value", card.value));
+        cardEl.appendChild(el("div", "chip-note", card.note));
+        grid.appendChild(cardEl);
       });
     }
 
@@ -1439,10 +1682,11 @@
     function renderMethodology(methodology, latest) {
       const ul = document.getElementById("methodology-list");
       ul.innerHTML = "";
-      const gate = methodology?.gate_policy || {};
+      const gate = methodology?.gate_policy || latest.meta?.gate_diagnostics || {};
       const weightsRef = methodology?.weights_reference || latest.meta?.weights || {};
       const trackedShare = weightsRef.tracked_share_total;
-      const repThreshold = gate.representativeness_min_fresh_ratio;
+      const repThreshold = gate.representativeness_min_fresh_ratio ?? gate.representativeness?.threshold;
+      const foodGate = gate.food_gate || gate.food_resilience?.threshold || {};
       const topDriver = latest.meta?.top_driver || {};
       const rows = [
         `Method version: ${latest.meta?.method_version || methodology?.method_version || "--"}`,
@@ -1450,7 +1694,7 @@
         `Tracked basket share: ${typeof trackedShare === "number" ? (100 * trackedShare).toFixed(1) : "--"}% (source: ${weightsRef.source_table || "StatCan"}).`,
         `Lead signal: ${(latest.headline?.lead_signal || "--").toUpperCase()} — prices moving ${latest.headline?.lead_signal || "--"}.`,
         `Top driver: ${topDriver.category || "--"} (${pct(topDriver.contribution_pct, 3)} contribution).`,
-        `Food gate: ≥${gate.food_gate?.min_fresh_sources ?? "--"} fresh / ${gate.food_gate?.min_usable_sources ?? "--"} usable sources.`,
+        `Food gate: ≥${foodGate.min_fresh_sources ?? "--"} fresh / ${foodGate.min_usable_sources ?? "--"} usable sources.`,
         `Representativeness threshold: ${typeof repThreshold === "number" ? (100 * repThreshold).toFixed(0) : "--"}% fresh basket coverage.`,
         "Housing blends live asking-rent momentum with broader proxies; differs from survey-based CPI.",
         "Communication is mapped within broader CPI structures, not a standalone major component.",
@@ -1534,10 +1778,74 @@
         "Live nowcast began Feb 16 2026 by design for authenticity.",
       ];
       rows.forEach((text) => {
-        const el = document.createElement("div");
-        el.className = "explainer-item";
-        el.textContent = text;
-        grid.appendChild(el);
+        const item = document.createElement("div");
+        item.className = "explainer-item";
+        item.textContent = text;
+        grid.appendChild(item);
+      });
+    }
+
+    function renderAbout(latest, methodology, sourceCatalog, liveDays) {
+      const about = document.getElementById("about-grid");
+      about.innerHTML = "";
+      const weights = methodology?.weights_reference || latest?.meta?.weights || {};
+      const gate = methodology?.gate_policy || latest?.meta?.gate_diagnostics || {};
+      const trackedShare = weights.tracked_share_total;
+      const catalogItems = Array.isArray(sourceCatalog?.items) ? sourceCatalog.items : [];
+      const sourceCount = catalogItems.length || (latest?.source_health || []).length || 0;
+
+      const cards = [
+        {
+          title: "Vision & Intent",
+          rows: [
+            "True Inflation Canada is an experimental, open-source nowcast designed to provide transparent early inflation signal context between official releases.",
+            "It is not an official Statistics Canada CPI release and should be interpreted as directional intelligence, especially during early live history.",
+          ],
+        },
+        {
+          title: "Data Sources & Provenance",
+          rows: [
+            `This run tracks ${sourceCount} public sources across food, housing, transport, energy, communication, health/personal, and recreation/education.`,
+            `Tracked basket share is ${typeof trackedShare === "number" ? (100 * trackedShare).toFixed(1) : "--"}% using ${weights.source_table || "Statistics Canada basket references"}.`,
+            "Monthly official and public supplemental feeds are blended with quality gates, freshness checks, and source diversity diagnostics.",
+          ],
+        },
+        {
+          title: "Math & Calculations",
+          list: [
+            "Category contribution = weight × daily_change_pct.",
+            "Nowcast MoM = weighted aggregate of available category deltas.",
+            "Nowcast YoY = prorated projected current-month index vs prior-year reference month index.",
+            "Confidence and quality score are driven by gate status, weighted coverage, anomaly control, and source diversity.",
+          ],
+        },
+        {
+          title: "Limitations & Caveats",
+          list: [
+            `Live nowcast history currently includes ${liveDays} non-seeded day(s); interpretation remains early until at least 30 live days.`,
+            `Representativeness threshold is ${gate.representativeness_min_fresh_ratio !== undefined ? `${Math.round(100 * Number(gate.representativeness_min_fresh_ratio))}%` : (gate.representativeness?.threshold !== undefined ? `${Math.round(100 * Number(gate.representativeness.threshold))}%` : "policy-defined")} fresh basket coverage.`,
+            "Consensus and next-release forecast are withheld automatically when quality guardrails are not met.",
+            "Some CPI components remain omitted in v1 due to high-frequency data quality limitations.",
+          ],
+        },
+      ];
+
+      cards.forEach((card) => {
+        const cardEl = el("article", "about-item");
+        cardEl.appendChild(el("h4", null, card.title));
+        if (Array.isArray(card.rows)) {
+          card.rows.forEach((line) => {
+            cardEl.appendChild(el("p", null, line));
+          });
+        }
+        if (Array.isArray(card.list)) {
+          const ul = el("ul");
+          card.list.forEach((line) => {
+            ul.appendChild(el("li", null, line));
+          });
+          cardEl.appendChild(ul);
+        }
+        about.appendChild(cardEl);
       });
     }
 
@@ -1553,26 +1861,27 @@
 
     async function fetchCommunityStats() {
       try {
-        const res = await fetch('/v1/community/stats');
+        const res = await fetch("/v1/community/stats");
         if (!res.ok) return;
         const stats = await res.json();
         if (stats.length === 0) return;
-        const section = document.getElementById('community-section');
-        const grid = document.getElementById('community-stats-grid');
-        section.style.display = 'block';
-        grid.innerHTML = '';
+        const section = document.getElementById("community-section");
+        const grid = document.getElementById("community-stats-grid");
+        section.style.display = "block";
+        grid.innerHTML = "";
         stats.forEach(s => {
-          const card = document.createElement('div');
-          card.className = 'intel-chip';
-          let icon = '', unit = '';
-          if (s.category === 'gas') { icon = '⛽'; unit = '¢/L'; }
-          else if (s.category === 'rent') { icon = '🏠'; unit = '$/mo'; }
-          else { icon = '🛒'; unit = '$'; }
-          card.innerHTML = `
-            <div class="eyebrow">${icon} Community ${s.category.toUpperCase()}</div>
-            <div class="chip-value" style="color:var(--blue);">${s.avg_price} ${unit}</div>
-            <div class="chip-note">Based on ${s.count} report(s)</div>
-          `;
+          const card = el("div", "intel-chip");
+          let icon = "";
+          let unit = "";
+          if (s.category === "gas") { icon = "⛽"; unit = "¢/L"; }
+          else if (s.category === "rent") { icon = "🏠"; unit = "$/mo"; }
+          else { icon = "🛒"; unit = "$"; }
+
+          card.appendChild(el("div", "eyebrow", `${icon} Community ${String(s.category || "").toUpperCase()}`));
+          const value = el("div", "chip-value", `${s.avg_price} ${unit}`);
+          value.style.color = "var(--blue)";
+          card.appendChild(value);
+          card.appendChild(el("div", "chip-note", `Based on ${s.count} report(s)`));
           grid.appendChild(card);
         });
       } catch (e) {
@@ -1581,26 +1890,37 @@
     }
 
     if (!UI_MODE_V2) {
-      document.getElementById("app").innerHTML = "<section class='card'><h2 style='margin-bottom:.5rem;'>UI v2 is disabled</h2><p style='color:var(--text-secondary);'>Append <code>?ui_v2=1</code> to enable the dashboard.</p></section>";
+      const app = document.getElementById("app");
+      app.innerHTML = "";
+      const section = el("section", "card");
+      const heading = el("h2", null, "UI v2 is disabled");
+      heading.style.marginBottom = ".5rem";
+      const note = el("p", null, "Append ?ui_v2=1 to enable the dashboard.");
+      note.style.color = "var(--text-secondary)";
+      section.appendChild(heading);
+      section.appendChild(note);
+      app.appendChild(section);
     } else {
       renderExplainers();
       fetchCommunityStats();
       Promise.all([
         fetchLatestSnapshot(),
         fetchFirstJson(["data/historical.json", "/v1/nowcast/history"]),
-        fetchFirstJson(["/v1/methodology", "data/latest.json"]),
+        fetchFirstJson(["data/methodology.json", "/v1/methodology", "data/latest.json"]),
+        fetchFirstJson(["data/source_catalog.json", "/v1/sources/catalog"]),
         fetchFirstJson(["data/performance_summary.json", "/v1/performance/summary"]),
         fetchFirstJson(["data/release_events.json", "/v1/releases/upcoming"]),
         fetchFirstJson(["data/consensus_latest.json", "/v1/consensus/latest"]),
         fetchFirstJson(["data/latest.json", "/v1/forecast/next_release"]),
         fetchFirstJson(["data/latest.json", "/v1/calibration/status"]),
-      ]).then(([latest, historical, methodology, performance, upcomingRelease, consensus, forecast, calibration]) => {
+      ]).then(([latest, historical, methodology, sourceCatalog, performance, upcomingRelease, consensus, forecast, calibration]) => {
         if (!latest || !latest.headline) {
           throw new Error("No nowcast snapshot available from data or API.");
         }
         document.getElementById("asof").textContent = `as of ${latest.as_of_date || "--"}`;
         const items = safeHistoryItems(historical).slice(-365);
         const liveDays = countLiveNowcastDays(items);
+        renderChartMaturity(liveDays);
         applyReleaseBanner(latest, liveDays);
         renderHero(latest);
         renderPulse(latest.meta || {});
@@ -1613,8 +1933,9 @@
         renderCalibration(calibration?.meta?.calibration || calibration || latest.meta?.calibration || {});
         renderDivergence(items.slice(-90), latest, liveDays);
         renderCategoryChart(latest);
+        renderAbout(latest, methodology, sourceCatalog, liveDays);
       }).catch(err => {
-        document.body.innerHTML = `<main class='page'><section class='card'><h2 style='margin-bottom:.5rem;'>Data load error</h2><p style='color:var(--text-secondary);'>${String(err)}</p></section></main>`;
+        setDataLoadError(err);
       });
     }
   </script>

@@ -12,7 +12,6 @@ CRTC_CMR_URLS = [
     "https://crtc.gc.ca/eng/publications/reports/policymonitoring/2024/index.htm",
     "https://crtc.gc.ca/eng/publications/reports/policymonitoring/2023/index.htm",
 ]
-CRTC_INSECURE_HOSTS = {"crtc.gc.ca"}
 
 
 def scrape_communication_public() -> tuple[list[Quote], list[SourceHealth]]:
@@ -22,16 +21,12 @@ def scrape_communication_public() -> tuple[list[Quote], list[SourceHealth]]:
 
     for source, url in (("ised_mobile_plan_tracker", ISED_MOBILE_PLANS_URL),):
         try:
-            verify = True
             html = fetch_url(
                 url,
                 timeout=20,
                 retries=1,
-                verify=verify,
-                allowed_insecure_hosts=CRTC_INSECURE_HOSTS if not verify else None,
             )
             values = [v for v in parse_floats_from_text(html) if 10 <= v <= 200][:8]
-            mode_note = " TLS verify disabled for pinned CRTC host." if not verify else ""
             for idx, value in enumerate(values):
                 quotes.append(
                     Quote(
@@ -49,7 +44,7 @@ def scrape_communication_public() -> tuple[list[Quote], list[SourceHealth]]:
                     tier=2,
                     status="fresh" if values else "missing",
                     last_success_timestamp=utc_now_iso() if values else None,
-                    detail=f"Collected {len(values)} supplemental communication points.{mode_note}",
+                    detail=f"Collected {len(values)} supplemental communication points.",
                     last_observation_period=None,
                 )
             )
@@ -73,11 +68,8 @@ def scrape_communication_public() -> tuple[list[Quote], list[SourceHealth]]:
                 url,
                 timeout=20,
                 retries=1,
-                verify=False,
-                allowed_insecure_hosts=CRTC_INSECURE_HOSTS,
             )
             values = [v for v in parse_floats_from_text(html) if 10 <= v <= 200][:8]
-            mode_note = " TLS verify disabled for pinned CRTC host."
             for idx, value in enumerate(values):
                 quotes.append(
                     Quote(
@@ -95,7 +87,7 @@ def scrape_communication_public() -> tuple[list[Quote], list[SourceHealth]]:
                     tier=2,
                     status="fresh" if values else "missing",
                     last_success_timestamp=utc_now_iso() if values else None,
-                    detail=f"Collected {len(values)} supplemental communication points from {url}.{mode_note}",
+                    detail=f"Collected {len(values)} supplemental communication points from {url}.",
                     last_observation_period=None,
                 )
             )

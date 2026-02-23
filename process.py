@@ -13,9 +13,10 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from gate_policy import BASKET_WEIGHTS, GATE_POLICY, METHOD_VERSION, weights_payload
+from gate_policy import BASKET_WEIGHTS, GATE_POLICY, METHOD_VERSION, gate_policy_payload, weights_payload
 from models import NowcastSnapshot
 from performance import compute_performance_summary, write_performance_summary
+from source_catalog import SOURCE_CATALOG
 from scrapers.common import dns_preflight
 from scrapers import (
     Quote,
@@ -53,6 +54,8 @@ RELEASE_EVENTS_PATH = DATA_DIR / "release_events.json"
 CONSENSUS_LATEST_PATH = DATA_DIR / "consensus_latest.json"
 SOURCE_CONTRACTS_PATH = DATA_DIR / "source_contracts.json"
 QA_DB_PATH = DATA_DIR / "qa_runs.db"
+METHODOLOGY_PATH = DATA_DIR / "methodology.json"
+SOURCE_CATALOG_PATH = DATA_DIR / "source_catalog.json"
 
 CATEGORY_REGISTRY: dict[str, dict] = {
     "food": {
@@ -468,11 +471,13 @@ def recompute_source_health(raw_health: list[SourceHealth], now: datetime) -> li
     for entry in raw_health:
         payload = asdict(entry)
         ts = entry.last_success_timestamp
+        ingestion_state = "live_collected" if ts else "missing"
         if not ts:
             prev_ts = previous_success.get(entry.source)
             if prev_ts:
                 ts = prev_ts
                 payload["last_success_timestamp"] = prev_ts
+                ingestion_state = "reused_last_success"
                 detail = payload.get("detail", "")
                 payload["detail"] = f"{detail} Using last successful timestamp from prior run.".strip()
 
@@ -486,6 +491,7 @@ def recompute_source_health(raw_health: list[SourceHealth], now: datetime) -> li
             status = "stale"
 
         payload["status"] = status
+        payload["ingestion_state"] = ingestion_state if status != "missing" else "missing"
         payload["age_days"] = age_days
         payload["run_age_hours"] = source_age_hours(ts, now=now)
         payload["updated_days_ago"] = human_age(age_days)
@@ -2030,6 +2036,7 @@ def update_historical(snapshot: dict, historical: dict) -> dict:
             {
                 "source": s["source"],
                 "status": s["status"],
+                "ingestion_state": s.get("ingestion_state"),
                 "category": s["category"],
                 "tier": s["tier"],
                 "age_days": s.get("age_days"),
@@ -2337,6 +2344,39 @@ def build_snapshot() -> dict:
     return snapshot
 
 
+def build_methodology_payload(snapshot: dict) -> dict:
+    weights = weights_payload()
+    return {
+        "summary": "Weighted category nowcast using free/public daily and monthly sources with transparent calibration diagnostics.",
+        "method_version": METHOD_VERSION,
+        "as_of_utc": snapshot.get("timestamp"),
+        "weights_reference": {
+            "source_table": weights.get("source_table"),
+            "source_url": weights.get("source_url"),
+            "analysis_reference": weights.get("analysis_reference"),
+            "analysis_url": weights.get("analysis_url"),
+            "basket_reference_year": weights.get("basket_reference_year"),
+            "effective_month": weights.get("effective_month"),
+            "tracked_share_total": weights.get("tracked_share_total"),
+        },
+        "confidence_formula": {
+            "inputs": ["gate_status", "coverage_ratio", "anomalies", "source_diversity"],
+            "high": "coverage_ratio >= 0.9, no gate failures, low anomalies, no diversity penalty",
+            "medium": "coverage_ratio >= 0.6 or diversity/anomaly penalties",
+            "low": "gate failure or low weighted coverage",
+        },
+        "gate_policy": gate_policy_payload(),
+        "limitations": [
+            "Experimental nowcast, not an official CPI release.",
+            "APIFY auto-retry is attempted when stale/missing before gate evaluation.",
+            "Monthly sources may remain fresh for up to 45 days.",
+            "Communication is represented as a proxy mapped within broader official CPI components.",
+            "Housing asking-rent overlay is a momentum proxy and differs from survey-based transacted-rent methods.",
+            "Deprecated compatibility fields remain available: headline.nowcast_mom_pct and headline.consensus_spread_yoy.",
+        ],
+    }
+
+
 def write_outputs(snapshot: dict) -> None:
     historical = load_historical()
     run_id = snapshot["release"]["run_id"]
@@ -2363,6 +2403,8 @@ def write_outputs(snapshot: dict) -> None:
         }
     RELEASE_EVENTS_PATH.write_text(json.dumps(release_payload, indent=2))
     CONSENSUS_LATEST_PATH.write_text(json.dumps(snapshot.get("meta", {}).get("consensus", {}), indent=2))
+    METHODOLOGY_PATH.write_text(json.dumps(build_methodology_payload(snapshot), indent=2))
+    SOURCE_CATALOG_PATH.write_text(json.dumps({"items": SOURCE_CATALOG}, indent=2))
     record_qa_checks(
         run_id=run_id,
         created_at=snapshot["release"]["created_at"],
