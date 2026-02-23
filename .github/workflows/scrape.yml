@@ -106,6 +106,7 @@ jobs:
           python - <<'PY'
           import json
           import os
+          from datetime import date
           from pathlib import Path
 
           latest_path = Path("data/latest.json")
@@ -162,7 +163,13 @@ jobs:
           gate_failed = release_status != "published" or bool(blocked)
           severe_degradation = len(stale_or_missing) >= 5
           escalate = gate_failed or severe_degradation or bool(required_missing)
+          severity = "P3"
           reason = "ok"
+          if gate_failed or required_missing:
+            severity = "P1"
+          elif severe_degradation:
+            severity = "P2"
+
           if gate_failed:
             reason = "gate_failed"
           elif required_missing:
@@ -170,9 +177,25 @@ jobs:
           elif severe_degradation:
             reason = "severe_source_degradation"
 
+          week_key = "unknown"
+          if as_of:
+            try:
+              iso = date.fromisoformat(as_of).isocalendar()
+              week_key = f"{iso.year}W{iso.week:02d}"
+            except Exception:
+              week_key = "unknown"
+          alert_key = f"readiness-{severity}-{reason}-{week_key}"
+          state_signature = (
+            f"status={release_status}|reason={reason}|severity={severity}|"
+            f"degraded={len(stale_or_missing)}|required={','.join(required_missing) or 'none'}"
+          )
+
           with open(output_path, "a", encoding="utf-8") as out:
             out.write(f"escalate={'true' if escalate else 'false'}\n")
             out.write(f"reason={reason}\n")
+            out.write(f"severity={severity}\n")
+            out.write(f"alert_key={alert_key}\n")
+            out.write(f"state_signature={state_signature}\n")
             out.write(f"as_of={as_of}\n")
             out.write(f"live_days={live_days}\n")
             out.write(f"quality={quality}\n")
@@ -185,6 +208,7 @@ jobs:
             f.write("\n## Readiness Report\n")
             f.write(f"- As of: **{as_of}**\n")
             f.write(f"- Release status: **{release_status}**\n")
+            f.write(f"- Severity tier: **{severity}**\n")
             f.write(f"- Confidence: **{confidence}**\n")
             f.write(f"- Signal quality: **{quality}/100**\n")
             f.write(f"- Coverage ratio: **{coverage}**\n")
@@ -203,7 +227,10 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const severity = `${{ steps.readiness.outputs.severity }}`;
             const reason = `${{ steps.readiness.outputs.reason }}`;
+            const alertKey = `${{ steps.readiness.outputs.alert_key }}`;
+            const stateSignature = `${{ steps.readiness.outputs.state_signature }}`;
             const asOf = `${{ steps.readiness.outputs.as_of }}`;
             const liveDays = `${{ steps.readiness.outputs.live_days }}`;
             const quality = `${{ steps.readiness.outputs.quality }}`;
@@ -211,10 +238,12 @@ jobs:
             const confidence = `${{ steps.readiness.outputs.confidence }}`;
             const degraded = `${{ steps.readiness.outputs.degraded_sources }}`;
             const requiredMissing = `${{ steps.readiness.outputs.required_missing }}`;
-            const title = `[Readiness Alert] ${asOf} (${reason})`;
+            const title = `[${severity}] Readiness Alert (${reason})`;
             const body = [
               "Automated readiness escalation from daily scrape workflow.",
+              `<!-- alert-key:${alertKey} -->`,
               "",
+              `- Severity: **${severity}**`,
               `- Reason: **${reason}**`,
               `- As of: **${asOf}**`,
               `- Confidence: **${confidence}**`,
@@ -223,12 +252,40 @@ jobs:
               `- Live days: **${liveDays}**`,
               `- Degraded sources: **${degraded}**`,
               `- Missing core sources: **${requiredMissing || "none"}**`,
+              `- State signature: \`${stateSignature}\``,
             ].join("\n");
-
-            await github.rest.issues.create({
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
+              state: "open",
+              labels: "ops,readiness-alert",
+              per_page: 100,
+            });
+            const existing = issues.find((issue) => (issue.body || "").includes(`<!-- alert-key:${alertKey} -->`));
+            if (!existing) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ["ops", "readiness-alert", severity.toLowerCase()],
+              });
+              return;
+            }
+            const hasSameSignature = (existing.body || "").includes(`State signature: \`${stateSignature}\``);
+            if (hasSameSignature) {
+              return;
+            }
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existing.number,
               title,
               body,
-              labels: ["ops", "readiness-alert"],
+            });
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existing.number,
+              body: `State transition detected on ${asOf}: \`${stateSignature}\``,
             });

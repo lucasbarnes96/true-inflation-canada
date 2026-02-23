@@ -24,3 +24,7 @@ class SourceHealth:
     detail: str
     source_run_id: str | None = None
     last_observation_period: str | None = None
+    error_class: str | None = None
+    status_reason: str | None = None
+    pending_reason: str | None = None
+    degraded_usable: bool | None = None

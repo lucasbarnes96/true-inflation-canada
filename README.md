@@ -3,6 +3,12 @@
 Real-time Canadian inflation nowcast with strict publish gates, explicit source run timestamps, release intelligence, and published performance metrics.
 Experimental open-source nowcast using public data. Not official StatCan CPI.
 
+## Live links
+- Production dashboard: `https://www.trueinflation.ca/`
+- About page: `https://www.trueinflation.ca/about`
+- Changelog: `https://www.trueinflation.ca/changelog`
+- Repository: `https://github.com/lucasbarnes96/true-inflation-canada`
+
 ## What changed
 - API-first architecture (`FastAPI + Pydantic`).
 - Strict release gate (runs can fail and stay unpublished).
@@ -99,6 +105,9 @@ python3 -m http.server
 ```
 
 Open `http://localhost:8000`. The dashboard fetches from `/v1/...` and expects the API on the same origin/reverse proxy.
+
+## License
+MIT (`LICENSE`)
 
 ## Release gate policy
 A run is blocked (`failed_gate`) if any condition fails:

@@ -3,12 +3,18 @@ from __future__ import annotations
 import json
 import re
 import socket
+import ssl
 import time
 import urllib.request
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlparse
 from urllib.error import URLError
+
+try:  # pragma: no cover - dependency availability is environment-specific
+    import certifi
+except Exception:  # pragma: no cover
+    certifi = None  # type: ignore[assignment]
 
 DEFAULT_TIMEOUT_SECONDS = 20
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -17,6 +23,18 @@ DNS_PREFLIGHT_HOSTS = (
     "www2.nrcan.gc.ca",
     "rentals.ca",
 )
+MAX_FETCH_RETRIES = 3
+MAX_FETCH_BACKOFF_SECONDS = 6.0
+HOST_RETRY_CAPS = {
+    "crtc.gc.ca": 1,
+    "www2.nrcan.gc.ca": 1,
+    "www150.statcan.gc.ca": 2,
+}
+HOST_BACKOFF_SECONDS = {
+    "crtc.gc.ca": 1.0,
+    "www2.nrcan.gc.ca": 1.0,
+    "www150.statcan.gc.ca": 1.5,
+}
 
 _DNS_PREFLIGHT_CACHE: dict[str, Any] = {
     "checked_at_epoch": None,
@@ -27,6 +45,21 @@ _DNS_PREFLIGHT_CACHE: dict[str, Any] = {
 
 class FetchError(Exception):
     pass
+
+
+def tls_context() -> ssl.SSLContext:
+    if certifi is not None:
+        return ssl.create_default_context(cafile=certifi.where())
+    return ssl.create_default_context()
+
+
+TLS_CONTEXT = tls_context()
+
+
+def tls_trust_store_info() -> dict[str, str]:
+    if certifi is not None:
+        return {"mode": "certifi", "cafile": certifi.where()}
+    return {"mode": "system_default", "cafile": ""}
 
 
 def utc_now_iso() -> str:
@@ -92,6 +125,17 @@ def fetch_url(
         host = (urlparse(url).hostname or "").lower()
         raise FetchError(f"Insecure TLS mode is disabled for host: {host or 'unknown'}")
 
+    host = (urlparse(url).hostname or "").lower()
+    retries = max(0, min(int(retries), MAX_FETCH_RETRIES))
+    for suffix, retry_cap in HOST_RETRY_CAPS.items():
+        if host.endswith(suffix):
+            retries = min(retries, int(retry_cap))
+            break
+    backoff_base = 1.5
+    for suffix, host_backoff in HOST_BACKOFF_SECONDS.items():
+        if host.endswith(suffix):
+            backoff_base = float(host_backoff)
+            break
     last_err: Exception | None = None
     for attempt in range(retries + 1):
         try:
@@ -102,7 +146,7 @@ def fetch_url(
                 "Referer": "https://www.google.com/",
             }
             req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=timeout, context=None) as response:
+            with urllib.request.urlopen(req, timeout=timeout, context=TLS_CONTEXT) as response:
                 return response.read().decode("utf-8", errors="ignore")
         except Exception as err:  # pragma: no cover - network dependent
             last_err = err
@@ -114,7 +158,8 @@ def fetch_url(
                         f"DNS resolver unavailable. Preflight failed for: {failed}. Original error: {err}"
                     )
             if attempt < retries:
-                time.sleep(1.5 * (attempt + 1))
+                sleep_seconds = min(MAX_FETCH_BACKOFF_SECONDS, backoff_base * (attempt + 1))
+                time.sleep(sleep_seconds)
     raise FetchError(f"Failed to fetch URL: {url}: {last_err}")
 
 

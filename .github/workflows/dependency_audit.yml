@@ -41,6 +41,7 @@ jobs:
           python - <<'PY'
           import json
           import os
+          from datetime import datetime, timezone
           from pathlib import Path
 
           summary_path = os.environ["GITHUB_STEP_SUMMARY"]
@@ -55,14 +56,28 @@ jobs:
             vulns = dep.get("vulns", [])
             if vulns:
               vulnerable.append({"name": dep.get("name"), "version": dep.get("version"), "count": len(vulns)})
+          total_advisories = sum(item["count"] for item in vulnerable)
+          severity = "P2" if vulnerable else "P3"
+          reason = "dependency_vulnerability_detected" if vulnerable else "ok"
+          now = datetime.now(timezone.utc)
+          week_key = f"{now.isocalendar().year}W{now.isocalendar().week:02d}"
+          alert_key = f"dependency-{severity}-{reason}-{week_key}"
+          state_signature = f"reason={reason}|severity={severity}|packages={len(vulnerable)}|advisories={total_advisories}"
 
           with open(output_path, "a", encoding="utf-8") as out:
             out.write(f"has_findings={'true' if vulnerable else 'false'}\n")
             out.write(f"count={len(vulnerable)}\n")
+            out.write(f"advisories={total_advisories}\n")
+            out.write(f"severity={severity}\n")
+            out.write(f"reason={reason}\n")
+            out.write(f"alert_key={alert_key}\n")
+            out.write(f"state_signature={state_signature}\n")
 
           with open(summary_path, "a", encoding="utf-8") as f:
             f.write("## Weekly Dependency Audit\n")
+            f.write(f"- Severity tier: **{severity}**\n")
             f.write(f"- Vulnerable packages: **{len(vulnerable)}**\n")
+            f.write(f"- Advisory count: **{total_advisories}**\n")
             if vulnerable:
               f.write("\n### Packages with advisories\n")
               for item in vulnerable[:20]:
@@ -75,17 +90,58 @@ jobs:
         with:
           script: |
             const count = `${{ steps.summarize.outputs.count }}`;
-            await github.rest.issues.create({
+            const advisories = `${{ steps.summarize.outputs.advisories }}`;
+            const severity = `${{ steps.summarize.outputs.severity }}`;
+            const reason = `${{ steps.summarize.outputs.reason }}`;
+            const alertKey = `${{ steps.summarize.outputs.alert_key }}`;
+            const stateSignature = `${{ steps.summarize.outputs.state_signature }}`;
+            const title = `[${severity}] Dependency audit findings (${count})`;
+            const body = [
+              "Automated dependency audit detected vulnerable packages.",
+              `<!-- alert-key:${alertKey} -->`,
+              "",
+              `- Severity: **${severity}**`,
+              `- Reason: **${reason}**`,
+              `- Vulnerable package count: **${count}**`,
+              `- Advisory count: **${advisories}**`,
+              `- State signature: \`${stateSignature}\``,
+              "- Review workflow run details and pip-audit output.",
+            ].join("\n");
+
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `[Security] Weekly dependency audit findings (${count})`,
-              body: [
-                "Automated dependency audit detected vulnerable packages.",
-                "",
-                `- Vulnerable package count: **${count}**`,
-                "- Review workflow run details and pip-audit output.",
-              ].join("\n"),
-              labels: ["security", "dependency-audit"],
+              state: "open",
+              labels: "security,dependency-audit",
+              per_page: 100,
+            });
+            const existing = issues.find((issue) => (issue.body || "").includes(`<!-- alert-key:${alertKey} -->`));
+            if (!existing) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ["security", "dependency-audit", severity.toLowerCase()],
+              });
+              return;
+            }
+            const hasSameSignature = (existing.body || "").includes(`State signature: \`${stateSignature}\``);
+            if (hasSameSignature) {
+              return;
+            }
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existing.number,
+              title,
+              body,
+            });
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existing.number,
+              body: `Dependency audit state transition: \`${stateSignature}\``,
             });
 
       - name: Fail on findings

@@ -247,6 +247,64 @@
       color: #7a4700;
     }
 
+    .top-utility-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      margin-top: -0.25rem;
+      margin-bottom: 0.1rem;
+    }
+
+    .utility-link {
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: var(--blue);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 999px;
+      padding: 0.24rem 0.62rem;
+      line-height: 1.15;
+    }
+
+    .utility-link:hover {
+      background: var(--surface-2);
+    }
+
+    .sticky-disclaimer {
+      position: fixed;
+      top: 52px;
+      left: 0;
+      right: 0;
+      z-index: 95;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+      transform: translateY(-10px);
+      opacity: 0;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      padding: 0.3rem 0.85rem 0;
+    }
+
+    .sticky-disclaimer.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .sticky-disclaimer span {
+      pointer-events: auto;
+      border-radius: 999px;
+      border: 1px solid rgba(196, 104, 69, 0.22);
+      background: var(--copper-light);
+      color: var(--copper-dark);
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.24rem 0.65rem;
+      line-height: 1.3;
+      box-shadow: var(--shadow-sm);
+      text-align: center;
+    }
+
     /* =========================================================
        HERO SECTION
     ========================================================= */
@@ -811,6 +869,22 @@
       margin-bottom: 0.55rem;
     }
 
+    .live-progress {
+      margin-top: -0.2rem;
+      margin-bottom: 0.8rem;
+      font-size: 0.75rem;
+      color: var(--text-tertiary);
+      font-family: var(--font-mono);
+    }
+
+    .hero-context {
+      margin-top: 0.55rem;
+      font-size: 0.77rem;
+      color: var(--text-tertiary);
+      font-family: var(--font-mono);
+      line-height: 1.45;
+    }
+
     .readiness-table {
       width: 100%;
       min-width: 0;
@@ -897,10 +971,14 @@
     <div class="nav-meta">
       <span class="nav-date" id="asof">—</span>
       <a class="nav-link" href="/about">About</a>
+      <a class="nav-link" href="/changelog">Changelog</a>
       <span class="pill"
         style="background:var(--copper-light); color:var(--copper-dark); font-size:0.7rem; padding:0.2rem 0.6rem;">NOWCAST</span>
     </div>
   </nav>
+  <div id="sticky-disclaimer" class="sticky-disclaimer" aria-live="polite">
+    <span>Experimental nowcast; calibration in progress; not official StatCan CPI.</span>
+  </div>
 
   <!-- MAIN -->
   <main class="page" id="app">
@@ -908,6 +986,9 @@
 
     <!-- RELEASE BANNER -->
     <div id="release-banner" class="release-banner"></div>
+    <div class="top-utility-row">
+      <a class="utility-link" href="#source-diagnostics">View Full Source Diagnostics</a>
+    </div>
 
     <!-- HERO -->
     <section class="card">
@@ -916,6 +997,7 @@
           <div class="hero-eyebrow">Official CPI — Year over Year</div>
           <div id="hero-yoy" class="hero-number tone-neutral">—</div>
           <div id="hero-summary" class="hero-caption loading">Loading inflation data…</div>
+          <div id="hero-context" class="hero-context">Early signal context will appear when the first live points load.</div>
         </div>
         <div class="hero-stats">
           <div class="stat-chip">
@@ -978,6 +1060,7 @@
     <div class="expert-grid">
       <section class="card">
         <div class="panel-title">Category Contribution Ranking</div>
+        <div id="live-history-progress" class="live-progress">Live history progress: -- / 30 days</div>
         <p id="category-placeholder" class="chart-placeholder" style="display:none;"></p>
         <div id="category-readiness" class="readiness-wrap" style="display:none;">
           <div class="readiness-note">Movement ranking is withheld until enough day-over-day history exists. Category data readiness is shown below.</div>
@@ -1038,7 +1121,7 @@
     </details>
 
     <!-- DATA SOURCE DIAGNOSTICS -->
-    <section class="card" style="padding: 1.5rem 1.5rem 1rem;">
+    <section id="source-diagnostics" class="card" style="padding: 1.5rem 1.5rem 1rem;">
       <div class="panel-title">Data Source Diagnostics</div>
       <div class="table-wrap">
         <table>
@@ -1111,6 +1194,32 @@
 
     function maybe(v) {
       return v ?? "--";
+    }
+
+    function hasNumber(value) {
+      return value !== null && value !== undefined && !Number.isNaN(Number(value));
+    }
+
+    function pendingText(kind) {
+      if (kind === "withheld") return "Withheld by guardrail";
+      if (kind === "awaiting") return "Awaiting fresh scrape";
+      return "Data pending";
+    }
+
+    function setPending(node, kind, reason) {
+      const label = pendingText(kind);
+      node.textContent = label;
+      node.title = reason ? `${label}: ${reason}` : label;
+    }
+
+    function inferPendingReason(latest) {
+      const consensusReason = latest?.meta?.consensus?.guardrails?.reason;
+      if (consensusReason) return `consensus_guardrail=${consensusReason}`;
+      const projectionReason = latest?.meta?.projection?.nowcast_yoy_prorated?.reason;
+      if (projectionReason) return `projection_guardrail=${projectionReason}`;
+      const pendingReason = latest?.headline?.pending_reason;
+      if (pendingReason) return String(pendingReason);
+      return null;
     }
 
     function toneClass(yoy) {
@@ -1207,6 +1316,15 @@
       const maturity = document.getElementById("chart-maturity");
       const phase = liveDays < 30 ? "calibration phase" : (liveDays < 60 ? "developing phase" : "stable phase");
       maturity.textContent = `Live nowcast days: ${liveDays} (target 30 for stable interpretation) — ${phase}.`;
+    }
+
+    function renderLiveHistoryProgress(liveDays) {
+      const node = document.getElementById("live-history-progress");
+      if (!node) return;
+      const safeDays = Number.isFinite(Number(liveDays)) ? Number(liveDays) : 0;
+      const ratio = Math.max(0, Math.min(100, Math.round((safeDays / 30) * 100)));
+      node.textContent = `Live history progress: ${safeDays} / 30 days (${ratio}%)`;
+      node.title = "Category movement ranking stabilizes as live non-seeded history accumulates.";
     }
 
     function renderDivergence(items, latest, liveDays) {
@@ -1534,7 +1652,8 @@
         tr.appendChild(ageTd);
 
         const notesTd = el("td", "source-notes-cell", row.detail || "--");
-        notesTd.title = row.detail || "--";
+        const reasonBits = [row.status_reason, row.pending_reason].filter(Boolean).join(" | ");
+        notesTd.title = reasonBits ? `${row.detail || "--"} (${reasonBits})` : (row.detail || "--");
         if (row.ingestion_state === "reused_last_success" || String(row.detail || "").includes("Using last successful timestamp from prior run.")) {
           notesTd.appendChild(el("div", "source-ingestion-badge", "Reused prior successful timestamp"));
         }
@@ -1562,73 +1681,117 @@
       const consensusPayload = consensus || latest.meta?.consensus || {};
       const consensusSources = (consensusPayload.sources || []).map((s) => s.source).filter(Boolean);
       const consensusSourceLabel = consensusSources.length ? `Sources: ${consensusSources.join(", ")}` : "Sources unavailable";
-      const consensusGuardrailReason = consensusPayload.guardrails?.reason;
+      const consensusGuardrailReason = consensusPayload.pending_reason || consensusPayload.guardrails?.reason;
       const deviation = latest.headline?.deviation_yoy_pct ?? latest.headline?.consensus_spread_yoy;
-      const deviationEnabled = liveDays >= 30 && consensusYoy !== null && consensusYoy !== undefined;
       const nextRelease = upcomingRelease?.next_release || latest.meta?.release_intelligence || {};
       const nextForecast = forecast || latest.meta?.forecast || {};
+      const consensusMissing = !hasNumber(consensusYoy);
+      const consensusMomMissing = !hasNumber(consensusMom);
+      const officialMissing = !hasNumber(officialYoy) || !hasNumber(official.mom_pct);
+      const nextReleaseMissing = !nextRelease.release_at_et;
+      const countdownMissing = !hasNumber(nextRelease.countdown_seconds);
+      const deviationMissing = !hasNumber(deviation);
+      const forecastPublished = nextForecast.status === "published" && hasNumber(nextForecast.point_yoy);
       const cards = [
         {
           title: "Next CPI Release (ET)",
-          value: nextRelease.release_at_et || "--",
-          note: "StatCan calendar",
+          value: nextReleaseMissing ? pendingText("data") : nextRelease.release_at_et,
+          note: nextReleaseMissing ? "StatCan release metadata is pending." : "StatCan calendar",
+          pendingKind: nextReleaseMissing ? "data" : null,
+          pendingReason: nextReleaseMissing ? (nextRelease.pending_reason || "release_schedule_not_available") : null,
         },
         {
           title: "Countdown",
-          value: formatCountdown(nextRelease.countdown_seconds),
-          note: "Until next publication",
+          value: countdownMissing ? pendingText("data") : formatCountdown(nextRelease.countdown_seconds),
+          note: countdownMissing ? "Countdown populates when next release metadata is available." : "Until next publication",
+          pendingKind: countdownMissing ? "data" : null,
+          pendingReason: countdownMissing ? (nextRelease.pending_reason || "countdown_not_available") : null,
         },
         {
           title: "Consensus YoY",
-          value: consensusYoy === null || consensusYoy === undefined ? "Unavailable" : `${Number(consensusYoy).toFixed(2)}%`,
-          note: consensusYoy === null || consensusYoy === undefined
-            ? `Consensus withheld (${consensusGuardrailReason || "no_usable_sources"}). ${consensusSourceLabel}.`
+          value: consensusMissing ? pendingText("withheld") : `${Number(consensusYoy).toFixed(2)}%`,
+          note: consensusMissing
+            ? `Consensus withheld (${consensusGuardrailReason || "insufficient_high_conf_sources"}). ${consensusSourceLabel}.`
             : `${consensusSourceLabel}.`,
+          pendingKind: consensusMissing ? "withheld" : null,
+          pendingReason: consensusMissing ? (consensusGuardrailReason || "consensus_withheld") : null,
         },
         {
           title: "Consensus MoM",
-          value: consensusMom === null || consensusMom === undefined ? "--" : `${Number(consensusMom).toFixed(2)}%`,
-          note: `${consensusSourceLabel}.`,
+          value: consensusMomMissing ? (consensusGuardrailReason ? pendingText("withheld") : pendingText("awaiting")) : `${Number(consensusMom).toFixed(2)}%`,
+          note: consensusMomMissing
+            ? (consensusGuardrailReason
+              ? `Consensus MoM withheld (${consensusGuardrailReason}). ${consensusSourceLabel}.`
+              : `Consensus MoM pending. ${consensusSourceLabel}.`)
+            : `${consensusSourceLabel}.`,
+          pendingKind: consensusMomMissing ? (consensusGuardrailReason ? "withheld" : "awaiting") : null,
+          pendingReason: consensusMomMissing ? (consensusGuardrailReason || "consensus_mom_pending") : null,
         },
         {
           title: "Last Actual CPI",
-          value: `${pct(officialYoy, 1)} YoY / ${pct(official.mom_pct)} MoM`,
-          note: `Release: ${official.latest_release_month || "--"}`,
+          value: officialMissing ? pendingText("data") : `${Number(officialYoy).toFixed(1)}% YoY / ${Number(official.mom_pct).toFixed(2)}% MoM`,
+          note: official.latest_release_month
+            ? `Release: ${official.latest_release_month}`
+            : "Official release month metadata pending.",
+          pendingKind: officialMissing ? "data" : null,
+          pendingReason: officialMissing ? "official_cpi_fields_missing" : null,
         },
         {
           title: "Deviation",
-          value: !deviationEnabled || deviation === null || deviation === undefined
-            ? "Unavailable"
-            : `${Number(deviation).toFixed(2)} pp`,
-          note: consensusYoy === null || consensusYoy === undefined
-            ? `Consensus unavailable (${consensusGuardrailReason || "no_usable_sources"}). ${consensusSourceLabel}.`
+          value: consensusMissing
+            ? pendingText("withheld")
             : liveDays < 30
-              ? "Needs 30 live days"
-              : "Nowcast YoY − consensus YoY",
+              ? pendingText("data")
+              : deviationMissing
+                ? pendingText("data")
+                : `${Number(deviation).toFixed(2)} pp`,
+          note: consensusMissing
+            ? `Consensus unavailable (${consensusGuardrailReason || "insufficient_high_conf_sources"}). ${consensusSourceLabel}.`
+            : liveDays < 30
+              ? "Deviation unlocks after 30 live nowcast days."
+              : deviationMissing
+                ? "Deviation pending until both nowcast and consensus values are available."
+                : "Nowcast YoY − consensus YoY",
+          pendingKind: consensusMissing
+            ? "withheld"
+            : (liveDays < 30 || deviationMissing ? "data" : null),
+          pendingReason: consensusMissing
+            ? (consensusGuardrailReason || "consensus_withheld")
+            : liveDays < 30
+              ? "needs_30_live_days"
+              : (deviationMissing ? "deviation_inputs_missing" : null),
         },
         {
           title: "Forecast: Next YoY",
-          value: nextForecast.status === "published" && nextForecast.point_yoy !== null && nextForecast.point_yoy !== undefined
+          value: forecastPublished
             ? `${Number(nextForecast.point_yoy).toFixed(2)}%`
-            : "Withheld",
-          note: nextForecast.status === "published"
+            : pendingText("withheld"),
+          note: forecastPublished
             ? `Range ${pct(nextForecast.lower_yoy, 2)} – ${pct(nextForecast.upper_yoy, 2)} | ${String(nextForecast.confidence || "low").toUpperCase()}`
-            : "Need more live history",
+            : `Withheld by guardrail (${nextForecast.pending_reason || nextForecast.status || "insufficient_history"}).`,
+          pendingKind: forecastPublished ? null : "withheld",
+          pendingReason: forecastPublished ? null : (nextForecast.pending_reason || nextForecast.status || "forecast_withheld"),
         },
       ];
       grid.innerHTML = "";
       cards.forEach((card) => {
         const cardEl = document.createElement("article");
         cardEl.className = "intel-chip";
-        cardEl.title = card.note;
+        cardEl.title = card.pendingReason ? `${card.note} Reason: ${card.pendingReason}.` : card.note;
         cardEl.appendChild(el("div", "eyebrow", card.title));
-        cardEl.appendChild(el("div", "chip-value", card.value));
+        const valueEl = el("div", "chip-value");
+        if (card.pendingKind) {
+          setPending(valueEl, card.pendingKind, card.pendingReason);
+        } else {
+          valueEl.textContent = String(card.value);
+        }
+        cardEl.appendChild(valueEl);
         cardEl.appendChild(el("div", "chip-note", card.note));
         grid.appendChild(cardEl);
       });
     }
 
-    function renderHero(latest) {
+    function renderHero(latest, liveDays) {
       const yoy = latest.official_cpi?.yoy_pct;
       const yoyDisplay = latest.official_cpi?.yoy_display_pct;
       const nowcast = latest.headline?.nowcast_yoy_pct;
@@ -1638,8 +1801,15 @@
         : null;
 
       const hero = document.getElementById("hero-yoy");
-      hero.textContent = pct(yoyDisplay !== null && yoyDisplay !== undefined ? yoyDisplay : yoy, 1);
-      hero.className = `hero-number ${toneClass(yoy)}`;
+      const officialDisplay = yoyDisplay !== null && yoyDisplay !== undefined ? yoyDisplay : yoy;
+      if (hasNumber(officialDisplay)) {
+        hero.textContent = `${Number(officialDisplay).toFixed(1)}%`;
+        hero.title = "";
+        hero.className = `hero-number ${toneClass(yoy)}`;
+      } else {
+        setPending(hero, "data", "official_cpi_unavailable");
+        hero.className = "hero-number tone-neutral";
+      }
 
       let summary = "Official CPI is unavailable right now.";
       if (yoy !== null && yoy !== undefined) {
@@ -1649,11 +1819,50 @@
       }
       document.getElementById("hero-summary").textContent = summary;
       document.getElementById("hero-summary").classList.remove("loading");
-      document.getElementById("hero-nowcast").textContent = pct(nowcast, 3);
-      document.getElementById("hero-divergence").textContent = `YoY deviation: ${pct(deviation, 3)}`;
-      document.getElementById("hero-release").textContent = maybe(latest.official_cpi?.latest_release_month);
+      const nowcastEl = document.getElementById("hero-nowcast");
+      if (hasNumber(nowcast)) {
+        nowcastEl.textContent = `${Number(nowcast).toFixed(3)}%`;
+        nowcastEl.title = "";
+      } else {
+        setPending(nowcastEl, "awaiting", inferPendingReason(latest) || "nowcast_signal_not_ready");
+      }
+
+      const divergenceEl = document.getElementById("hero-divergence");
+      if (hasNumber(deviation)) {
+        divergenceEl.textContent = `YoY deviation: ${Number(deviation).toFixed(3)}%`;
+        divergenceEl.title = "";
+      } else if (!hasNumber(consensus)) {
+        const reason = latest?.meta?.consensus?.guardrails?.reason || "consensus_unavailable";
+        divergenceEl.textContent = `YoY deviation: ${pendingText("withheld")}`;
+        divergenceEl.title = `YoY deviation: ${pendingText("withheld")}: ${reason}`;
+      } else {
+        divergenceEl.textContent = `YoY deviation: ${pendingText("data")}`;
+        divergenceEl.title = `YoY deviation: ${pendingText("data")}: deviation_inputs_missing`;
+      }
+
+      const releaseEl = document.getElementById("hero-release");
+      if (latest.official_cpi?.latest_release_month) {
+        releaseEl.textContent = String(latest.official_cpi.latest_release_month);
+        releaseEl.title = "";
+      } else {
+        setPending(releaseEl, "data", "official_release_month_missing");
+      }
       const quality = latest.headline?.signal_quality_score;
-      document.getElementById("hero-confidence").textContent = `${(latest.headline?.confidence || "--").toUpperCase()} | ${quality ?? "--"}/100`;
+      const confidenceEl = document.getElementById("hero-confidence");
+      if (latest.headline?.confidence || hasNumber(quality)) {
+        confidenceEl.textContent = `${String(latest.headline?.confidence || "pending").toUpperCase()} | ${quality ?? "pending"}/100`;
+        confidenceEl.title = "";
+      } else {
+        setPending(confidenceEl, "data", "quality_not_available");
+      }
+
+      const contextEl = document.getElementById("hero-context");
+      const phase = liveDays < 7
+        ? "Very early signal. Daily moves can be volatile."
+        : liveDays < 30
+          ? "Early calibration phase. Direction is more informative than precision."
+          : "Maturing signal with enough live history for stronger interpretation.";
+      contextEl.textContent = `Early signal context: ${liveDays} / 30 live days. ${phase}`;
     }
 
     function renderPurchasingPowerCard(latest) {
@@ -1688,14 +1897,22 @@
       const repThreshold = gate.representativeness_min_fresh_ratio ?? gate.representativeness?.threshold;
       const foodGate = gate.food_gate || gate.food_resilience?.threshold || {};
       const topDriver = latest.meta?.top_driver || {};
+      const repThresholdPct = typeof repThreshold === "number" ? (100 * repThreshold).toFixed(0) : "85";
+      const minFreshSources = foodGate.min_fresh_sources ?? 1;
+      const minUsableSources = foodGate.min_usable_sources ?? 2;
+      const trackedSharePct = typeof trackedShare === "number"
+        ? (100 * trackedShare).toFixed(1)
+        : (typeof latest?.meta?.weights?.tracked_share_total === "number"
+          ? (100 * Number(latest.meta.weights.tracked_share_total)).toFixed(1)
+          : "policy-defined");
       const rows = [
         `Method version: ${latest.meta?.method_version || methodology?.method_version || "--"}`,
         `Coverage ratio: ${(100 * (latest.headline?.coverage_ratio || 0)).toFixed(1)}% of basket had usable data today.`,
-        `Tracked basket share: ${typeof trackedShare === "number" ? (100 * trackedShare).toFixed(1) : "--"}% (source: ${weightsRef.source_table || "StatCan"}).`,
+        `Tracked basket share: ${trackedSharePct}% (source: ${weightsRef.source_table || "StatCan"}).`,
         `Lead signal: ${(latest.headline?.lead_signal || "--").toUpperCase()} — prices moving ${latest.headline?.lead_signal || "--"}.`,
         `Top driver: ${topDriver.category || "--"} (${pct(topDriver.contribution_pct, 3)} contribution).`,
-        `Food gate: ≥${foodGate.min_fresh_sources ?? "--"} fresh / ${foodGate.min_usable_sources ?? "--"} usable sources.`,
-        `Representativeness threshold: ${typeof repThreshold === "number" ? (100 * repThreshold).toFixed(0) : "--"}% fresh basket coverage.`,
+        `Food gate: ≥${minFreshSources} fresh / ${minUsableSources} usable sources.`,
+        `Representativeness threshold: ${repThresholdPct}% fresh basket coverage.`,
         "Housing blends live asking-rent momentum with broader proxies; differs from survey-based CPI.",
         "Communication is mapped within broader CPI structures, not a standalone major component.",
       ];
@@ -1785,6 +2002,17 @@
       });
     }
 
+    function initStickyDisclaimer() {
+      const node = document.getElementById("sticky-disclaimer");
+      if (!node) return;
+      const onScroll = () => {
+        if (window.scrollY > 120) node.classList.add("visible");
+        else node.classList.remove("visible");
+      };
+      onScroll();
+      window.addEventListener("scroll", onScroll, { passive: true });
+    }
+
     function renderAbout(latest, methodology, sourceCatalog, liveDays) {
       const about = document.getElementById("about-grid");
       about.innerHTML = "";
@@ -1849,14 +2077,48 @@
       });
     }
 
-    function renderPulse(meta) {
+    function firstSourceIssueReason(latest, sources) {
+      const rows = Array.isArray(latest?.source_health) ? latest.source_health : [];
+      for (const source of sources) {
+        const row = rows.find((item) => item && item.source === source);
+        if (!row) continue;
+        if (row.pending_reason) return String(row.pending_reason);
+        if (row.status_reason) return String(row.status_reason);
+        if (row.ingestion_state === "reused_last_success") return `reused_last_success (${source})`;
+        if (row.error_class) return `${row.error_class} (${source})`;
+        if (row.status !== "fresh") return row.detail || `${source}:${row.status}`;
+      }
+      return null;
+    }
+
+    function renderPulse(meta, latest) {
       const indicators = meta.indicators || {};
       const rent = indicators.average_asking_rent;
       const gas = indicators.gasoline_canada_avg;
       const section = document.getElementById("pulse-section");
-      if (rent || gas) section.style.display = "block";
-      if (rent) document.getElementById("pulse-rent").textContent = "$" + Math.round(rent).toLocaleString();
-      if (gas) document.getElementById("pulse-gas").textContent = gas.toFixed(1) + " ¢/L";
+      section.style.display = "block";
+      const rentEl = document.getElementById("pulse-rent");
+      const gasEl = document.getElementById("pulse-gas");
+      if (hasNumber(rent)) {
+        rentEl.textContent = "$" + Math.round(Number(rent)).toLocaleString();
+        rentEl.title = "";
+      } else {
+        setPending(
+          rentEl,
+          "awaiting",
+          firstSourceIssueReason(latest, ["rentals_ca_scrape", "housing_listings_scrappy"]) || "housing_indicator_pending",
+        );
+      }
+      if (hasNumber(gas)) {
+        gasEl.textContent = `${Number(gas).toFixed(1)} ¢/L`;
+        gasEl.title = "";
+      } else {
+        setPending(
+          gasEl,
+          "awaiting",
+          firstSourceIssueReason(latest, ["nrcan_fuel_scrape", "statcan_gas_csv"]) || "fuel_indicator_pending",
+        );
+      }
     }
 
     async function fetchCommunityStats() {
@@ -1902,6 +2164,7 @@
       app.appendChild(section);
     } else {
       renderExplainers();
+      initStickyDisclaimer();
       fetchCommunityStats();
       Promise.all([
         fetchLatestSnapshot(),
@@ -1921,9 +2184,10 @@
         const items = safeHistoryItems(historical).slice(-365);
         const liveDays = countLiveNowcastDays(items);
         renderChartMaturity(liveDays);
+        renderLiveHistoryProgress(liveDays);
         applyReleaseBanner(latest, liveDays);
-        renderHero(latest);
-        renderPulse(latest.meta || {});
+        renderHero(latest, liveDays);
+        renderPulse(latest.meta || {}, latest);
         renderReleaseIntel(latest, upcomingRelease, consensus, forecast?.meta?.forecast || forecast, liveDays);
         renderPurchasingPowerCard(latest);
         renderNotes(latest);

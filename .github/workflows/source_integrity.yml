@@ -35,6 +35,7 @@ jobs:
           python - <<'PY'
           import json
           import os
+          from datetime import date
           from pathlib import Path
 
           latest = Path("data/latest.json")
@@ -46,18 +47,42 @@ jobs:
           blocked = payload.get("release", {}).get("blocked_conditions", [])
           degraded = [row for row in source_health if row.get("status") in {"stale", "missing"}]
           escalate = bool(blocked) or len(degraded) >= 5
+          status = payload.get("release", {}).get("status", "--")
+          reason = "ok"
+          severity = "P3"
+          if bool(blocked):
+            reason = "gate_failed"
+            severity = "P1"
+          elif len(degraded) >= 5:
+            reason = "severe_source_degradation"
+            severity = "P2"
+          as_of = payload.get("as_of_date", "--")
+          week_key = "unknown"
+          try:
+            iso = date.fromisoformat(as_of).isocalendar()
+            week_key = f"{iso.year}W{iso.week:02d}"
+          except Exception:
+            week_key = "unknown"
+          alert_key = f"integrity-{severity}-{reason}-{week_key}"
+          state_signature = f"status={status}|reason={reason}|severity={severity}|degraded={len(degraded)}|blocked={len(blocked)}"
 
           summary_path = os.environ["GITHUB_STEP_SUMMARY"]
           output_path = Path(os.environ["GITHUB_OUTPUT"])
           with open(output_path, "a", encoding="utf-8") as out:
             out.write(f"escalate={'true' if escalate else 'false'}\n")
-            out.write(f"as_of={payload.get('as_of_date', '--')}\n")
+            out.write(f"as_of={as_of}\n")
             out.write(f"degraded={len(degraded)}\n")
-            out.write(f"status={payload.get('release', {}).get('status', '--')}\n")
+            out.write(f"status={status}\n")
+            out.write(f"reason={reason}\n")
+            out.write(f"severity={severity}\n")
+            out.write(f"alert_key={alert_key}\n")
+            out.write(f"state_signature={state_signature}\n")
 
           with open(summary_path, "a", encoding="utf-8") as f:
             f.write("## Source Integrity Report\\n")
-            f.write(f"- Run status: **{payload.get('release', {}).get('status', '--')}**\\n")
+            f.write(f"- Run status: **{status}**\\n")
+            f.write(f"- Severity tier: **{severity}**\\n")
+            f.write(f"- Alert reason: **{reason}**\\n")
             f.write(f"- Confidence: **{payload.get('headline', {}).get('confidence', '--')}**\\n")
             f.write(f"- Signal quality: **{payload.get('headline', {}).get('signal_quality_score', '--')}/100**\\n")
             f.write(f"- Degraded sources (stale/missing): **{len(degraded)}**\\n")
@@ -78,18 +103,58 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const severity = `${{ steps.integrity_summary.outputs.severity }}`;
             const asOf = `${{ steps.integrity_summary.outputs.as_of }}`;
             const degraded = `${{ steps.integrity_summary.outputs.degraded }}`;
             const status = `${{ steps.integrity_summary.outputs.status }}`;
-            await github.rest.issues.create({
+            const reason = `${{ steps.integrity_summary.outputs.reason }}`;
+            const alertKey = `${{ steps.integrity_summary.outputs.alert_key }}`;
+            const stateSignature = `${{ steps.integrity_summary.outputs.state_signature }}`;
+            const title = `[${severity}] Weekly Integrity Alert (${reason})`;
+            const body = [
+              "Automated weekly source integrity escalation.",
+              `<!-- alert-key:${alertKey} -->`,
+              "",
+              `- Severity: **${severity}**`,
+              `- Reason: **${reason}**`,
+              `- Run status: **${status}**`,
+              `- As of: **${asOf}**`,
+              `- Degraded sources: **${degraded}**`,
+              `- State signature: \`${stateSignature}\``,
+            ].join("\n");
+
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `[Weekly Integrity Alert] ${asOf}`,
-              body: [
-                "Automated weekly source integrity escalation.",
-                "",
-                `- Run status: **${status}**`,
-                `- Degraded sources: **${degraded}**`,
-              ].join("\n"),
-              labels: ["ops", "integrity-alert"],
+              state: "open",
+              labels: "ops,integrity-alert",
+              per_page: 100,
+            });
+            const existing = issues.find((issue) => (issue.body || "").includes(`<!-- alert-key:${alertKey} -->`));
+            if (!existing) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ["ops", "integrity-alert", severity.toLowerCase()],
+              });
+              return;
+            }
+            const hasSameSignature = (existing.body || "").includes(`State signature: \`${stateSignature}\``);
+            if (hasSameSignature) {
+              return;
+            }
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existing.number,
+              title,
+              body,
+            });
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existing.number,
+              body: `Integrity state transition detected on ${asOf}: \`${stateSignature}\``,
             });

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Changelog - True Inflation Canada</title>
+  <meta name="description" content="Public changelog for True Inflation Canada method, data, and contract changes." />
+  <link rel="icon" type="image/png" href="logo.png" />
+  <style>
+    :root {
+      --bg: #fcfbfa;
+      --surface: #ffffff;
+      --surface-2: #f6f5f3;
+      --border: rgba(0, 0, 0, 0.08);
+      --text: #2c211f;
+      --text-secondary: #7a6e69;
+      --text-tertiary: #a09793;
+      --blue: #0071e3;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Fira Code", monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(245, 245, 247, 0.78);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-bottom: 1px solid var(--border);
+      padding: 0 1.1rem;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+    }
+
+    .brand { display: flex; align-items: center; gap: 0.6rem; }
+    .logo { width: 30px; height: 30px; object-fit: contain; border-radius: 8px; }
+    .title { font-size: 0.92rem; font-weight: 700; letter-spacing: -0.01em; }
+
+    .nav-links { display: flex; align-items: center; gap: 0.45rem; }
+
+    .nav-links a {
+      font-size: 0.77rem;
+      color: var(--blue);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.2rem 0.55rem;
+      background: var(--surface);
+    }
+
+    .page {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 1.2rem;
+      display: grid;
+      gap: 0.9rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      padding: 1.2rem;
+    }
+
+    .section-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.65rem; }
+
+    .entry {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface-2);
+      padding: 0.85rem 0.95rem;
+    }
+
+    .entry + .entry { margin-top: 0.55rem; }
+
+    .entry h3 {
+      font-size: 0.83rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-bottom: 0.45rem;
+    }
+
+    .entry p,
+    .entry li { color: var(--text-secondary); font-size: 0.88rem; }
+
+    .entry ul { padding-left: 1rem; display: grid; gap: 0.32rem; }
+
+    .stamp {
+      font-family: var(--font-mono);
+      color: var(--text-tertiary);
+      font-size: 0.74rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .footer {
+      text-align: center;
+      color: var(--text-tertiary);
+      font-size: 0.75rem;
+      padding: 0.4rem 0 1rem;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="brand">
+      <img class="logo" src="logo.png" alt="True Inflation Canada logo" />
+      <span class="title">True Inflation Canada - Changelog</span>
+    </div>
+    <div class="nav-links">
+      <a href="/">Dashboard</a>
+      <a href="/about">About</a>
+      <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </div>
+  </nav>
+
+  <main class="page">
+    <section class="card">
+      <div class="section-title">Public Changelog</div>
+      <p style="color:var(--text-secondary);font-size:0.9rem;max-width:72ch;">
+        This page tracks method updates, data-quality hardening, and interface contract changes that may affect interpretation.
+      </p>
+    </section>
+
+    <section class="card">
+      <div class="section-title">Recent Entries</div>
+
+      <article class="entry">
+        <div class="stamp">2026-02-23 · v1.3.3</div>
+        <h3>Post-Critique Hardening</h3>
+        <ul>
+          <li>Added explicit pending-state UX copy and tooltips for key cards.</li>
+          <li>Added live-history progress meter and sticky experimental disclaimer behavior.</li>
+          <li>Extended source health with structured `error_class`, `status_reason`, and `pending_reason` fields.</li>
+          <li>Added about-page runtime source status join (catalog + latest source health).</li>
+          <li>Added alert dedupe/severity logic in GitHub workflows to reduce issue noise.</li>
+        </ul>
+      </article>
+
+      <article class="entry">
+        <div class="stamp">2026-02-22 · v1.3.2</div>
+        <h3>Pre-Promo Cleanup</h3>
+        <ul>
+          <li>Pinned Chart.js version and replaced high-risk dynamic HTML rendering with safe DOM text rendering paths.</li>
+          <li>Made nowcast chart live-only for non-seeded history while preserving official pre-live context.</li>
+          <li>Added category readiness fallback to avoid blank panels during short live history.</li>
+          <li>Published static methodology and source catalog artifacts for static-first hosting compatibility.</li>
+        </ul>
+      </article>
+
+      <article class="entry">
+        <div class="stamp">2026-02-17 · v1.3.0</div>
+        <h3>Calibration and Forecast Controls</h3>
+        <ul>
+          <li>Introduced calibration diagnostics and maturity tiers tied to live-history depth.</li>
+          <li>Enabled consensus/deviation/forecast guardrails to withhold weak signals.</li>
+          <li>Expanded public QA diagnostics and gate transparency fields.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="card">
+      <div class="section-title">Method/Data Contract Changes</div>
+      <article class="entry">
+        <h3>Current Contract Surface</h3>
+        <ul>
+          <li>`data/methodology.json` and `data/source_catalog.json` are primary static metadata artifacts.</li>
+          <li>`source_health` rows include ingestion semantics and structured failure metadata.</li>
+          <li>Seeded historical points are treated as official-only context, not live nowcast observations.</li>
+        </ul>
+      </article>
+    </section>
+  </main>
+
+  <footer class="footer">
+    Experimental open-source nowcast. Not official StatCan CPI.
+  </footer>
+</body>
+</html>

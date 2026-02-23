@@ -6,6 +6,7 @@ from datetime import date, datetime, timezone
 from process import (
     CATEGORY_WEIGHTS,
     build_gate_diagnostics,
+    classify_source_error,
     compute_nowcast_yoy_prorated,
     compute_category_contributions,
     compute_confidence,
@@ -14,9 +15,10 @@ from process import (
     compute_signal_quality_score,
     dedupe_quotes,
     evaluate_gate,
+    recompute_source_health,
     validate_source_contract,
 )
-from scrapers.types import Quote
+from scrapers.types import Quote, SourceHealth
 
 
 class ProcessTests(unittest.TestCase):
@@ -141,6 +143,36 @@ class ProcessTests(unittest.TestCase):
             },
         )
         self.assertFalse(check["passed"])
+
+    def test_classify_source_error(self) -> None:
+        self.assertEqual("tls", classify_source_error("SSL certificate verify failed"))
+        self.assertEqual("dns", classify_source_error("nodename nor servname provided"))
+        self.assertEqual("timeout", classify_source_error("request timed out"))
+        self.assertEqual("blocked", classify_source_error("403 forbidden from endpoint"))
+        self.assertEqual("parse", classify_source_error("Invalid JSON payload parse error"))
+
+    def test_recompute_source_health_adds_reason_fields(self) -> None:
+        raw = [
+            SourceHealth(
+                source="crtc_cmr_report",
+                category="communication",
+                tier=2,
+                status="missing",
+                last_success_timestamp=None,
+                detail="Fetch failed: SSL certificate verify failed",
+            )
+        ]
+        out = recompute_source_health(raw, datetime(2026, 2, 23, 15, 0, 0, tzinfo=timezone.utc))
+        self.assertEqual(1, len(out))
+        row = out[0]
+        self.assertIn("error_class", row)
+        self.assertIn("status_reason", row)
+        self.assertIn("pending_reason", row)
+        self.assertEqual("tls", row["error_class"])
+        self.assertTrue(
+            str(row["status_reason"]).startswith("source_missing")
+            or str(row["status_reason"]).startswith("degraded_but_usable")
+        )
 
     def test_evaluate_gate_pass(self) -> None:
         snapshot = {

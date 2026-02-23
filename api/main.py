@@ -47,6 +47,16 @@ async def read_about_file():
     return FileResponse("about.html")
 
 
+@app.get("/changelog")
+async def read_changelog():
+    return FileResponse("changelog.html")
+
+
+@app.get("/changelog.html")
+async def read_changelog_file():
+    return FileResponse("changelog.html")
+
+
 @app.get("/logo.png")
 async def read_logo():
     return FileResponse("logo.png")

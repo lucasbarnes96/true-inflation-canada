@@ -17,7 +17,7 @@ from gate_policy import BASKET_WEIGHTS, GATE_POLICY, METHOD_VERSION, gate_policy
 from models import NowcastSnapshot
 from performance import compute_performance_summary, write_performance_summary
 from source_catalog import SOURCE_CATALOG
-from scrapers.common import dns_preflight
+from scrapers.common import dns_preflight, tls_trust_store_info
 from scrapers import (
     Quote,
     SourceHealth,
@@ -350,6 +350,43 @@ def human_age(age_days: int | None) -> str:
     return f"updated {age_days} days ago"
 
 
+def classify_source_error(detail: str | None) -> str | None:
+    if not detail:
+        return None
+    text = str(detail).lower()
+    if "dns resolver unavailable" in text or "nodename nor servname" in text or "name or service not known" in text:
+        return "dns"
+    if "ssl" in text or "certificate" in text or "tls" in text:
+        return "tls"
+    if "timed out" in text or "timeout" in text:
+        return "timeout"
+    if "403" in text or "forbidden" in text or "anti-bot" in text or "blocked" in text:
+        return "blocked"
+    if "parse" in text or "invalid json" in text or "decode" in text:
+        return "parse"
+    if "fail" in text or "error" in text:
+        return "other"
+    return None
+
+
+def derive_status_reason(status: str, ingestion_state: str, error_class: str | None) -> str:
+    if status == "missing":
+        return f"source_missing{f'_{error_class}' if error_class else ''}"
+    if ingestion_state == "reused_last_success":
+        return f"degraded_but_usable_reused_last_success{f'_{error_class}' if error_class else ''}"
+    if status == "stale":
+        return f"source_stale_beyond_sla{f'_{error_class}' if error_class else ''}"
+    return "live_collection_success"
+
+
+def derive_pending_reason(status: str, status_reason: str, error_class: str | None) -> str | None:
+    if status in {"stale", "missing"}:
+        return status_reason
+    if error_class:
+        return f"recent_{error_class}_error_reused_or_recovered"
+    return None
+
+
 def load_json(path: Path, default: dict | list) -> dict | list:
     if not path.exists():
         return default
@@ -481,6 +518,7 @@ def recompute_source_health(raw_health: list[SourceHealth], now: datetime) -> li
                 detail = payload.get("detail", "")
                 payload["detail"] = f"{detail} Using last successful timestamp from prior run.".strip()
 
+        error_class = payload.get("error_class") or classify_source_error(payload.get("detail"))
         age_days = source_age_days(ts, now=now)
         sla_days = SOURCE_SLA_DAYS.get(entry.source)
         if age_days is None:
@@ -492,9 +530,25 @@ def recompute_source_health(raw_health: list[SourceHealth], now: datetime) -> li
 
         payload["status"] = status
         payload["ingestion_state"] = ingestion_state if status != "missing" else "missing"
+        payload["error_class"] = error_class
         payload["age_days"] = age_days
         payload["run_age_hours"] = source_age_hours(ts, now=now)
         payload["updated_days_ago"] = human_age(age_days)
+        status_reason = payload.get("status_reason") or derive_status_reason(
+            status=status,
+            ingestion_state=payload["ingestion_state"],
+            error_class=error_class,
+        )
+        payload["status_reason"] = status_reason
+        payload["pending_reason"] = payload.get("pending_reason") or derive_pending_reason(
+            status=status,
+            status_reason=status_reason,
+            error_class=error_class,
+        )
+        payload["degraded_usable"] = bool(
+            payload["ingestion_state"] == "reused_last_success"
+            or (status in {"fresh", "stale"} and error_class is not None)
+        )
         computed.append(payload)
     return computed
 
@@ -1183,6 +1237,7 @@ def compute_forecast(
 ) -> dict:
     forecast = {
         "status": "insufficient_history",
+        "pending_reason": "insufficient_history",
         "next_release_date": next_release.get("event_date") if isinstance(next_release, dict) else None,
         "as_of": as_of.isoformat(),
         "model_version": "v1.3.0-forecast-baseline",
@@ -1209,6 +1264,7 @@ def compute_forecast(
     ]
     if len(official_yoy_values) < 2:
         forecast["status"] = "insufficient_official_history"
+        forecast["pending_reason"] = "insufficient_official_history"
         return forecast
 
     latest_official_yoy = official_yoy_values[-1]
@@ -1219,6 +1275,7 @@ def compute_forecast(
     if nowcast_yoy is None:
         if consensus_yoy is None:
             forecast["status"] = "insufficient_inputs"
+            forecast["pending_reason"] = "insufficient_inputs"
             return forecast
         point = float(consensus_yoy)
     else:
@@ -1227,6 +1284,7 @@ def compute_forecast(
 
     interval_half_width = 0.35 if live_days >= 60 else 0.5
     forecast["status"] = "published"
+    forecast["pending_reason"] = None
     forecast["confidence"] = "medium" if live_days >= 60 else "low"
     forecast["point_yoy"] = round_or_none(point, 3)
     forecast["lower_yoy"] = round_or_none(point - interval_half_width, 3)
@@ -1480,6 +1538,7 @@ def collect_all_quotes(
             "reason": None,
         },
         "network_preflight": preflight,
+        "tls_trust_store": tls_trust_store_info(),
         "qa_retry_offsets_minutes": QA_RETRY_OFFSETS_MINUTES,
         "source_contracts_enforced": True,
     }
@@ -2037,6 +2096,10 @@ def update_historical(snapshot: dict, historical: dict) -> dict:
                 "source": s["source"],
                 "status": s["status"],
                 "ingestion_state": s.get("ingestion_state"),
+                "error_class": s.get("error_class"),
+                "status_reason": s.get("status_reason"),
+                "pending_reason": s.get("pending_reason"),
+                "degraded_usable": s.get("degraded_usable"),
                 "category": s["category"],
                 "tier": s["tier"],
                 "age_days": s.get("age_days"),
@@ -2200,6 +2263,7 @@ def build_snapshot() -> dict:
         "headline": {
             "nowcast_mom_pct": nowcast_mom,
             "nowcast_yoy_pct": nowcast_yoy,
+            "pending_reason": None,
             "confidence": "low",
             "coverage_ratio": coverage_ratio,
             "signal_quality_score": 0,
@@ -2241,6 +2305,7 @@ def build_snapshot() -> dict:
             "consensus": {
                 "headline_yoy": consensus_yoy,
                 "headline_mom": consensus_latest.get("headline_mom") if isinstance(consensus_latest, dict) else None,
+                "pending_reason": None if consensus_yoy is not None else consensus_guardrails.get("reason"),
                 "source_count": consensus_latest.get("source_count") if isinstance(consensus_latest, dict) else 0,
                 "confidence": consensus_latest.get("confidence") if isinstance(consensus_latest, dict) else "low",
                 "as_of": consensus_latest.get("as_of") if isinstance(consensus_latest, dict) else None,
@@ -2303,6 +2368,16 @@ def build_snapshot() -> dict:
         diversity_by_category=diversity_by_category,
         categories=categories,
     )
+    pending_reasons: list[str] = []
+    if nowcast_mom is None:
+        pending_reasons.append("nowcast_mom_missing")
+    if nowcast_yoy is None:
+        pending_reasons.append(f"nowcast_yoy_{yoy_projection.get('reason', 'unavailable')}")
+    if consensus_yoy is None:
+        pending_reasons.append(f"consensus_{consensus_guardrails.get('reason', 'unavailable')}")
+    if blocked_conditions:
+        pending_reasons.append("release_gate_blocked")
+    snapshot["headline"]["pending_reason"] = pending_reasons[0] if pending_reasons else None
     snapshot["notes"] = build_notes(
         categories=categories,
         anomalies=anomalies,

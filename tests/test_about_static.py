@@ -10,6 +10,9 @@ class AboutStaticTests(unittest.TestCase):
         self.assertIn("Transparent Inflation Nowcast Built on Public Data", html)
         self.assertIn("How the Math Works", html)
         self.assertIn("Data Source Transparency (All Tracked Sources)", html)
+        self.assertIn("Why Some Signals Use Fallback or Reused Data", html)
+        self.assertIn("Current Status", html)
+        self.assertIn("Ingestion State", html)
         self.assertIn("Known Shortcomings", html)
         self.assertIn("Long-Term Vision", html)
 

@@ -43,6 +43,10 @@ class SourceHealthModel(BaseModel):
     tier: int
     status: Literal["fresh", "stale", "missing"]
     ingestion_state: Literal["live_collected", "reused_last_success", "missing"] | None = None
+    error_class: Literal["dns", "tls", "timeout", "blocked", "parse", "other"] | None = None
+    status_reason: str | None = None
+    pending_reason: str | None = None
+    degraded_usable: bool | None = None
     last_success_timestamp: str | None = None
     detail: str
     source_run_id: str | None = None
@@ -70,6 +74,7 @@ class ReleaseGateResult(BaseModel):
 class HeadlineModel(BaseModel):
     nowcast_mom_pct: float | None = None
     nowcast_yoy_pct: float | None = None
+    pending_reason: str | None = None
     confidence: Literal["high", "medium", "low"]
     coverage_ratio: float
     signal_quality_score: int = 0

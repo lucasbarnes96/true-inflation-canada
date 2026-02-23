@@ -232,7 +232,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 980px;
+      min-width: 1320px;
       font-size: 0.8rem;
     }
 
@@ -258,6 +258,42 @@
     td {
       color: var(--text-secondary);
       overflow-wrap: anywhere;
+    }
+
+    .status-pill {
+      display: inline-block;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      padding: 0.14rem 0.46rem;
+      border: 1px solid transparent;
+      font-family: var(--font-mono);
+    }
+
+    .status-pill.ok {
+      color: #1a7f2e;
+      border-color: rgba(47, 161, 68, 0.28);
+      background: rgba(47, 161, 68, 0.08);
+    }
+
+    .status-pill.warn {
+      color: #9a5800;
+      border-color: rgba(220, 134, 20, 0.28);
+      background: rgba(220, 134, 20, 0.08);
+    }
+
+    .status-pill.err {
+      color: #b1332b;
+      border-color: rgba(223, 59, 48, 0.28);
+      background: rgba(223, 59, 48, 0.08);
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+      font-size: 0.73rem;
+      color: #5a524f;
     }
 
     td code {
@@ -288,6 +324,7 @@
     </div>
     <div class="nav-links">
       <a href="/">Dashboard</a>
+      <a href="/changelog">Changelog</a>
       <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank" rel="noopener noreferrer">GitHub</a>
     </div>
   </nav>
@@ -396,12 +433,38 @@
               <th>Cadence</th>
               <th>Proxy Type</th>
               <th>Fallback Policy</th>
+              <th>Current Status</th>
+              <th>Age (hrs)</th>
+              <th>Ingestion State</th>
+              <th>Last Success</th>
               <th>License/Terms</th>
               <th>Proof URL</th>
             </tr>
           </thead>
           <tbody id="source-table-body"></tbody>
         </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">Why Some Signals Use Fallback or Reused Data</div>
+      <div class="grid-2">
+        <article class="panel">
+          <h3>Why Reuse Happens</h3>
+          <ul>
+            <li>Some public endpoints are intermittent (TLS chain issues, anti-bot controls, or temporary outages).</li>
+            <li>When a source fails in a run but has a recent successful timestamp, that value can be reused with explicit disclosure.</li>
+            <li>Reused values are tagged in diagnostics and never hidden as fresh collection.</li>
+          </ul>
+        </article>
+        <article class="panel">
+          <h3>How Gate Policy Handles It</h3>
+          <ul>
+            <li>Publish gates evaluate freshness, representativeness, and required-source availability before a run is published.</li>
+            <li>Guardrails can withhold consensus/deviation/forecast outputs when quality criteria are not met.</li>
+            <li>This reduces overclaim risk during source degradation and early live-history calibration.</li>
+          </ul>
+        </article>
       </div>
     </section>
 
@@ -476,26 +539,49 @@
       document.getElementById("kpi-live-days").textContent = String(liveDays);
     }
 
-    function renderSourceTable(catalog) {
+    function statusClass(status) {
+      const normalized = String(status || "").toLowerCase();
+      if (normalized === "fresh") return "ok";
+      if (normalized === "stale") return "warn";
+      return "err";
+    }
+
+    function renderSourceTable(catalog, latestSnapshot) {
       const body = document.getElementById("source-table-body");
       body.innerHTML = "";
       const items = Array.isArray(catalog?.items) ? catalog.items : [];
+      const sourceHealth = Array.isArray(latestSnapshot?.source_health) ? latestSnapshot.source_health : [];
+      const healthBySource = new Map(
+        sourceHealth
+          .filter((row) => row && row.source)
+          .map((row) => [row.source, row]),
+      );
       if (items.length === 0) {
         const tr = document.createElement("tr");
         const td = el("td", null, "No source catalog available.");
-        td.colSpan = 7;
+        td.colSpan = 11;
         tr.appendChild(td);
         body.appendChild(tr);
         return;
       }
 
       items.forEach((item) => {
+        const health = healthBySource.get(item.source) || {};
+        const status = String(health.status || "missing").toLowerCase();
         const tr = document.createElement("tr");
         tr.appendChild(el("td", null, item.source || "--"));
         tr.appendChild(el("td", null, Array.isArray(item.categories) ? item.categories.join(", ") : "--"));
         tr.appendChild(el("td", null, item.cadence || "--"));
         tr.appendChild(el("td", null, item.proxy_type || "--"));
         tr.appendChild(el("td", null, item.fallback_policy || "--"));
+        const statusCell = document.createElement("td");
+        const statusNode = el("span", `status-pill ${statusClass(status)}`, status.toUpperCase());
+        statusNode.title = health.status_reason || health.pending_reason || health.detail || status;
+        statusCell.appendChild(statusNode);
+        tr.appendChild(statusCell);
+        tr.appendChild(el("td", "mono", health.run_age_hours === undefined || health.run_age_hours === null ? "--" : String(health.run_age_hours)));
+        tr.appendChild(el("td", "mono", health.ingestion_state || "--"));
+        tr.appendChild(el("td", "mono", health.last_success_timestamp || "No successful run"));
         tr.appendChild(el("td", null, item.license || "--"));
 
         const urlCell = document.createElement("td");
@@ -519,14 +605,26 @@
       const policyList = document.getElementById("policy-list");
       policyList.innerHTML = "";
       const gate = methodology?.gate_policy || {};
-      const rows = [
-        `Method version: ${methodology?.method_version || "--"}`,
-        `Representativeness minimum: ${(Number(gate.representativeness_min_fresh_ratio || 0) * 100).toFixed(0)}% fresh basket coverage.`,
-        `Food gate minimums: ${gate.food_gate?.min_fresh_sources ?? "--"} fresh / ${gate.food_gate?.min_usable_sources ?? "--"} usable sources.`,
-        `Required sources: ${(gate.required_sources || []).join(", ") || "--"}.`,
-        `Cross-source disagreement checks are enforced per category before publish.`,
-      ];
-      rows.forEach((text) => policyList.appendChild(el("li", null, text)));
+      const representMin = Number(gate.representativeness_min_fresh_ratio ?? 0.85);
+      const addItem = (text) => policyList.appendChild(el("li", null, text));
+      addItem(`Method version: ${methodology?.method_version || "--"}`);
+      addItem(`Representativeness minimum: ${(representMin * 100).toFixed(0)}% fresh basket coverage.`);
+      addItem(`Food gate minimums: ${gate.food_gate?.min_fresh_sources ?? 1} fresh / ${gate.food_gate?.min_usable_sources ?? 2} usable sources.`);
+      addItem(`Required sources: ${(gate.required_sources || []).join(", ") || "--"}.`);
+      addItem("Cross-source disagreement checks are enforced per category before publish.");
+
+      const sourceUrl = methodology?.weights_reference?.source_url;
+      if (sourceUrl) {
+        const li = document.createElement("li");
+        li.append("Tracked basket share source: ");
+        const link = document.createElement("a");
+        link.href = sourceUrl;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = sourceUrl;
+        li.appendChild(link);
+        policyList.appendChild(li);
+      }
     }
 
     Promise.all([
@@ -538,14 +636,14 @@
       const items = safeHistoryItems(historical).slice(-365);
       const liveDays = countLiveNowcastDays(items);
       renderKpis(latest || {}, liveDays);
-      renderSourceTable(sourceCatalog || {});
+      renderSourceTable(sourceCatalog || {}, latest || {});
       renderPolicy(methodology || {});
     }).catch((err) => {
       const fallback = document.getElementById("source-table-body");
       fallback.innerHTML = "";
       const tr = document.createElement("tr");
       const td = el("td", null, `Failed to load about-page data: ${String(err)}`);
-      td.colSpan = 7;
+      td.colSpan = 11;
       tr.appendChild(td);
       fallback.appendChild(tr);
     });

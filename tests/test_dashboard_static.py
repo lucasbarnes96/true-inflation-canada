@@ -24,8 +24,11 @@ class DashboardStaticTests(unittest.TestCase):
         self.assertIn("About This Project", html)
         self.assertIn('id="about-grid"', html)
         self.assertIn('id="category-readiness"', html)
+        self.assertIn('id="live-history-progress"', html)
         self.assertIn("Category contribution = weight × daily_change_pct.", html)
         self.assertIn('href="/about"', html)
+        self.assertIn('href="#source-diagnostics"', html)
+        self.assertIn('id="sticky-disclaimer"', html)
 
     def test_footer_link_is_noopener(self) -> None:
         html = Path("index.html").read_text()

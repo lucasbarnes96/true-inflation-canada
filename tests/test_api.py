@@ -316,6 +316,15 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(200, resp_html.status_code)
         self.assertIn("text/html", resp_html.headers.get("content-type", ""))
 
+    def test_changelog_routes(self) -> None:
+        resp = self.client.get("/changelog")
+        self.assertEqual(200, resp.status_code)
+        self.assertIn("text/html", resp.headers.get("content-type", ""))
+
+        resp_html = self.client.get("/changelog.html")
+        self.assertEqual(200, resp_html.status_code)
+        self.assertIn("text/html", resp_html.headers.get("content-type", ""))
+
 
 if __name__ == "__main__":
     unittest.main()
