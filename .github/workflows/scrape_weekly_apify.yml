@@ -1,8 +1,8 @@
-name: Weekly APIFY Refresh
+name: Twice-Monthly APIFY Refresh
 
 on:
   schedule:
-    - cron: "30 6 * * 0"
+    - cron: "30 6 1,16 * *"
   workflow_dispatch:
 
 concurrency:
@@ -62,7 +62,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No data changes to commit."
           else
-            git commit -m "Weekly APIFY refresh: $(date -u +%Y-%m-%d)"
+            git commit -m "Twice-monthly APIFY refresh: $(date -u +%Y-%m-%d)"
             git fetch origin main
             for attempt in 1 2 3; do
               git pull --rebase origin main && git push && break
@@ -91,7 +91,7 @@ jobs:
           total = len(data.get("source_health", []))
           summary_path = os.environ["GITHUB_STEP_SUMMARY"]
           with open(summary_path, "a", encoding="utf-8") as f:
-            f.write("## Weekly APIFY Run Summary\n")
+            f.write("## Twice-Monthly APIFY Run Summary\n")
             f.write(f"- Confidence: **{data['headline']['confidence']}**\n")
             f.write(f"- Signal quality: **{data['headline'].get('signal_quality_score', '--')}/100**\n")
             f.write(f"- Coverage ratio: **{data['headline']['coverage_ratio']}**\n")
