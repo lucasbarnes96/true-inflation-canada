@@ -11,6 +11,7 @@ from collections import defaultdict
 from dataclasses import asdict
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from gate_policy import BASKET_WEIGHTS, GATE_POLICY, METHOD_VERSION, weights_payload
 from models import NowcastSnapshot
@@ -150,6 +151,7 @@ FORECAST_MIN_LIVE_DAYS = 30
 CALIBRATION_MIN_LIVE_DAYS = 30
 QA_RETRY_OFFSETS_MINUTES = [15, 60, 360]
 CROSS_SOURCE_COMPARABLE_CATEGORIES = {"food", "transport"}
+REPORTING_TIMEZONE = ZoneInfo("America/Toronto")
 
 DEFAULT_SOURCE_CONTRACTS: dict[str, dict] = {
     "openfoodfacts_api": {
@@ -295,6 +297,12 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def reporting_date(now: datetime | None = None) -> date:
+    if now is None:
+        now = utc_now()
+    return now.astimezone(REPORTING_TIMEZONE).date()
+
+
 def round_or_none(value: float | None, places: int = 3) -> float | None:
     if value is None:
         return None
@@ -407,10 +415,19 @@ def apply_range_checks(quotes: list[Quote]) -> tuple[list[Quote], int]:
     return valid, rejected
 
 
-def previous_category_median(historical: dict, category: str) -> float | None:
+def latest_historical_day_before(historical: dict, as_of_day: str) -> str | None:
+    for day in sorted(historical.keys(), reverse=True):
+        if day < as_of_day:
+            return day
+    return None
+
+
+def previous_category_median(historical: dict, category: str, as_of_day: str) -> float | None:
     if not historical:
         return None
-    latest_day = sorted(historical.keys())[-1]
+    latest_day = latest_historical_day_before(historical, as_of_day)
+    if latest_day is None:
+        return None
     value = historical.get(latest_day, {}).get("categories", {}).get(category, {}).get("proxy_level")
     if value is None:
         return None
@@ -420,7 +437,7 @@ def previous_category_median(historical: dict, category: str) -> float | None:
         return None
 
 
-def apply_outlier_filter(quotes: list[Quote], historical: dict) -> tuple[list[Quote], int]:
+def apply_outlier_filter(quotes: list[Quote], historical: dict, as_of_day: str) -> tuple[list[Quote], int]:
     by_category: dict[str, list[Quote]] = defaultdict(list)
     for quote in quotes:
         by_category[quote.category].append(quote)
@@ -429,7 +446,7 @@ def apply_outlier_filter(quotes: list[Quote], historical: dict) -> tuple[list[Qu
     anomalies = 0
     for category, cat_quotes in by_category.items():
         median_today = statistics.median(q.value for q in cat_quotes)
-        median_prev = previous_category_median(historical, category)
+        median_prev = previous_category_median(historical, category, as_of_day=as_of_day)
         if median_prev is None or median_prev <= 0:
             kept.extend(cat_quotes)
             continue
@@ -515,8 +532,10 @@ def validate_source_contract(
     stale_within_sla = isinstance(age_hours, (int, float)) and float(age_hours) <= max_stale_hours
 
     count_ok = min_records <= count <= max_records
-    if count == 0 and stale_within_sla:
-        count_ok = True
+    if count == 0:
+        # Even optional sources must present a recent prior success timestamp to
+        # qualify as valid-within-SLA when no new rows are available.
+        count_ok = bool(stale_within_sla)
     checks.append({"name": "record_count", "passed": count_ok, "detail": f"{count} in [{min_records}, {max_records}]"})
 
     value_bounds = contract.get("allowed_value_range") or [0.0, 10**9]
@@ -524,16 +543,16 @@ def validate_source_contract(
     if quotes:
         range_ok = all(low <= float(q.value) <= high for q in quotes)
     else:
-        range_ok = (min_records == 0) or stale_within_sla
+        range_ok = bool(stale_within_sla)
     checks.append({"name": "value_range", "passed": range_ok, "detail": f"[{low}, {high}]"})
 
-    freshness_ok = stale_within_sla if count > 0 else True
+    freshness_ok = bool(stale_within_sla)
     checks.append({"name": "freshness", "passed": freshness_ok, "detail": f"{age_hours} <= {max_stale_hours}"})
 
     prev_median = None
     category = quotes[0].category if quotes else (source_health.get("category") if isinstance(source_health, dict) else None)
     if isinstance(category, str):
-        prev_median = previous_category_median(historical, category)
+        prev_median = previous_category_median(historical, category, as_of_day=reporting_date(now).isoformat())
     max_jump = float(contract.get("max_daily_median_jump_pct", 50.0))
     if quotes and prev_median not in (None, 0):
         current_median = statistics.median(float(q.value) for q in quotes)
@@ -619,6 +638,7 @@ def reconcile_cross_source_quotes(
     quotes: list[Quote],
     computed_health: list[dict],
     historical: dict,
+    as_of_day: str,
 ) -> tuple[list[Quote], dict]:
     by_category_source_values: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
     for quote in quotes:
@@ -682,7 +702,7 @@ def reconcile_cross_source_quotes(
                         )
         else:
             source, value = next(iter(source_means.items()))
-            prev = previous_category_median(historical, category)
+            prev = previous_category_median(historical, category, as_of_day=as_of_day)
             if prev not in (None, 0):
                 jump = abs((value / float(prev)) - 1)
                 disagreement_by_category[category] = round(jump, 4)
@@ -727,7 +747,7 @@ def reconcile_cross_source_quotes(
     }
 
 
-def impute_missing_categories(categories: dict, historical: dict) -> dict:
+def impute_missing_categories(categories: dict, historical: dict, as_of_day: str) -> dict:
     diagnostics = {
         "imputation_used": False,
         "imputed_categories": [],
@@ -736,7 +756,9 @@ def impute_missing_categories(categories: dict, historical: dict) -> dict:
     if not historical:
         return diagnostics
 
-    ordered = sorted(historical.keys(), reverse=True)
+    ordered = [day for day in sorted(historical.keys(), reverse=True) if day < as_of_day]
+    if not ordered:
+        return diagnostics
     total_weight = sum(CATEGORY_WEIGHTS.values()) or 1.0
     imputed_weight = 0.0
     for category, payload in categories.items():
@@ -846,11 +868,13 @@ def previous_indicator_value(key: str) -> float | None:
     return None
 
 
-def compute_daily_changes(categories: dict, historical: dict) -> None:
+def compute_daily_changes(categories: dict, historical: dict, as_of_day: str) -> None:
     if not historical:
         return
 
-    latest_day = sorted(historical.keys())[-1]
+    latest_day = latest_historical_day_before(historical, as_of_day)
+    if latest_day is None:
+        return
     prev_categories = historical.get(latest_day, {}).get("categories", {})
 
     for category, payload in categories.items():
@@ -1673,6 +1697,37 @@ def build_gate_diagnostics(snapshot: dict) -> dict:
         "reason": None if source_passed else "source_contract_pass_rate_below_threshold",
     }
 
+    source_freshness_rate = qa_summary.get("source_freshness_pass_rate")
+    min_freshness_rate = float(policy.get("min_source_freshness_rate_30d", 0.9))
+    source_freshness_passed = (
+        isinstance(source_freshness_rate, (int, float))
+        and float(source_freshness_rate) >= min_freshness_rate
+    )
+    diagnostics["source_freshness_reliability"] = {
+        "passed": source_freshness_passed,
+        "value": source_freshness_rate,
+        "threshold": min_freshness_rate,
+        "reason": None if source_freshness_passed else "source_freshness_rate_below_threshold",
+    }
+
+    source_inventory_ratio = qa_summary.get("source_inventory_ratio")
+    min_source_inventory_ratio = float(policy.get("min_source_inventory_ratio", 1.0))
+    missing_sources = qa_summary.get("missing_sources") if isinstance(qa_summary.get("missing_sources"), list) else []
+    source_inventory_passed = (
+        isinstance(source_inventory_ratio, (int, float))
+        and float(source_inventory_ratio) >= min_source_inventory_ratio
+        and not missing_sources
+    )
+    diagnostics["source_inventory"] = {
+        "passed": source_inventory_passed,
+        "value": {
+            "ratio": source_inventory_ratio,
+            "missing_sources": missing_sources,
+        },
+        "threshold": min_source_inventory_ratio,
+        "reason": None if source_inventory_passed else "source_inventory_incomplete",
+    }
+
     imputed_weight_ratio = qa_summary.get("imputed_weight_ratio")
     max_imputed = float(policy.get("max_imputed_weight_ratio", 0.15))
     imputation_passed = isinstance(imputed_weight_ratio, (int, float)) and float(imputed_weight_ratio) <= max_imputed
@@ -1724,6 +1779,14 @@ def evaluate_gate(snapshot: dict) -> list[str]:
         blocked.append("Gate A failed: food source resilience below minimum fresh/diversity threshold.")
     if not diagnostics["source_reliability"]["passed"]:
         blocked.append("Gate G failed: trailing source contract pass rate below minimum.")
+    if not diagnostics["source_freshness_reliability"]["passed"]:
+        blocked.append("Gate J failed: trailing source freshness pass rate below minimum.")
+    if not diagnostics["source_inventory"]["passed"]:
+        missing_sources = diagnostics["source_inventory"]["value"].get("missing_sources", [])
+        if missing_sources:
+            blocked.append(f"Gate K failed: missing source health rows for {', '.join(missing_sources)}.")
+        else:
+            blocked.append("Gate K failed: source inventory ratio below minimum.")
     if not diagnostics["imputation_weight"]["passed"]:
         blocked.append("Gate H failed: imputed basket weight above allowed threshold.")
     if not diagnostics["cross_source_disagreement"]["passed"]:
@@ -1868,6 +1931,29 @@ def source_pass_rate_30d(as_of_date: str) -> dict[str, float]:
     return {str(source): float(rate) for source, rate in rows}
 
 
+def source_freshness_rate_30d(as_of_date: str) -> dict[str, float]:
+    if not QA_DB_PATH.exists():
+        return {}
+    with sqlite3.connect(QA_DB_PATH) as conn:
+        rows = conn.execute(
+            "SELECT source, freshness_pass_rate_30d FROM daily_source_reliability WHERE as_of_date = ?",
+            (as_of_date,),
+        ).fetchall()
+    return {str(source): float(rate) for source, rate in rows}
+
+
+def check_pass_rate(checks: list[dict], check_name: str) -> float | None:
+    outcomes: list[int] = []
+    for check in checks:
+        for item in check.get("checks", []):
+            if item.get("name") == check_name:
+                outcomes.append(1 if item.get("passed") else 0)
+                break
+    if not outcomes:
+        return None
+    return round_or_none(sum(outcomes) / len(outcomes), 4)
+
+
 def update_historical(snapshot: dict, historical: dict) -> dict:
     day = snapshot["as_of_date"]
     official = snapshot.get("official_cpi", {})
@@ -1932,6 +2018,8 @@ def build_snapshot() -> dict:
 
     run_id = f"run_{uuid.uuid4().hex[:12]}"
     now = utc_now().replace(microsecond=0)
+    report_day = reporting_date(now)
+    as_of_day = report_day.isoformat()
     qa_window_close_at = (now + timedelta(hours=24)).isoformat()
     release_events = fetch_release_events()
     consensus_latest = fetch_consensus_estimate()
@@ -1956,13 +2044,13 @@ def build_snapshot() -> dict:
     # Use index_quotes for the main calculation
     deduped = dedupe_quotes(index_quotes)
     valid_quotes, rejected_points = apply_range_checks(deduped)
-    filtered, anomalies = apply_outlier_filter(valid_quotes, historical)
-    reconciled_quotes, reconciliation = reconcile_cross_source_quotes(filtered, computed_health, historical)
+    filtered, anomalies = apply_outlier_filter(valid_quotes, historical, as_of_day=as_of_day)
+    reconciled_quotes, reconciliation = reconcile_cross_source_quotes(filtered, computed_health, historical, as_of_day=as_of_day)
     filtered = reconciled_quotes
 
     categories, category_signal_inputs = summarize_categories(filtered, computed_health)
-    imputation = impute_missing_categories(categories, historical)
-    compute_daily_changes(categories, historical)
+    imputation = impute_missing_categories(categories, historical, as_of_day=as_of_day)
+    compute_daily_changes(categories, historical, as_of_day=as_of_day)
     housing_overlay = apply_housing_signal_overlay(categories, indicators)
 
     coverage_ratio = compute_coverage(categories)
@@ -1992,7 +2080,7 @@ def build_snapshot() -> dict:
         fallback_used = True
     lead_signal = derive_lead_signal(nowcast_mom)
     consensus_yoy, consensus_guardrails = apply_consensus_guardrails(consensus_latest if isinstance(consensus_latest, dict) else None)
-    raw_nowcast_yoy, yoy_projection = compute_nowcast_yoy_prorated(now.date(), nowcast_mom, official_series)
+    raw_nowcast_yoy, yoy_projection = compute_nowcast_yoy_prorated(report_day, nowcast_mom, official_series)
     nowcast_yoy, calibration_diagnostics = calibrate_nowcast_yoy(
         raw_nowcast_yoy=raw_nowcast_yoy,
         official_series=official_series,
@@ -2013,19 +2101,43 @@ def build_snapshot() -> dict:
         deviation_yoy = round_or_none(float(nowcast_yoy) - float(consensus_yoy), 3)
     # Deprecated alias retained for compatibility during transition.
     consensus_spread_yoy = deviation_yoy
-    this_run_contract_pass_rate = 0.0
-    if qa_checks:
-        this_run_contract_pass_rate = sum(1 for c in qa_checks if c.get("passed")) / len(qa_checks)
+    this_run_contract_pass_rate = (
+        round_or_none(sum(1 for c in qa_checks if c.get("passed")) / len(qa_checks), 4)
+        if qa_checks
+        else 0.0
+    )
+    this_run_freshness_pass_rate = check_pass_rate(qa_checks, "freshness")
+    if this_run_freshness_pass_rate is None:
+        this_run_freshness_pass_rate = 0.0
 
-    trailing_by_source = source_pass_rate_30d(now.date().isoformat())
+    trailing_by_source = source_pass_rate_30d(as_of_day)
+    trailing_freshness_by_source = source_freshness_rate_30d(as_of_day)
     source_contract_pass_rate = (
         round_or_none(sum(trailing_by_source.values()) / len(trailing_by_source), 4)
         if trailing_by_source
-        else round_or_none(this_run_contract_pass_rate, 4)
+        else this_run_contract_pass_rate
+    )
+    source_freshness_pass_rate = (
+        round_or_none(sum(trailing_freshness_by_source.values()) / len(trailing_freshness_by_source), 4)
+        if trailing_freshness_by_source
+        else this_run_freshness_pass_rate
+    )
+
+    expected_sources = set(SOURCE_SLA_DAYS.keys())
+    observed_sources = {
+        row.get("source")
+        for row in computed_health
+        if isinstance(row, dict) and isinstance(row.get("source"), str)
+    }
+    missing_sources = sorted(expected_sources - observed_sources)
+    source_inventory_ratio = round_or_none(
+        (len(observed_sources) / len(expected_sources)) if expected_sources else 1.0,
+        4,
     )
 
     qa_summary = {
         "source_contract_pass_rate": source_contract_pass_rate,
+        "source_freshness_pass_rate": source_freshness_pass_rate,
         "fresh_weight_ratio": representativeness_ratio,
         "cross_source_disagreement_score": reconciliation["cross_source_disagreement_score"],
         "cross_source_disagreement_by_category": reconciliation["cross_source_disagreement_by_category"],
@@ -2034,12 +2146,16 @@ def build_snapshot() -> dict:
         "imputation_used": imputation["imputation_used"],
         "imputed_categories": imputation["imputed_categories"],
         "imputed_weight_ratio": imputation["imputed_weight_ratio"],
+        "source_inventory_ratio": source_inventory_ratio,
+        "expected_sources": sorted(expected_sources),
+        "observed_sources": sorted(observed_sources),
+        "missing_sources": missing_sources,
         "source_checks": qa_checks,
         "retry_schedule_minutes": QA_RETRY_OFFSETS_MINUTES,
     }
 
     snapshot = {
-        "as_of_date": now.date().isoformat(),
+        "as_of_date": as_of_day,
         "timestamp": now.isoformat(),
         "headline": {
             "nowcast_mom_pct": nowcast_mom,
@@ -2249,7 +2365,51 @@ def main() -> int:
         print("Runtime guard failed: Python 3.11 is required for stable source ingestion (apify-client compatibility).")
         print("Use: python3.11 process.py")
         return 2
-    snap = build_snapshot()
+    try:
+        snap = build_snapshot()
+    except Exception as exc:
+        # Crash guard: write a diagnostic error snapshot so the workflow
+        # can still report what happened instead of failing silently.
+        now = utc_now().replace(microsecond=0)
+        error_snapshot = {
+            "as_of_date": reporting_date(now).isoformat(),
+            "headline": {
+                "nowcast_mom_pct": None,
+                "nowcast_yoy_pct": None,
+                "confidence": "low",
+                "coverage_ratio": 0.0,
+                "signal_quality_score": 0,
+                "lead_signal": None,
+                "next_release_at_utc": None,
+                "consensus_yoy": None,
+                "consensus_spread_yoy": None,
+                "deviation_yoy_pct": None,
+                "method_label": METHOD_LABEL,
+            },
+            "categories": {},
+            "official_cpi": {},
+            "bank_of_canada": {},
+            "source_health": [],
+            "notes": [f"Pipeline crash: {type(exc).__name__}: {exc}"],
+            "meta": {"method_version": METHOD_VERSION},
+            "performance_ref": {},
+            "release": {
+                "run_id": f"crash_{uuid.uuid4().hex[:12]}",
+                "status": "crashed",
+                "qa_status": "failed",
+                "qa_window_close_at": None,
+                "lifecycle_states": ["crashed"],
+                "blocked_conditions": [f"Pipeline crash: {type(exc).__name__}: {exc}"],
+                "created_at": now.isoformat(),
+                "published_at": None,
+            },
+        }
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        LATEST_PATH.write_text(json.dumps(error_snapshot, indent=2))
+        print(f"FATAL: Pipeline crashed: {type(exc).__name__}: {exc}")
+        import traceback
+        traceback.print_exc()
+        return 2
     write_outputs(snap)
     status = snap["release"]["status"]
     blocked = snap["release"].get("blocked_conditions", [])

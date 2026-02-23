@@ -14,6 +14,7 @@ from process import (
     compute_signal_quality_score,
     dedupe_quotes,
     evaluate_gate,
+    validate_source_contract,
 )
 from scrapers.types import Quote
 
@@ -122,6 +123,25 @@ class ProcessTests(unittest.TestCase):
         self.assertIsNone(out)
         self.assertEqual("missing_nowcast_mom", meta["reason"])
 
+    def test_validate_source_contract_optional_source_missing_without_recent_success_fails(self) -> None:
+        check = validate_source_contract(
+            contract_name="test_optional_source",
+            source_name="test_optional_source",
+            quotes=[],
+            source_health={"source": "test_optional_source", "category": "food", "last_success_timestamp": None},
+            historical={},
+            now=datetime(2026, 2, 22, 12, 0, 0, tzinfo=timezone.utc),
+            source_contracts={
+                "test_optional_source": {
+                    "min_records": 0,
+                    "max_records": 100,
+                    "allowed_value_range": [0.1, 500.0],
+                    "max_stale_hours": 48.0,
+                }
+            },
+        )
+        self.assertFalse(check["passed"])
+
     def test_evaluate_gate_pass(self) -> None:
         snapshot = {
             "source_health": [
@@ -142,9 +162,12 @@ class ProcessTests(unittest.TestCase):
                 "representativeness_ratio": 0.95,
                 "qa_summary": {
                     "source_contract_pass_rate": 1.0,
+                    "source_freshness_pass_rate": 1.0,
                     "imputed_weight_ratio": 0.0,
                     "cross_source_disagreement_score": 0.1,
                     "cross_source_disagreement_by_category": {"food": 0.1},
+                    "source_inventory_ratio": 1.0,
+                    "missing_sources": [],
                 },
             },
         }
@@ -169,9 +192,12 @@ class ProcessTests(unittest.TestCase):
                 "representativeness_ratio": 0.95,
                 "qa_summary": {
                     "source_contract_pass_rate": 1.0,
+                    "source_freshness_pass_rate": 1.0,
                     "imputed_weight_ratio": 0.0,
                     "cross_source_disagreement_score": 0.1,
                     "cross_source_disagreement_by_category": {"food": 0.1},
+                    "source_inventory_ratio": 1.0,
+                    "missing_sources": [],
                 },
             },
         }
@@ -201,9 +227,12 @@ class ProcessTests(unittest.TestCase):
                 "representativeness_ratio": 0.9,
                 "qa_summary": {
                     "source_contract_pass_rate": 1.0,
+                    "source_freshness_pass_rate": 1.0,
                     "imputed_weight_ratio": 0.0,
                     "cross_source_disagreement_score": 0.1,
                     "cross_source_disagreement_by_category": {"food": 0.1},
+                    "source_inventory_ratio": 1.0,
+                    "missing_sources": [],
                 },
             },
         }
@@ -233,14 +262,52 @@ class ProcessTests(unittest.TestCase):
                 "representativeness_ratio": 0.9,
                 "qa_summary": {
                     "source_contract_pass_rate": 0.5,
+                    "source_freshness_pass_rate": 1.0,
                     "imputed_weight_ratio": 0.0,
                     "cross_source_disagreement_score": 0.1,
                     "cross_source_disagreement_by_category": {"food": 0.1},
+                    "source_inventory_ratio": 1.0,
+                    "missing_sources": [],
                 },
             },
         }
         blocked = evaluate_gate(snapshot)
         self.assertTrue(any("Gate G failed" in item for item in blocked))
+
+    def test_evaluate_gate_fail_when_source_freshness_low(self) -> None:
+        snapshot = {
+            "source_health": [
+                {"source": "apify_loblaws", "category": "food", "status": "fresh", "age_days": 1},
+                {"source": "statcan_food_prices", "category": "food", "status": "fresh", "age_days": 2},
+                {"source": "statcan_cpi_csv", "status": "fresh", "age_days": 2},
+                {"source": "statcan_gas_csv", "status": "fresh", "age_days": 2},
+                {"source": "oeb_scrape", "status": "fresh", "age_days": 0},
+            ],
+            "categories": {
+                "food": {"points": 10},
+                "housing": {"points": 3},
+                "transport": {"points": 1},
+                "energy": {"points": 1},
+                "communication": {"points": 1},
+                "health_personal": {"points": 1},
+                "recreation_education": {"points": 1},
+            },
+            "official_cpi": {"latest_release_month": "2025-12"},
+            "meta": {
+                "representativeness_ratio": 0.9,
+                "qa_summary": {
+                    "source_contract_pass_rate": 1.0,
+                    "source_freshness_pass_rate": 0.4,
+                    "imputed_weight_ratio": 0.0,
+                    "cross_source_disagreement_score": 0.1,
+                    "cross_source_disagreement_by_category": {"food": 0.1},
+                    "source_inventory_ratio": 1.0,
+                    "missing_sources": [],
+                },
+            },
+        }
+        blocked = evaluate_gate(snapshot)
+        self.assertTrue(any("Gate J failed" in item for item in blocked))
 
 
 if __name__ == "__main__":

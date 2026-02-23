@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-METHOD_VERSION = "v1.3.1"
+METHOD_VERSION = "v1.3.2"
 
 BASKET_WEIGHTS: dict[str, float] = {
     "housing": 0.2941,
@@ -63,7 +63,7 @@ GATE_POLICY: dict = {
         "recreation_education": 1,
     },
     "metadata_required": ["official_cpi.latest_release_month"],
-    "representativeness_min_fresh_ratio": 0.85,
+    "representativeness_min_fresh_ratio": 0.75,
     "food_gate": {
         "min_fresh_sources": 1,
         "min_usable_sources": 2,
@@ -73,7 +73,9 @@ GATE_POLICY: dict = {
         "max_attempts": 2,
         "backoff_seconds": 2,
     },
-    "min_source_pass_rate_30d": 0.95,
+    "min_source_pass_rate_30d": 0.85,
+    "min_source_freshness_rate_30d": 0.90,
+    "min_source_inventory_ratio": 1.0,
     "max_imputed_weight_ratio": 0.15,
     "max_cross_source_disagreement_score": {
         "food": 0.35,

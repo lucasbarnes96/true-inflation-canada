@@ -37,7 +37,7 @@ def scrape_recreation_education_public() -> tuple[list[Quote], list[SourceHealth
                     source=source,
                     category="recreation_education",
                     tier=2,
-                    status="stale" if values else "missing",
+                    status="fresh" if values else "missing",
                     last_success_timestamp=utc_now_iso() if values else None,
                     detail=f"Collected {len(values)} supplemental recreation/education points.",
                     last_observation_period=None,

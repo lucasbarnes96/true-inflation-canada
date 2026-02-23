@@ -270,6 +270,7 @@ def scrape_grocery_apify() -> tuple[list[Quote], list[SourceHealth]]:
         max_items = int(max_items_raw)
     except ValueError:
         max_items = 50
+    max_items = max(1, max_items)
     actor_ids = _actor_ids()
     source_run_id: str | None = None
 
@@ -301,6 +302,9 @@ def scrape_grocery_apify() -> tuple[list[Quote], list[SourceHealth]]:
                 "banner": banner,
                 "categoryUrl": category_url_try,
                 "maxItems": max_items,
+                # Some actor builds enforce this separately and default to 0,
+                # which causes hard failures unless set explicitly.
+                "maxChargedResults": max_items,
                 "proxyConfig": {"useApifyProxy": True},
             }
             if location_id:

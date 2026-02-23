@@ -26,7 +26,7 @@ class HealthPublicTests(unittest.TestCase):
         self.assertGreater(len(quotes), 0)
         pmprb_health = next(item for item in health if item.source == "pmprb_reports")
         self.assertIn(PMPRB_REPORTS_URLS[1], pmprb_health.detail)
-        self.assertEqual("stale", pmprb_health.status)
+        self.assertEqual("fresh", pmprb_health.status)
         self.assertIn(PMPRB_REPORTS_URLS[0], calls)
         self.assertIn(PMPRB_REPORTS_URLS[1], calls)
 

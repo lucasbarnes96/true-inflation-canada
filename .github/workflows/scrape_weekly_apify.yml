@@ -5,6 +5,10 @@ on:
     - cron: "30 6 * * 0"
   workflow_dispatch:
 
+concurrency:
+  group: nowcast-data-pipeline
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -42,13 +46,13 @@ jobs:
           fi
 
       - name: Run nowcast pipeline
-        run: python process.py
+        run: python3.11 process.py
 
       - name: Run tests
-        run: python -m unittest discover -s tests -p 'test_*.py'
+        run: python3.11 -m unittest discover -s tests -p 'test_*.py'
 
       - name: Enforce release gate
-        run: python scripts/check_release_gate.py
+        run: python3.11 scripts/check_release_gate.py
 
       - name: Commit and push data changes
         run: |
@@ -59,31 +63,44 @@ jobs:
             echo "No data changes to commit."
           else
             git commit -m "Weekly APIFY refresh: $(date -u +%Y-%m-%d)"
-            git push
+            git fetch origin main
+            for attempt in 1 2 3; do
+              git pull --rebase origin main && git push && break
+              if [ "$attempt" -eq 3 ]; then
+                echo "Failed to push data update after 3 attempts."
+                exit 1
+              fi
+              git rebase --abort || true
+              sleep $((attempt * 5))
+            done
           fi
 
       - name: Publish run summary
+        if: always()
         run: |
           python - <<'PY'
           import os
           import json
           from pathlib import Path
           p = Path("data/latest.json")
+          if not p.exists():
+            print("No latest.json to summarize.")
+            exit(0)
           data = json.loads(p.read_text())
           ok = sum(1 for s in data.get("source_health", []) if s.get("status") in {"fresh", "stale"})
           total = len(data.get("source_health", []))
           summary_path = os.environ["GITHUB_STEP_SUMMARY"]
           with open(summary_path, "a", encoding="utf-8") as f:
-            f.write("## Weekly APIFY Run Summary\\n")
-            f.write(f"- Confidence: **{data['headline']['confidence']}**\\n")
-            f.write(f"- Signal quality: **{data['headline'].get('signal_quality_score', '--')}/100**\\n")
-            f.write(f"- Coverage ratio: **{data['headline']['coverage_ratio']}**\\n")
-            f.write(f"- Source success: **{ok}/{total}**\\n")
+            f.write("## Weekly APIFY Run Summary\n")
+            f.write(f"- Confidence: **{data['headline']['confidence']}**\n")
+            f.write(f"- Signal quality: **{data['headline'].get('signal_quality_score', '--')}/100**\n")
+            f.write(f"- Coverage ratio: **{data['headline']['coverage_ratio']}**\n")
+            f.write(f"- Source success: **{ok}/{total}**\n")
             top_driver = data.get("meta", {}).get("top_driver", {})
-            f.write(f"- Top driver: **{top_driver.get('category', '--')} ({top_driver.get('contribution_pct', '--')})**\\n")
+            f.write(f"- Top driver: **{top_driver.get('category', '--')} ({top_driver.get('contribution_pct', '--')})**\n")
             blocked = data.get("release", {}).get("blocked_conditions", [])
             if blocked:
-                f.write("\\n### Gate Failures\\n")
+                f.write("\n### Gate Failures\n")
                 for reason in blocked:
-                    f.write(f"- {reason}\\n")
+                    f.write(f"- {reason}\n")
           PY
