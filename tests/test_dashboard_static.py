@@ -14,6 +14,7 @@ class DashboardStaticTests(unittest.TestCase):
         html = Path("index.html").read_text()
         self.assertIn("Nowcast vs Official CPI (Year-over-Year)", html)
         self.assertIn('id="chart-maturity"', html)
+        self.assertIn("Published live nowcast days", html)
         self.assertIn("Deviation from Expectations", html)
         self.assertIn("Calculation ID", html)
         self.assertIn("Experimental open-source nowcast using public data. Not official StatCan CPI.", html)
@@ -37,6 +38,8 @@ class DashboardStaticTests(unittest.TestCase):
     def test_chart_js_is_pinned(self) -> None:
         html = Path("index.html").read_text()
         self.assertIn("cdn.jsdelivr.net/npm/chart.js@4.4.3", html)
+        self.assertIn("Provisional nowcast (failed gate)", html)
+        self.assertIn("formatPctTick", html)
 
 
 if __name__ == "__main__":
