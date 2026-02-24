@@ -13,7 +13,7 @@ It is not an official Statistics Canada CPI release.
 ## Data Architecture
 - Official CPI history comes from Statistics Canada and is stored for context and denominator calculations.
 - Live nowcast history is authentic only: no synthetic backfilled nowcast points are written for pre-live dates.
-- Source health and gate status determine publishability and confidence.
+- Source health and gate status determine quality diagnostics and confidence for each daily point.
 
 ## YoY Projection Logic
 The model first computes an MoM proxy from weighted category signals, then projects a current-month index and converts that to YoY.

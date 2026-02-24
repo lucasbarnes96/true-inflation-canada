@@ -11,7 +11,7 @@ Experimental open-source nowcast using public data. Not official StatCan CPI.
 
 ## What changed
 - API-first architecture (`FastAPI + Pydantic`).
-- Strict release gate (runs can fail and stay unpublished).
+- Daily nowcast publication with gate diagnostics retained for transparency.
 - Food publishability uses resilience rules (fresh + usable source diversity), not APIFY-only dependence.
 - APIFY retries are attempted automatically before final gate evaluation.
 - Source health includes explicit age text (`updated X days ago`).
@@ -67,7 +67,7 @@ This preserves an authentic live nowcast track record while keeping official CPI
 Output artifacts:
 - `data/latest.json` (latest run, includes failed gates)
 - `data/published_latest.json` (last gate-passing run)
-- `data/historical.json` (published history)
+- `data/historical.json` (daily live history: published + failed_gate runs with nowcast values)
 - `data/runs/*.json` (versioned run snapshots)
 - `data/releases.db` (run metadata table)
 - `data/qa_runs.db` (source QA checks + 30-day reliability rollups)

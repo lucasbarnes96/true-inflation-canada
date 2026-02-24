@@ -306,6 +306,26 @@ class ApiContractTests(unittest.TestCase):
         self.assertTrue(items[0]["meta"]["seeded"])
         self.assertEqual(2.4, items[0]["headline"]["nowcast_yoy_pct"])
 
+    def test_history_includes_failed_gate_daily_rows(self) -> None:
+        self.historical.write_text(
+            json.dumps(
+                {
+                    "2026-02-24": {
+                        "headline": {"nowcast_mom_pct": 0.1, "nowcast_yoy_pct": 1.9, "lead_signal": "up"},
+                        "official_cpi": {"mom_pct": 0.0, "yoy_pct": 2.3, "latest_release_month": "2026-01"},
+                        "meta": {"seeded": False, "freshness_composition": {"fresh_0_1d_weight_ratio": 0.855}},
+                        "release": {"status": "failed_gate", "blocked_conditions": ["Gate X failed"]},
+                    }
+                }
+            )
+        )
+        resp = self.client.get("/v1/nowcast/history")
+        self.assertEqual(200, resp.status_code)
+        items = resp.json()["items"]
+        self.assertEqual(1, len(items))
+        self.assertEqual("failed_gate", items[0]["release"]["status"])
+        self.assertEqual(1.9, items[0]["headline"]["nowcast_yoy_pct"])
+
     def test_data_asset_route_blocks_path_traversal(self) -> None:
         resp = self.client.get("/data/../../api/main.py")
         self.assertIn(resp.status_code, {403, 404})

@@ -2181,6 +2181,14 @@ def historical_row_from_snapshot(snapshot: dict) -> dict:
     divergence = None
     if nowcast_mom is not None and official_mom is not None:
         divergence = round_or_none(float(nowcast_mom) - float(official_mom), 4)
+    source_health = snapshot.get("source_health", [])
+    meta_payload = snapshot.get("meta", {})
+    freshness_composition = meta_payload.get("freshness_composition", {}) if isinstance(meta_payload, dict) else {}
+    if not isinstance(freshness_composition, dict) or not freshness_composition:
+        freshness_composition = compute_freshness_composition(
+            meta_payload.get("category_signal_inputs", {}) if isinstance(meta_payload, dict) else {},
+            source_health if isinstance(source_health, list) else [],
+        )
     return {
         "headline": {
             "nowcast_mom_pct": nowcast_mom,
@@ -2211,7 +2219,7 @@ def historical_row_from_snapshot(snapshot: dict) -> dict:
         },
         "category_contributions": snapshot.get("meta", {}).get("category_contributions", {}),
         "meta": {
-            "freshness_composition": snapshot.get("meta", {}).get("freshness_composition", {}),
+            "freshness_composition": freshness_composition,
             "carry_forward": bool(snapshot.get("release", {}).get("carry_forward")),
             "quality_tier": snapshot.get("release", {}).get("quality_tier"),
         },
@@ -2246,12 +2254,14 @@ def reconcile_historical_from_runs(historical: dict) -> dict:
     if not RUNS_DIR.exists():
         return historical
     merged = dict(historical)
+    latest_by_day: dict[str, tuple[str, dict]] = {}
     for path in sorted(RUNS_DIR.glob("run_*.json")):
         payload = load_json(path, {})
         if not isinstance(payload, dict):
             continue
         release = payload.get("release", {})
-        if not isinstance(release, dict) or release.get("status") != "published":
+        status = release.get("status") if isinstance(release, dict) else None
+        if status not in {"published", "failed_gate"}:
             continue
         day = payload.get("as_of_date")
         headline = payload.get("headline", {})
@@ -2259,6 +2269,12 @@ def reconcile_historical_from_runs(historical: dict) -> dict:
             continue
         if headline.get("nowcast_yoy_pct") is None and headline.get("nowcast_mom_pct") is None:
             continue
+        created_at = release.get("created_at") if isinstance(release, dict) else None
+        sort_key = str(created_at or "")
+        existing = latest_by_day.get(day)
+        if existing is None or sort_key >= existing[0]:
+            latest_by_day[day] = (sort_key, payload)
+    for day, (_, payload) in sorted(latest_by_day.items(), key=lambda item: item[0]):
         try:
             merged[day] = historical_row_from_snapshot(payload)
         except Exception:
@@ -2625,6 +2641,10 @@ def write_outputs(snapshot: dict) -> None:
     status = snapshot["release"]["status"]
     if status == "published":
         PUBLISHED_LATEST_PATH.write_text(json.dumps(snapshot, indent=2))
+    headline = snapshot.get("headline", {})
+    if isinstance(headline, dict) and (
+        headline.get("nowcast_yoy_pct") is not None or headline.get("nowcast_mom_pct") is not None
+    ):
         historical = update_historical(snapshot, historical)
     HISTORICAL_PATH.write_text(json.dumps(historical, indent=2))
 

@@ -22,8 +22,11 @@ from process import (
     compute_signal_quality_score,
     dedupe_quotes,
     evaluate_gate,
+    historical_row_from_snapshot,
     recompute_source_health,
+    reconcile_historical_from_runs,
     validate_source_contract,
+    write_outputs,
 )
 from scrapers.types import Quote, SourceHealth
 
@@ -396,6 +399,131 @@ class ProcessTests(unittest.TestCase):
         source_health[0]["age_days"] = None
         out = compute_freshness_composition(category_signal_inputs, source_health)
         self.assertGreater(out["stale_gt_30d_or_missing_weight_ratio"], 0.0)
+
+    def test_historical_row_from_snapshot_recomputes_missing_freshness(self) -> None:
+        snapshot = {
+            "as_of_date": "2026-02-24",
+            "headline": {
+                "nowcast_mom_pct": 0.1,
+                "nowcast_yoy_pct": 1.9,
+                "confidence": "medium",
+                "coverage_ratio": 1.0,
+                "signal_quality_score": 80,
+                "lead_signal": "up",
+            },
+            "official_cpi": {"mom_pct": 0.0, "yoy_pct": 2.3, "latest_release_month": "2026-01"},
+            "categories": {"food": {"proxy_level": 1.0, "daily_change_pct": 0.1, "status": "fresh"}},
+            "meta": {
+                "freshness_composition": {},
+                "category_signal_inputs": {
+                    category: [{"source": f"src_{category}", "effective_weight": 1.0}]
+                    for category in CATEGORY_WEIGHTS.keys()
+                },
+            },
+            "source_health": [
+                {"source": f"src_{category}", "status": "fresh", "category": category, "tier": 1, "age_days": 0}
+                for category in CATEGORY_WEIGHTS.keys()
+            ],
+            "release": {"status": "failed_gate", "carry_forward": False, "quality_tier": "blocked"},
+        }
+        out = historical_row_from_snapshot(snapshot)
+        self.assertIn("fresh_0_1d_weight_ratio", out["meta"]["freshness_composition"])
+        self.assertEqual(1.0, out["meta"]["freshness_composition"]["fresh_0_1d_weight_ratio"])
+
+    def test_reconcile_historical_from_runs_includes_failed_gate_latest_created_at(self) -> None:
+        run_early = {
+            "as_of_date": "2026-02-24",
+            "headline": {
+                "nowcast_mom_pct": 0.0,
+                "nowcast_yoy_pct": 1.2,
+                "confidence": "medium",
+                "coverage_ratio": 1.0,
+                "signal_quality_score": 80,
+                "lead_signal": "flat",
+            },
+            "official_cpi": {"mom_pct": 0.0, "yoy_pct": 2.3, "latest_release_month": "2026-01"},
+            "categories": {"food": {"proxy_level": 1.0, "daily_change_pct": 0.0, "status": "fresh"}},
+            "meta": {
+                "freshness_composition": {},
+                "category_signal_inputs": {category: [{"source": "src_food", "effective_weight": 1.0}] for category in CATEGORY_WEIGHTS},
+            },
+            "source_health": [{"source": "src_food", "status": "fresh", "category": "food", "tier": 1, "age_days": 0}],
+            "release": {"status": "published", "created_at": "2026-02-24T12:00:00+00:00"},
+        }
+        run_late = {
+            **run_early,
+            "headline": {**run_early["headline"], "nowcast_yoy_pct": 1.9},
+            "release": {"status": "failed_gate", "created_at": "2026-02-24T17:00:00+00:00"},
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            runs_dir = Path(tmp) / "runs"
+            runs_dir.mkdir(parents=True, exist_ok=True)
+            (runs_dir / "run_a.json").write_text(json.dumps(run_early))
+            (runs_dir / "run_b.json").write_text(json.dumps(run_late))
+            with patch.object(process_module, "RUNS_DIR", runs_dir):
+                merged = reconcile_historical_from_runs({})
+        self.assertIn("2026-02-24", merged)
+        self.assertEqual(1.9, merged["2026-02-24"]["headline"]["nowcast_yoy_pct"])
+
+    def test_write_outputs_updates_historical_for_failed_gate_runs(self) -> None:
+        snapshot = {
+            "as_of_date": "2026-02-24",
+            "timestamp": "2026-02-24T17:00:00+00:00",
+            "headline": {
+                "nowcast_mom_pct": 0.1,
+                "nowcast_yoy_pct": 1.9,
+                "confidence": "low",
+                "coverage_ratio": 1.0,
+                "signal_quality_score": 30,
+                "lead_signal": "up",
+            },
+            "categories": {"food": {"proxy_level": 1.0, "daily_change_pct": 0.1, "status": "fresh"}},
+            "official_cpi": {"mom_pct": 0.0, "yoy_pct": 2.3, "latest_release_month": "2026-01"},
+            "source_health": [{"source": "src_food", "status": "fresh", "category": "food", "tier": 1, "age_days": 0}],
+            "meta": {"release_events": {}, "consensus": {}},
+            "release": {
+                "run_id": "run_test",
+                "status": "failed_gate",
+                "blocked_conditions": ["Gate X failed"],
+                "created_at": "2026-02-24T17:00:00+00:00",
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            data_dir = root / "data"
+            runs_dir = data_dir / "runs"
+            runs_dir.mkdir(parents=True, exist_ok=True)
+            latest_path = data_dir / "latest.json"
+            historical_path = data_dir / "historical.json"
+            published_path = data_dir / "published_latest.json"
+            source_contracts_path = data_dir / "source_contracts.json"
+            release_events_path = data_dir / "release_events.json"
+            consensus_latest_path = data_dir / "consensus_latest.json"
+            methodology_path = data_dir / "methodology.json"
+            source_catalog_path = data_dir / "source_catalog.json"
+            performance_path = data_dir / "performance_summary.json"
+            model_card_path = data_dir / "model_card.json"
+            with (
+                patch.object(process_module, "RUNS_DIR", runs_dir),
+                patch.object(process_module, "LATEST_PATH", latest_path),
+                patch.object(process_module, "HISTORICAL_PATH", historical_path),
+                patch.object(process_module, "PUBLISHED_LATEST_PATH", published_path),
+                patch.object(process_module, "SOURCE_CONTRACTS_PATH", source_contracts_path),
+                patch.object(process_module, "RELEASE_EVENTS_PATH", release_events_path),
+                patch.object(process_module, "CONSENSUS_LATEST_PATH", consensus_latest_path),
+                patch.object(process_module, "METHODOLOGY_PATH", methodology_path),
+                patch.object(process_module, "SOURCE_CATALOG_PATH", source_catalog_path),
+                patch.object(process_module, "PERFORMANCE_SUMMARY_PATH", performance_path),
+                patch.object(process_module, "MODEL_CARD_PATH", model_card_path),
+                patch.object(process_module, "reconcile_historical_from_runs", return_value={}),
+                patch.object(process_module, "update_historical", return_value={"2026-02-24": {"headline": {"nowcast_yoy_pct": 1.9}}}) as mock_update,
+                patch.object(process_module, "write_performance_summary", return_value={}),
+                patch.object(process_module, "build_methodology_payload", return_value={}),
+                patch.object(process_module, "record_qa_checks"),
+                patch.object(process_module, "record_release_run"),
+            ):
+                write_outputs(snapshot)
+        mock_update.assert_called_once()
 
     def test_build_carry_forward_snapshot_marks_degraded_published(self) -> None:
         sample = {

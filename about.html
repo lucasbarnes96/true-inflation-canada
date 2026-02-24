@@ -628,7 +628,7 @@
     }
 
     Promise.all([
-      fetchFirstJson(["data/published_latest.json", "data/latest.json", "/v1/nowcast/latest"]),
+      fetchFirstJson(["data/latest.json", "data/published_latest.json", "/v1/nowcast/latest"]),
       fetchFirstJson(["data/historical.json", "/v1/nowcast/history"]),
       fetchFirstJson(["data/methodology.json", "/v1/methodology"]),
       fetchFirstJson(["data/source_catalog.json", "/v1/sources/catalog"]),
