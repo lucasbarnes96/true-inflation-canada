@@ -1001,9 +1001,10 @@
         </div>
         <div class="hero-stats">
           <div class="stat-chip">
-            <div class="eyebrow">Nowcast Signal</div>
+            <div class="eyebrow">Published Nowcast Signal</div>
             <div class="value" id="hero-nowcast">—</div>
             <div class="note" id="hero-divergence">YoY deviation: —</div>
+            <div class="note" id="hero-nowcast-status"></div>
           </div>
           <div class="stat-chip">
             <div class="eyebrow">Release Month</div>
@@ -1016,20 +1017,21 @@
 
     <!-- LEADING INDICATORS (Pulse) -->
     <section id="pulse-section" style="display:none;">
+      <div class="small-note" style="margin: 0 0 0.55rem 0.1rem;">High-frequency context indicators (directional only, not the weighted headline nowcast).</div>
       <div class="pulse-row">
         <div class="pulse-card">
           <div class="pulse-eyebrow">
             <span class="live-dot"></span> Avg Asking Rent · Canada
           </div>
           <div class="pulse-value" id="pulse-rent">—</div>
-          <div class="pulse-source">Rentals.ca · Leading Indicator</div>
+          <div class="pulse-source">Rentals.ca · Context indicator</div>
         </div>
         <div class="pulse-card gas">
           <div class="pulse-eyebrow">
             <span class="live-dot" style="background:var(--amber);"></span> Avg Regular Gas · Canada
           </div>
           <div class="pulse-value" id="pulse-gas">—</div>
-          <div class="pulse-source">NRCAN Weekly · Leading Indicator</div>
+          <div class="pulse-source">NRCAN Weekly · Context indicator</div>
         </div>
       </div>
     </section>
@@ -1082,7 +1084,7 @@
         </div>
       </section>
       <section class="card">
-        <div class="panel-title">Methodology</div>
+        <div class="panel-title">Run Method Snapshot</div>
         <ul id="methodology-list" class="meta-list"></ul>
       </section>
     </div>
@@ -1095,28 +1097,21 @@
 
     <!-- HOW TO READ -->
     <section class="card card-sm">
-      <div class="panel-title">How To Read This Dashboard</div>
+      <div class="panel-title">Dashboard Guide</div>
       <div class="explainer-grid" id="explain-grid"></div>
     </section>
 
     <!-- ABOUT -->
     <section class="card card-sm">
-      <div class="panel-title">About This Project</div>
-      <div class="about-grid" id="about-grid"></div>
+      <div class="panel-title">Project & Transparency</div>
+      <div class="about-grid" id="project-guide-grid"></div>
     </section>
 
     <!-- PERFORMANCE & CALIBRATION -->
     <details class="accordion card-sm">
-      <summary>Signal Performance</summary>
+      <summary>Signal Quality &amp; Maturity</summary>
       <div class="accordion-body">
         <ul id="performance-list" class="meta-list"></ul>
-      </div>
-    </details>
-
-    <details class="accordion card-sm">
-      <summary>Calibration & Maturity</summary>
-      <div class="accordion-body">
-        <ul id="calibration-list" class="meta-list"></ul>
       </div>
     </details>
 
@@ -1143,7 +1138,7 @@
 
     <!-- METHODOLOGY NOTES -->
     <details class="accordion card-sm">
-      <summary>Methodology Notes &amp; Caveats</summary>
+      <summary>Run Notes &amp; Caveats</summary>
       <div class="accordion-body">
         <ul id="notes-list" class="meta-list"></ul>
       </div>
@@ -1375,36 +1370,32 @@
       return pastDates[pastDates.length - 1];
     }
 
-    function emaSeries(values, period) {
-      const alpha = 2 / (period + 1);
-      let ema = null;
-      return values.map((value) => {
-        if (value === null || value === undefined) return ema;
-        ema = ema === null ? Number(value) : (Number(value) * alpha) + (ema * (1 - alpha));
-        return Number(ema.toFixed(3));
-      });
+    function firstPublishedLiveDate(items) {
+      for (const row of items) {
+        if (!row) continue;
+        const seeded = Boolean(row.meta && row.meta.seeded);
+        const provisional = Boolean(row.meta && row.meta.provisional);
+        const yoy = row.headline?.nowcast_yoy_pct;
+        if (!seeded && !provisional && hasNumber(yoy) && row.date) return String(row.date);
+      }
+      return null;
     }
 
-    function confidenceBandHalfWidth(latest, liveDays) {
-      const tier = latest?.meta?.calibration?.maturity_tier || "bootstrapping";
-      const qaStatus = latest?.release?.qa_status || "pending";
-      const freshWeight = Number(latest?.meta?.qa_summary?.fresh_weight_ratio || 0);
-      let width = 0.3;
-      if (tier === "bootstrapping" || liveDays < 30) width = 1.5;
-      else if (tier === "developing" || liveDays < 60) width = 0.8;
-      if (qaStatus !== "passed") width = Math.max(width, 1.0);
-      if (freshWeight < 0.85) width = Math.max(width, 1.2);
-      return width;
+    function formatUiDate(day) {
+      const d = toUtcDate(day);
+      if (!d) return "--";
+      return d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
     }
 
-    function renderChartMaturity(liveDays, provisionalPoints = 0) {
+    function renderChartMaturity(liveDays, provisionalPoints = 0, chartStartDate = "2026-02-17", liveStartDate = null) {
       const maturity = document.getElementById("chart-maturity");
       const phase = liveDays < 30 ? "calibration phase" : (liveDays < 60 ? "developing phase" : "stable phase");
-      const provisionalText = provisionalPoints > 0
-        ? ` | Provisional points (failed-gate runs): ${provisionalPoints}`
-        : "";
-      maturity.textContent = `Published live nowcast days: ${liveDays} (target 30 for stable interpretation)${provisionalText} — ${phase}.`;
-      maturity.title = "Published points are gate-passing runs. Provisional points are shown for transparency and can be volatile.";
+      const provisionalText = provisionalPoints > 0 ? ` | Provisional points: ${provisionalPoints}` : "";
+      const liveStartText = liveStartDate
+        ? ` Published series begins ${formatUiDate(liveStartDate)}.`
+        : " Published series will appear once a gate-passing live run is available.";
+      maturity.textContent = `Window starts ${formatUiDate(chartStartDate)} (official CPI context). Published live days: ${liveDays} / 30${provisionalText} — ${phase}.${liveStartText}`;
+      maturity.title = "Headline nowcast and blue chart line use published gate-passing runs. Amber points are provisional failed-gate runs shown for transparency.";
     }
 
     function renderLiveHistoryProgress(liveDays, provisionalPoints = 0) {
@@ -1434,9 +1425,10 @@
       });
       const days = chartItems.map((d) => d.date);
 
-      const liveNowcastRaw = chartItems.map((d) => {
+      const publishedNowcast = chartItems.map((d) => {
         const seeded = Boolean(d.meta && d.meta.seeded);
-        if (seeded) return null;
+        const provisional = Boolean(d.meta && d.meta.provisional);
+        if (seeded || provisional) return null;
         const value = d.headline?.nowcast_yoy_pct;
         return value === null || value === undefined ? null : Number(value);
       });
@@ -1449,16 +1441,11 @@
         return value === null || value === undefined ? null : Number(value);
       });
 
-      const nowcastEma = emaSeries(liveNowcastRaw, 3);
       const officialFlatValue = hasNumber(latest?.official_cpi?.yoy_pct)
         ? Number(latest.official_cpi.yoy_pct)
         : null;
       const official = chartItems.map(() => officialFlatValue);
-      const band = confidenceBandHalfWidth(latest, liveDays);
-      const bandUpper = nowcastEma.map(v => (v === null || v === undefined) ? null : Number((v + band).toFixed(3)));
-      const bandLower = nowcastEma.map(v => (v === null || v === undefined) ? null : Number((v - band).toFixed(3)));
-      const firstLiveIndex = liveNowcastRaw.findIndex(v => v !== null && v !== undefined);
-      const showConfidenceBand = (liveDays + provisionalPoints) >= 7;
+      const firstLiveIndex = publishedNowcast.findIndex(v => v !== null && v !== undefined);
 
       const decorPlugin = {
         id: "liveNowcastDecor",
@@ -1477,108 +1464,20 @@
           ctx.fillText("Pre-live (official only)", area.left + 8, area.top + 16);
           ctx.restore();
         },
-        afterDatasetsDraw(chart) {
-          if (firstLiveIndex <= 0) return;
-          const xScale = chart.scales.x;
-          const yScale = chart.scales.y;
-          const area = chart.chartArea;
-          if (!xScale || !yScale || !area) return;
-          const val = liveNowcastRaw[firstLiveIndex];
-          if (val === null || val === undefined) return;
-          const x = xScale.getPixelForValue(firstLiveIndex);
-          const y = yScale.getPixelForValue(val);
-          if (x > area.right - 70) return;
-          const ctx = chart.ctx;
-          ctx.save();
-          ctx.strokeStyle = "#0071e3";
-          ctx.fillStyle = "#0071e3";
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.moveTo(x + 6, y - 16);
-          ctx.lineTo(x + 42, y - 26);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(x + 42, y - 26);
-          ctx.lineTo(x + 38, y - 22);
-          ctx.lineTo(x + 36, y - 28);
-          ctx.closePath();
-          ctx.fill();
-          ctx.font = "11px 'SF Mono', ui-monospace, monospace";
-          ctx.fillText("Live nowcast starts", x + 46, y - 28);
-          ctx.restore();
-        },
       };
 
-      const datasets = [];
-      if (showConfidenceBand) {
-        datasets.push(
-          {
-            type: "line",
-            label: "Nowcast confidence (upper)",
-            data: bandUpper,
-            borderColor: "rgba(140,140,150,0.0)",
-            backgroundColor: "rgba(130,130,140,0.06)",
-            tension: 0.25,
-            spanGaps: false,
-            yAxisID: "y",
-            pointRadius: 0,
-            borderWidth: 0,
-          },
-          {
-            type: "line",
-            label: "Nowcast confidence band",
-            data: bandLower,
-            borderColor: "rgba(140,140,150,0.0)",
-            backgroundColor: "rgba(130,130,140,0.10)",
-            fill: "-1",
-            tension: 0.25,
-            spanGaps: false,
-            yAxisID: "y",
-            pointRadius: 0,
-            borderWidth: 0,
-          },
-        );
-      }
-
-      datasets.push(
+      const datasets = [
         {
           type: "line",
-          label: "Nowcast YoY (raw)",
-          data: liveNowcastRaw,
-          borderColor: "rgba(0,113,227,0.25)",
+          label: "Published nowcast YoY",
+          data: publishedNowcast,
+          borderColor: "#0071e3",
           backgroundColor: "rgba(0,113,227,0.08)",
           tension: 0,
           spanGaps: false,
           yAxisID: "y",
           pointRadius: 4,
           pointHoverRadius: 5,
-          borderWidth: 1,
-        },
-        {
-          type: "line",
-          label: "Provisional nowcast (failed gate)",
-          data: provisionalNowcast,
-          borderColor: "rgba(220,134,20,0.85)",
-          borderDash: [4, 4],
-          backgroundColor: "rgba(220,134,20,0.22)",
-          tension: 0.1,
-          spanGaps: false,
-          yAxisID: "y",
-          pointRadius: 3,
-          pointStyle: "triangle",
-          pointHoverRadius: 4,
-          borderWidth: 1.5,
-        },
-        {
-          type: "line",
-          label: "Nowcast YoY",
-          data: nowcastEma,
-          borderColor: "#0071e3",
-          backgroundColor: "rgba(0,113,227,0.08)",
-          tension: 0,
-          spanGaps: false,
-          yAxisID: "y",
-          pointRadius: 0,
           borderWidth: 2,
         },
         {
@@ -1593,7 +1492,22 @@
           pointRadius: 0,
           borderWidth: 2,
         },
-      );
+      ];
+      if (provisionalPoints > 0) {
+        datasets.splice(1, 0, {
+          type: "line",
+          label: "Provisional nowcast (failed gate)",
+          data: provisionalNowcast,
+          borderColor: "rgba(220,134,20,0.85)",
+          backgroundColor: "rgba(220,134,20,0.22)",
+          pointRadius: 4,
+          pointStyle: "triangle",
+          pointHoverRadius: 5,
+          borderWidth: 0,
+          showLine: false,
+          yAxisID: "y",
+        });
+      }
 
       if (divergenceChart) divergenceChart.destroy();
       const canvas = document.getElementById("divergenceChart");
@@ -1926,13 +1840,19 @@
       });
     }
 
-    function renderHero(latest, liveDays, provisionalPoints = 0) {
+    function renderHero(latest, published, liveDays, provisionalPoints = 0, liveStartDate = null) {
       const yoy = latest.official_cpi?.yoy_pct;
       const yoyDisplay = latest.official_cpi?.yoy_display_pct;
-      const nowcast = latest.headline?.nowcast_yoy_pct;
-      const consensus = latest.headline?.consensus_yoy;
-      const deviation = (nowcast !== null && nowcast !== undefined && consensus !== null && consensus !== undefined)
-        ? Number((nowcast - consensus).toFixed(3))
+      const latestNowcast = latest.headline?.nowcast_yoy_pct;
+      const publishedNowcast = published?.headline?.nowcast_yoy_pct;
+      const displayNowcast = hasNumber(publishedNowcast)
+        ? Number(publishedNowcast)
+        : (hasNumber(latestNowcast) ? Number(latestNowcast) : null);
+      const consensus = hasNumber(published?.headline?.consensus_yoy)
+        ? Number(published.headline.consensus_yoy)
+        : latest.headline?.consensus_yoy;
+      const deviation = (hasNumber(displayNowcast) && hasNumber(consensus))
+        ? Number((displayNowcast - consensus).toFixed(3))
         : null;
 
       const hero = document.getElementById("hero-yoy");
@@ -1955,8 +1875,8 @@
       document.getElementById("hero-summary").textContent = summary;
       document.getElementById("hero-summary").classList.remove("loading");
       const nowcastEl = document.getElementById("hero-nowcast");
-      if (hasNumber(nowcast)) {
-        nowcastEl.textContent = `${Number(nowcast).toFixed(3)}%`;
+      if (hasNumber(displayNowcast)) {
+        nowcastEl.textContent = `${Number(displayNowcast).toFixed(3)}%`;
         nowcastEl.title = "";
       } else {
         setPending(nowcastEl, "awaiting", inferPendingReason(latest) || "nowcast_signal_not_ready");
@@ -1967,12 +1887,25 @@
         divergenceEl.textContent = `YoY deviation: ${Number(deviation).toFixed(3)}%`;
         divergenceEl.title = "";
       } else if (!hasNumber(consensus)) {
-        const reason = latest?.meta?.consensus?.guardrails?.reason || "consensus_unavailable";
+        const reason = published?.meta?.consensus?.guardrails?.reason || latest?.meta?.consensus?.guardrails?.reason || "consensus_unavailable";
         divergenceEl.textContent = `YoY deviation: ${pendingText("withheld")}`;
         divergenceEl.title = `YoY deviation: ${pendingText("withheld")}: ${reason}`;
       } else {
         divergenceEl.textContent = `YoY deviation: ${pendingText("data")}`;
         divergenceEl.title = `YoY deviation: ${pendingText("data")}: deviation_inputs_missing`;
+      }
+      const nowcastStatusEl = document.getElementById("hero-nowcast-status");
+      const hasPublishedNowcast = hasNumber(publishedNowcast);
+      const provisionalLatest = Boolean(latest?.release?.status && latest.release.status !== "published");
+      if (provisionalLatest && hasNumber(latestNowcast) && latest?.as_of_date !== published?.as_of_date) {
+        nowcastStatusEl.textContent = `Primary signal uses published run. Latest provisional (${latest.as_of_date}): ${Number(latestNowcast).toFixed(3)}% (${latest.release?.status}).`;
+        nowcastStatusEl.title = "Provisional values are failed-gate runs shown for transparency, not used as headline signal.";
+      } else if (hasPublishedNowcast) {
+        nowcastStatusEl.textContent = "Primary signal uses latest gate-passing published run.";
+        nowcastStatusEl.title = "";
+      } else {
+        nowcastStatusEl.textContent = "Published signal pending first gate-passing live run.";
+        nowcastStatusEl.title = "";
       }
 
       const releaseEl = document.getElementById("hero-release");
@@ -1998,7 +1931,10 @@
           ? "Early calibration phase. Direction is more informative than precision."
           : "Maturing signal with enough live history for stronger interpretation.";
       const provisionalText = provisionalPoints > 0 ? ` Provisional points: ${provisionalPoints}.` : "";
-      contextEl.textContent = `Early signal context: ${liveDays} / 30 published live days.${provisionalText} ${phase}`;
+      const startText = liveStartDate
+        ? ` Published live series started ${formatUiDate(liveStartDate)}.`
+        : " Published live series has not started yet.";
+      contextEl.textContent = `Early signal context: ${liveDays} / 30 published live days.${provisionalText}${startText} ${phase}`;
     }
 
     function renderPurchasingPowerCard(latest) {
@@ -2074,21 +2010,23 @@
       banner.textContent = `Release status: published. Calculation ID: ${release.run_id || "--"}.`;
     }
 
-    function renderPerformance(performance, liveDays) {
+    function renderPerformance(performance, calibration, liveDays) {
       const ul = document.getElementById("performance-list");
       ul.innerHTML = "";
+      const current = calibration || {};
+      const metrics = current.current_error_metrics || {};
+      const eligibility = current.forecast_eligibility || {};
       const rows = [
+        `Maturity tier: ${(current.maturity_tier || "bootstrapping").toUpperCase()}`,
+        `Live days: ${current.live_days ?? liveDays} (stable-eval target: ${current.minimum_days_for_stable_eval ?? 30} days)`,
+        `Forecast eligibility: ${eligibility.eligible ? "ELIGIBLE" : "NOT ELIGIBLE"}${eligibility.reason ? ` (${eligibility.reason})` : ""}`,
         `Evaluation window: last ${performance?.window_days ?? "--"} days`,
-        `Evaluated points (raw): ${performance?.evaluated_points ?? "--"}`,
-        `Evaluated live points (non-seeded): ${performance?.evaluated_live_points ?? "--"}`,
-        `Live nowcast days accumulated: ${liveDays}`,
-        `MAE (YoY): ${performance?.mae_yoy_pct ?? "--"} pp`,
-        `Median abs error (YoY): ${performance?.median_abs_error_yoy_pct ?? "--"} pp`,
-        `Directional accuracy (YoY): ${performance?.directional_accuracy_yoy_pct ?? "--"}%`,
-        `Bias (YoY): ${performance?.bias_yoy_pct ?? "--"} pp`,
-        `MAE (MoM): ${performance?.mae_mom_pct ?? "--"} pp`,
-        `Directional accuracy (MoM): ${performance?.directional_accuracy_pct ?? "--"}%`,
-        "Interpret all metrics cautiously until 30–60 live days accumulate.",
+        `Evaluated live points: ${performance?.evaluated_live_points ?? "--"}`,
+        `YoY MAE: ${metrics.mae_yoy_pct ?? performance?.mae_yoy_pct ?? "--"} pp`,
+        `YoY median abs error: ${metrics.median_abs_error_yoy_pct ?? performance?.median_abs_error_yoy_pct ?? "--"} pp`,
+        `YoY directional accuracy: ${metrics.directional_accuracy_yoy_pct ?? performance?.directional_accuracy_yoy_pct ?? "--"}%`,
+        `YoY bias: ${metrics.bias_yoy_pct ?? performance?.bias_yoy_pct ?? "--"} pp`,
+        "Interpret these metrics cautiously until at least 30 published live days.",
       ];
       rows.forEach(text => {
         const li = document.createElement("li");
@@ -2097,38 +2035,18 @@
       });
     }
 
-    function renderCalibration(calibration) {
-      const ul = document.getElementById("calibration-list");
-      ul.innerHTML = "";
-      const current = calibration || {};
-      const metrics = current.current_error_metrics || {};
-      const eligibility = current.forecast_eligibility || {};
-      const rows = [
-        `Maturity tier: ${(current.maturity_tier || "--").toUpperCase()}`,
-        `Live days: ${current.live_days ?? "--"} (stable-eval target: ${current.minimum_days_for_stable_eval ?? "--"} days)`,
-        `Forecast eligibility: ${eligibility.eligible ? "ELIGIBLE" : "NOT ELIGIBLE"}${eligibility.reason ? ` (${eligibility.reason})` : ""}`,
-        `YoY MAE: ${metrics.mae_yoy_pct ?? "--"} pp`,
-        `YoY median abs error: ${metrics.median_abs_error_yoy_pct ?? "--"} pp`,
-        `YoY directional accuracy: ${metrics.directional_accuracy_yoy_pct ?? "--"}%`,
-        `YoY bias: ${metrics.bias_yoy_pct ?? "--"} pp`,
-        "Calibration applies moderate shrinkage toward official trend when source diversity is weak.",
-      ];
-      rows.forEach((text) => {
-        const li = document.createElement("li");
-        li.textContent = text;
-        ul.appendChild(li);
-      });
-    }
-
-    function renderExplainers() {
+    function renderExplainers(chartStartDate, liveStartDate, liveDays, provisionalPoints = 0) {
       const grid = document.getElementById("explain-grid");
       grid.innerHTML = "";
+      const provisionalText = provisionalPoints > 0
+        ? `${provisionalPoints} provisional failed-gate point(s) shown as amber markers.`
+        : "No provisional failed-gate points currently shown.";
       const rows = [
         "Official CPI (YoY): year-over-year inflation from Statistics Canada.",
-        "Nowcast Signal: model-implied annual inflation from live public data signals.",
-        "Deviation from Expectations: nowcast YoY minus available consensus YoY.",
-        "Data quality score reflects source coverage, recency, anomaly filtering, and diversity.",
-        "Live nowcast began Feb 16 2026 by design for authenticity.",
+        "Nowcast Signal: headline value uses the latest gate-passing published run.",
+        `Chart window starts ${formatUiDate(chartStartDate)} (official context). Published live series starts ${liveStartDate ? formatUiDate(liveStartDate) : "when first published point arrives"}.`,
+        `Published live history: ${liveDays}/30 days. ${provisionalText}`,
+        "Deviation from Expectations is nowcast YoY minus available consensus YoY and is withheld when guardrails fail.",
       ];
       rows.forEach((text) => {
         const item = document.createElement("div");
@@ -2149,68 +2067,39 @@
       window.addEventListener("scroll", onScroll, { passive: true });
     }
 
-    function renderAbout(latest, methodology, sourceCatalog, liveDays) {
-      const about = document.getElementById("about-grid");
-      about.innerHTML = "";
+    function renderProjectGuide(latest, methodology, sourceCatalog, liveDays, provisionalPoints = 0) {
+      const panel = document.getElementById("project-guide-grid");
+      panel.innerHTML = "";
       const weights = methodology?.weights_reference || latest?.meta?.weights || {};
-      const gate = methodology?.gate_policy || latest?.meta?.gate_diagnostics || {};
       const trackedShare = weights.tracked_share_total;
       const catalogItems = Array.isArray(sourceCatalog?.items) ? sourceCatalog.items : [];
       const sourceCount = catalogItems.length || (latest?.source_health || []).length || 0;
 
-      const cards = [
-        {
-          title: "Vision & Intent",
-          rows: [
-            "True Inflation Canada is an experimental, open-source nowcast designed to provide transparent early inflation signal context between official releases.",
-            "It is not an official Statistics Canada CPI release and should be interpreted as directional intelligence, especially during early live history.",
-          ],
-        },
-        {
-          title: "Data Sources & Provenance",
-          rows: [
-            `This run tracks ${sourceCount} public sources across food, housing, transport, energy, communication, health/personal, and recreation/education.`,
-            `Tracked basket share is ${typeof trackedShare === "number" ? (100 * trackedShare).toFixed(1) : "--"}% using ${weights.source_table || "Statistics Canada basket references"}.`,
-            "Monthly official and public supplemental feeds are blended with quality gates, freshness checks, and source diversity diagnostics.",
-          ],
-        },
-        {
-          title: "Math & Calculations",
-          list: [
-            "Category contribution = weight × daily_change_pct.",
-            "Nowcast MoM = weighted aggregate of available category deltas.",
-            "Nowcast YoY = prorated projected current-month index vs prior-year reference month index.",
-            "Confidence and quality score are driven by gate status, weighted coverage, anomaly control, and source diversity.",
-          ],
-        },
-        {
-          title: "Limitations & Caveats",
-          list: [
-            `Live nowcast history currently includes ${liveDays} non-seeded day(s); interpretation remains early until at least 30 live days.`,
-            `Representativeness threshold is ${gate.representativeness_min_fresh_ratio !== undefined ? `${Math.round(100 * Number(gate.representativeness_min_fresh_ratio))}%` : (gate.representativeness?.threshold !== undefined ? `${Math.round(100 * Number(gate.representativeness.threshold))}%` : "policy-defined")} fresh basket coverage.`,
-            "Consensus and next-release forecast are withheld automatically when quality guardrails are not met.",
-            "Some CPI components remain omitted in v1 due to high-frequency data quality limitations.",
-          ],
-        },
-      ];
+      const purpose = el("article", "about-item");
+      purpose.appendChild(el("h4", null, "Purpose"));
+      purpose.appendChild(el("p", null, "This dashboard is the daily operations view: current signal, chart trajectory, release status, and source diagnostics."));
+      purpose.appendChild(el("p", null, "Headline nowcast uses only gate-passing published runs; failed-gate runs are shown separately as provisional for transparency."));
+      panel.appendChild(purpose);
 
-      cards.forEach((card) => {
-        const cardEl = el("article", "about-item");
-        cardEl.appendChild(el("h4", null, card.title));
-        if (Array.isArray(card.rows)) {
-          card.rows.forEach((line) => {
-            cardEl.appendChild(el("p", null, line));
-          });
-        }
-        if (Array.isArray(card.list)) {
-          const ul = el("ul");
-          card.list.forEach((line) => {
-            ul.appendChild(el("li", null, line));
-          });
-          cardEl.appendChild(ul);
-        }
-        about.appendChild(cardEl);
-      });
+      const transparency = el("article", "about-item");
+      transparency.appendChild(el("h4", null, "About Page"));
+      transparency.appendChild(el("p", null, `Full source catalog, formulas, strengths, and limitations are documented on the dedicated About page (${sourceCount} tracked sources; ${typeof trackedShare === "number" ? (100 * trackedShare).toFixed(1) : "--"}% tracked basket share).`));
+      const linkLine = el("p");
+      const link = document.createElement("a");
+      link.href = "/about";
+      link.textContent = "Open full methodology and source transparency.";
+      linkLine.appendChild(link);
+      transparency.appendChild(linkLine);
+      panel.appendChild(transparency);
+
+      const maturity = el("article", "about-item");
+      maturity.appendChild(el("h4", null, "Calibration Reality"));
+      const maturityList = el("ul");
+      maturityList.appendChild(el("li", null, `Published live history is ${liveDays}/30 days for initial stability.`));
+      maturityList.appendChild(el("li", null, `${provisionalPoints} provisional failed-gate point(s) are visible for context but not used as headline signal.`));
+      maturityList.appendChild(el("li", null, "Consensus/deviation/forecast outputs remain guardrail-controlled and may be withheld."));
+      maturity.appendChild(maturityList);
+      panel.appendChild(maturity);
     }
 
     function firstSourceIssueReason(latest, sources) {
@@ -2232,10 +2121,13 @@
       const rent = indicators.average_asking_rent;
       const gas = indicators.gasoline_canada_avg;
       const section = document.getElementById("pulse-section");
-      section.style.display = "block";
+      const hasRent = hasNumber(rent);
+      const hasGas = hasNumber(gas);
+      section.style.display = (hasRent || hasGas) ? "block" : "none";
+      if (!(hasRent || hasGas)) return;
       const rentEl = document.getElementById("pulse-rent");
       const gasEl = document.getElementById("pulse-gas");
-      if (hasNumber(rent)) {
+      if (hasRent) {
         rentEl.textContent = "$" + Math.round(Number(rent)).toLocaleString();
         rentEl.title = "";
       } else {
@@ -2245,7 +2137,7 @@
           firstSourceIssueReason(latest, ["rentals_ca_scrape", "housing_listings_scrappy"]) || "housing_indicator_pending",
         );
       }
-      if (hasNumber(gas)) {
+      if (hasGas) {
         gasEl.textContent = `${Number(gas).toFixed(1)} ¢/L`;
         gasEl.title = "";
       } else {
@@ -2299,7 +2191,6 @@
       section.appendChild(note);
       app.appendChild(section);
     } else {
-      renderExplainers();
       initStickyDisclaimer();
       fetchCommunityStats();
       Promise.all([
@@ -2325,21 +2216,23 @@
         const liveDays = countLiveNowcastDays(items);
         const provisionalPoints = countProvisionalLivePoints(items);
         const chartStartDate = deriveChartStartDate(latest);
-        renderChartMaturity(liveDays, provisionalPoints);
+        const liveStartDate = firstPublishedLiveDate(items);
+        const calibrationData = calibration?.meta?.calibration || calibration || latest.meta?.calibration || {};
+        renderChartMaturity(liveDays, provisionalPoints, chartStartDate, liveStartDate);
         renderLiveHistoryProgress(liveDays, provisionalPoints);
         applyReleaseBanner(latest, liveDays);
-        renderHero(latest, liveDays, provisionalPoints);
+        renderHero(latest, published, liveDays, provisionalPoints, liveStartDate);
         renderPulse(latest.meta || {}, latest);
         renderReleaseIntel(latest, upcomingRelease, consensus, forecast?.meta?.forecast || forecast, liveDays);
         renderPurchasingPowerCard(latest);
         renderNotes(latest);
         renderSourceTable(latest.source_health || []);
         renderMethodology(methodology, latest);
-        renderPerformance(performance, liveDays);
-        renderCalibration(calibration?.meta?.calibration || calibration || latest.meta?.calibration || {});
+        renderPerformance(performance, calibrationData, liveDays);
+        renderExplainers(chartStartDate, liveStartDate, liveDays, provisionalPoints);
         renderDivergence(items.slice(-120), latest, liveDays, provisionalPoints, chartStartDate);
         renderCategoryChart(latest);
-        renderAbout(latest, methodology, sourceCatalog, liveDays);
+        renderProjectGuide(latest, methodology, sourceCatalog, liveDays, provisionalPoints);
       }).catch(err => {
         setDataLoadError(err);
       });
