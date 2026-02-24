@@ -1275,10 +1275,17 @@
       return chain.catch(() => ({}));
     }
 
-    function fetchLatestSnapshot() {
+    function fetchPublishedSnapshot() {
       return fetchFirstJson([
         "data/published_latest.json",
+        "/v1/nowcast/latest",
+      ]);
+    }
+
+    function fetchLatestSnapshot() {
+      return fetchFirstJson([
         "data/latest.json",
+        "data/published_latest.json",
         "/v1/nowcast/latest",
       ]);
     }
@@ -1288,20 +1295,22 @@
       return Object.keys(historical || {}).sort().map(day => ({ date: day, ...(historical[day] || {}) }));
     }
 
-    function appendLatestProvisionalPoint(items, latest) {
+    function appendLatestPoint(items, latest, publishedSnapshot) {
       const base = Array.isArray(items) ? [...items] : [];
       const latestDate = latest?.as_of_date;
       const latestNowcast = latest?.headline?.nowcast_yoy_pct;
       if (!latestDate || !hasNumber(latestNowcast)) return base;
       const hasDate = base.some((row) => row && row.date === latestDate);
       if (hasDate) return base;
+      const publishedDate = publishedSnapshot?.as_of_date;
+      const isProvisional = latest?.release?.status !== "published" || (publishedDate && latestDate !== publishedDate);
       base.push({
         date: latestDate,
         headline: { nowcast_yoy_pct: Number(latestNowcast) },
         official_cpi: latest?.official_cpi || {},
         meta: {
           seeded: false,
-          provisional: latest?.release?.status && latest.release.status !== "published",
+          provisional: isProvisional,
         },
         release: latest?.release || {},
       });
@@ -1417,6 +1426,7 @@
           if (val === null || val === undefined) return;
           const x = xScale.getPixelForValue(firstLiveIndex);
           const y = yScale.getPixelForValue(val);
+          if (x > area.right - 70) return;
           const ctx = chart.ctx;
           ctx.save();
           ctx.strokeStyle = "#0071e3";
@@ -1479,8 +1489,8 @@
           tension: 0.18,
           spanGaps: false,
           yAxisID: "y",
-          pointRadius: 1.5,
-          pointHoverRadius: 2,
+          pointRadius: 3,
+          pointHoverRadius: 4,
           borderWidth: 1,
         },
         {
@@ -2232,6 +2242,7 @@
       initStickyDisclaimer();
       fetchCommunityStats();
       Promise.all([
+        fetchPublishedSnapshot(),
         fetchLatestSnapshot(),
         fetchFirstJson(["data/historical.json", "/v1/nowcast/history"]),
         fetchFirstJson(["data/methodology.json", "/v1/methodology", "data/latest.json"]),
@@ -2241,13 +2252,15 @@
         fetchFirstJson(["data/consensus_latest.json", "/v1/consensus/latest"]),
         fetchFirstJson(["data/latest.json", "/v1/forecast/next_release"]),
         fetchFirstJson(["data/latest.json", "/v1/calibration/status"]),
-      ]).then(([latest, historical, methodology, sourceCatalog, performance, upcomingRelease, consensus, forecast, calibration]) => {
+      ]).then(([publishedSnapshot, latestSnapshot, historical, methodology, sourceCatalog, performance, upcomingRelease, consensus, forecast, calibration]) => {
+        const latest = latestSnapshot && latestSnapshot.headline ? latestSnapshot : publishedSnapshot;
+        const published = publishedSnapshot && publishedSnapshot.headline ? publishedSnapshot : latest;
         if (!latest || !latest.headline) {
           throw new Error("No nowcast snapshot available from data or API.");
         }
         document.getElementById("asof").textContent = `as of ${latest.as_of_date || "--"}`;
         const itemsBase = safeHistoryItems(historical).slice(-365);
-        const items = appendLatestProvisionalPoint(itemsBase, latest);
+        const items = appendLatestPoint(itemsBase, latest, published);
         const liveDays = countLiveNowcastDays(items);
         const provisionalPoints = countProvisionalLivePoints(items);
         renderChartMaturity(liveDays, provisionalPoints);

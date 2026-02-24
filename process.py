@@ -2052,8 +2052,7 @@ def check_pass_rate(checks: list[dict], check_name: str) -> float | None:
     return round_or_none(sum(outcomes) / len(outcomes), 4)
 
 
-def update_historical(snapshot: dict, historical: dict) -> dict:
-    day = snapshot["as_of_date"]
+def historical_row_from_snapshot(snapshot: dict) -> dict:
     official = snapshot.get("official_cpi", {})
     nowcast_mom = snapshot.get("headline", {}).get("nowcast_mom_pct")
     nowcast_yoy = snapshot.get("headline", {}).get("nowcast_yoy_pct")
@@ -2061,8 +2060,7 @@ def update_historical(snapshot: dict, historical: dict) -> dict:
     divergence = None
     if nowcast_mom is not None and official_mom is not None:
         divergence = round_or_none(float(nowcast_mom) - float(official_mom), 4)
-
-    historical[day] = {
+    return {
         "headline": {
             "nowcast_mom_pct": nowcast_mom,
             "nowcast_yoy_pct": nowcast_yoy,
@@ -2110,7 +2108,36 @@ def update_historical(snapshot: dict, historical: dict) -> dict:
         ],
         "release": snapshot["release"],
     }
+
+
+def update_historical(snapshot: dict, historical: dict) -> dict:
+    day = snapshot["as_of_date"]
+    historical[day] = historical_row_from_snapshot(snapshot)
     return historical
+
+
+def reconcile_historical_from_runs(historical: dict) -> dict:
+    if not RUNS_DIR.exists():
+        return historical
+    merged = dict(historical)
+    for path in sorted(RUNS_DIR.glob("run_*.json")):
+        payload = load_json(path, {})
+        if not isinstance(payload, dict):
+            continue
+        release = payload.get("release", {})
+        if not isinstance(release, dict) or release.get("status") != "published":
+            continue
+        day = payload.get("as_of_date")
+        headline = payload.get("headline", {})
+        if not isinstance(day, str) or not isinstance(headline, dict):
+            continue
+        if headline.get("nowcast_yoy_pct") is None and headline.get("nowcast_mom_pct") is None:
+            continue
+        try:
+            merged[day] = historical_row_from_snapshot(payload)
+        except Exception:
+            continue
+    return merged
 
 
 def build_snapshot() -> dict:
@@ -2453,7 +2480,7 @@ def build_methodology_payload(snapshot: dict) -> dict:
 
 
 def write_outputs(snapshot: dict) -> None:
-    historical = load_historical()
+    historical = reconcile_historical_from_runs(load_historical())
     run_id = snapshot["release"]["run_id"]
     run_path = RUNS_DIR / f"{run_id}.json"
 
@@ -2466,7 +2493,7 @@ def write_outputs(snapshot: dict) -> None:
     if status == "published":
         PUBLISHED_LATEST_PATH.write_text(json.dumps(snapshot, indent=2))
         historical = update_historical(snapshot, historical)
-        HISTORICAL_PATH.write_text(json.dumps(historical, indent=2))
+    HISTORICAL_PATH.write_text(json.dumps(historical, indent=2))
 
     # Persist release intelligence and free-source consensus artifacts each run.
     release_payload = snapshot.get("meta", {}).get("release_events", {})
