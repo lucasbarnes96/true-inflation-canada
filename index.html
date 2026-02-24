@@ -408,85 +408,6 @@
     }
 
     /* =========================================================
-       PULSE — LEADING INDICATORS
-    ========================================================= */
-    .pulse-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-    }
-
-    @media (max-width: 480px) {
-      .pulse-row {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .pulse-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 1.1rem 1.25rem;
-      box-shadow: var(--shadow-sm);
-      border-left: 3px solid var(--copper);
-      position: relative;
-    }
-
-    .pulse-card.gas {
-      border-left-color: var(--amber);
-    }
-
-    .pulse-eyebrow {
-      font-size: 0.7rem;
-      font-weight: 600;
-      letter-spacing: 0.07em;
-      text-transform: uppercase;
-      color: var(--text-secondary);
-      margin-bottom: 0.4rem;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-
-    .live-dot {
-      width: 6px;
-      height: 6px;
-      background: var(--green);
-      border-radius: 50%;
-      animation: blink 2s ease-in-out infinite;
-      flex-shrink: 0;
-    }
-
-    @keyframes blink {
-
-      0%,
-      100% {
-        opacity: 0.5;
-        transform: scale(0.9);
-      }
-
-      50% {
-        opacity: 1;
-        transform: scale(1.1);
-      }
-    }
-
-    .pulse-value {
-      font-size: 1.8rem;
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      color: var(--text);
-      font-family: var(--font-mono);
-    }
-
-    .pulse-source {
-      font-size: 0.72rem;
-      color: var(--text-tertiary);
-      margin-top: 0.2rem;
-      font-family: var(--font-mono);
-    }
-
-    /* =========================================================
        RELEASE INTELLIGENCE GRID
     ========================================================= */
     .chip-grid {
@@ -1011,27 +932,6 @@
             <div class="value" id="hero-release">—</div>
             <div class="note" id="hero-confidence">Confidence: — | Quality: —</div>
           </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- LEADING INDICATORS (Pulse) -->
-    <section id="pulse-section" style="display:none;">
-      <div class="small-note" style="margin: 0 0 0.55rem 0.1rem;">High-frequency context indicators (directional only, not the weighted headline nowcast).</div>
-      <div class="pulse-row">
-        <div class="pulse-card">
-          <div class="pulse-eyebrow">
-            <span class="live-dot"></span> Avg Asking Rent · Canada
-          </div>
-          <div class="pulse-value" id="pulse-rent">—</div>
-          <div class="pulse-source">Rentals.ca · Context indicator</div>
-        </div>
-        <div class="pulse-card gas">
-          <div class="pulse-eyebrow">
-            <span class="live-dot" style="background:var(--amber);"></span> Avg Regular Gas · Canada
-          </div>
-          <div class="pulse-value" id="pulse-gas">—</div>
-          <div class="pulse-source">NRCAN Weekly · Context indicator</div>
         </div>
       </div>
     </section>
@@ -2146,53 +2046,6 @@
       panel.appendChild(maturity);
     }
 
-    function firstSourceIssueReason(latest, sources) {
-      const rows = Array.isArray(latest?.source_health) ? latest.source_health : [];
-      for (const source of sources) {
-        const row = rows.find((item) => item && item.source === source);
-        if (!row) continue;
-        if (row.pending_reason) return String(row.pending_reason);
-        if (row.status_reason) return String(row.status_reason);
-        if (row.ingestion_state === "reused_last_success") return `reused_last_success (${source})`;
-        if (row.error_class) return `${row.error_class} (${source})`;
-        if (row.status !== "fresh") return row.detail || `${source}:${row.status}`;
-      }
-      return null;
-    }
-
-    function renderPulse(meta, latest) {
-      const indicators = meta.indicators || {};
-      const rent = indicators.average_asking_rent;
-      const gas = indicators.gasoline_canada_avg;
-      const section = document.getElementById("pulse-section");
-      const hasRent = hasNumber(rent);
-      const hasGas = hasNumber(gas);
-      section.style.display = (hasRent || hasGas) ? "block" : "none";
-      if (!(hasRent || hasGas)) return;
-      const rentEl = document.getElementById("pulse-rent");
-      const gasEl = document.getElementById("pulse-gas");
-      if (hasRent) {
-        rentEl.textContent = "$" + Math.round(Number(rent)).toLocaleString();
-        rentEl.title = "";
-      } else {
-        setPending(
-          rentEl,
-          "awaiting",
-          firstSourceIssueReason(latest, ["rentals_ca_scrape", "housing_listings_scrappy"]) || "housing_indicator_pending",
-        );
-      }
-      if (hasGas) {
-        gasEl.textContent = `${Number(gas).toFixed(1)} ¢/L`;
-        gasEl.title = "";
-      } else {
-        setPending(
-          gasEl,
-          "awaiting",
-          firstSourceIssueReason(latest, ["nrcan_fuel_scrape", "statcan_gas_csv"]) || "fuel_indicator_pending",
-        );
-      }
-    }
-
     async function fetchCommunityStats() {
       try {
         const res = await fetch("/v1/community/stats");
@@ -2266,7 +2119,6 @@
         renderLiveHistoryProgress(liveDays, provisionalPoints);
         applyReleaseBanner(latest, liveDays);
         renderHero(latest, published, liveDays, provisionalPoints, liveStartDate);
-        renderPulse(latest.meta || {}, latest);
         renderReleaseIntel(latest, upcomingRelease, consensus, forecast?.meta?.forecast || forecast, liveDays);
         renderPurchasingPowerCard(latest);
         renderNotes(latest);
