@@ -18,7 +18,7 @@
       "YoY metrics are primary in v1.3.1.",
       "MoM metrics are retained for backward compatibility and should be treated as secondary."
     ],
-    "generated_at": "2026-02-24T13:39:43+00:00"
+    "generated_at": "2026-02-24T15:18:24+00:00"
   },
   "notes": [
     "Experimental nowcast model card.",
