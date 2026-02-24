@@ -1379,24 +1379,35 @@
     }
 
     function renderDivergence(items, latest, liveDays, provisionalPoints = 0) {
-      const days = items.map(d => d.date);
-      const nowcast = items.map((d) => {
+      const firstNonSeededIdx = items.findIndex((d) => !Boolean(d.meta && d.meta.seeded));
+      const chartItems = firstNonSeededIdx >= 0 ? items.slice(firstNonSeededIdx) : items;
+      const days = chartItems.map(d => d.date);
+
+      const publishedNowcast = chartItems.map((d) => {
         const seeded = Boolean(d.meta && d.meta.seeded);
-        return seeded ? null : (d.headline?.nowcast_yoy_pct ?? null);
+        const provisional = Boolean(d.meta && d.meta.provisional);
+        if (seeded || provisional) return null;
+        const value = d.headline?.nowcast_yoy_pct;
+        return value === null || value === undefined ? null : Number(value);
       });
-      const provisionalNowcast = items.map((d) => {
+
+      const provisionalNowcast = chartItems.map((d) => {
         const seeded = Boolean(d.meta && d.meta.seeded);
         const provisional = Boolean(d.meta && d.meta.provisional);
         if (seeded || !provisional) return null;
         const value = d.headline?.nowcast_yoy_pct;
         return value === null || value === undefined ? null : Number(value);
       });
-      const nowcastEma = emaSeries(nowcast, 7);
-      const official = items.map(d => d.official_cpi?.yoy_pct ?? null);
+
+      const nowcastEma = emaSeries(publishedNowcast, 7);
+      const officialFlatValue = hasNumber(latest?.official_cpi?.yoy_pct)
+        ? Number(latest.official_cpi.yoy_pct)
+        : null;
+      const official = chartItems.map(() => officialFlatValue);
       const band = confidenceBandHalfWidth(latest, liveDays);
       const bandUpper = nowcastEma.map(v => (v === null || v === undefined) ? null : Number((v + band).toFixed(3)));
       const bandLower = nowcastEma.map(v => (v === null || v === undefined) ? null : Number((v - band).toFixed(3)));
-      const firstLiveIndex = nowcast.findIndex(v => v !== null && v !== undefined);
+      const firstLiveIndex = publishedNowcast.findIndex(v => v !== null && v !== undefined);
       const showConfidenceBand = (liveDays + provisionalPoints) >= 7;
 
       const decorPlugin = {
@@ -1417,12 +1428,12 @@
           ctx.restore();
         },
         afterDatasetsDraw(chart) {
-          if (firstLiveIndex < 0) return;
+          if (firstLiveIndex <= 0) return;
           const xScale = chart.scales.x;
           const yScale = chart.scales.y;
           const area = chart.chartArea;
           if (!xScale || !yScale || !area) return;
-          const val = nowcast[firstLiveIndex];
+          const val = publishedNowcast[firstLiveIndex];
           if (val === null || val === undefined) return;
           const x = xScale.getPixelForValue(firstLiveIndex);
           const y = yScale.getPixelForValue(val);
@@ -1483,14 +1494,14 @@
         {
           type: "line",
           label: "Nowcast YoY (raw)",
-          data: nowcast,
+          data: publishedNowcast,
           borderColor: "rgba(0,113,227,0.25)",
           backgroundColor: "rgba(0,113,227,0.08)",
-          tension: 0.18,
+          tension: 0,
           spanGaps: false,
           yAxisID: "y",
-          pointRadius: 3,
-          pointHoverRadius: 4,
+          pointRadius: 4,
+          pointHoverRadius: 5,
           borderWidth: 1,
         },
         {
@@ -1514,7 +1525,7 @@
           data: nowcastEma,
           borderColor: "#0071e3",
           backgroundColor: "rgba(0,113,227,0.08)",
-          tension: 0.25,
+          tension: 0,
           spanGaps: false,
           yAxisID: "y",
           pointRadius: 0,
@@ -1527,7 +1538,7 @@
           borderColor: "#ff9f0a",
           borderDash: [6, 4],
           backgroundColor: "rgba(0,0,0,0)",
-          tension: 0.25,
+          tension: 0,
           yAxisID: "y",
           pointRadius: 0,
           borderWidth: 2,
