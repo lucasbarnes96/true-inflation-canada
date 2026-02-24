@@ -21,6 +21,7 @@ class ApiContractTests(unittest.TestCase):
     def setUp(self) -> None:
         self.data_dir = Path("data")
         self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.latest = self.data_dir / "latest.json"
         self.published_latest = self.data_dir / "published_latest.json"
         self.historical = self.data_dir / "historical.json"
         self.releases_db = self.data_dir / "releases.db"
@@ -31,6 +32,7 @@ class ApiContractTests(unittest.TestCase):
         self.release_events = self.data_dir / "release_events.json"
         self.consensus_latest = self.data_dir / "consensus_latest.json"
         self._backup_paths = [
+            self.latest,
             self.published_latest,
             self.historical,
             self.releases_db,
@@ -127,6 +129,7 @@ class ApiContractTests(unittest.TestCase):
                 "published_at": "2026-02-15T00:00:00+00:00",
             },
         }
+        self.latest.write_text(json.dumps(snapshot))
         self.published_latest.write_text(json.dumps(snapshot))
         self.historical.write_text(
             json.dumps(
