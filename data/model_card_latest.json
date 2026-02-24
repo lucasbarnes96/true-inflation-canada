@@ -1,5 +1,5 @@
 {
-  "as_of_date": "2026-02-23",
+  "as_of_date": "2026-02-24",
   "method_version": "v1.3.2",
   "north_star": "lead_time_vs_statcan",
   "performance": {
@@ -18,7 +18,7 @@
       "YoY metrics are primary in v1.3.1.",
       "MoM metrics are retained for backward compatibility and should be treated as secondary."
     ],
-    "generated_at": "2026-02-23T17:51:25+00:00"
+    "generated_at": "2026-02-24T13:39:43+00:00"
   },
   "notes": [
     "Experimental nowcast model card.",
