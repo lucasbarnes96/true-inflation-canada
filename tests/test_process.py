@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+import json
+import tempfile
 import unittest
 from datetime import date, datetime, timezone
+from pathlib import Path
+from unittest.mock import patch
 
+import process as process_module
 from process import (
     CATEGORY_WEIGHTS,
     build_gate_diagnostics,
+    build_carry_forward_snapshot,
     classify_source_error,
+    compute_freshness_composition,
     compute_nowcast_yoy_prorated,
     compute_category_contributions,
     compute_confidence,
@@ -340,6 +347,92 @@ class ProcessTests(unittest.TestCase):
         }
         blocked = evaluate_gate(snapshot)
         self.assertTrue(any("Gate J failed" in item for item in blocked))
+
+    def test_compute_freshness_composition_bucket_boundaries(self) -> None:
+        age_by_category = {
+            "food": 0,
+            "housing": 1,
+            "transport": 2,
+            "energy": 7,
+            "communication": 8,
+            "health_personal": 30,
+            "recreation_education": 31,
+        }
+        category_signal_inputs = {
+            category: [{"source": f"src_{category}", "effective_weight": 1.0}]
+            for category in CATEGORY_WEIGHTS.keys()
+        }
+        source_health = [
+            {"source": f"src_{category}", "age_days": age}
+            for category, age in age_by_category.items()
+        ]
+
+        out = compute_freshness_composition(category_signal_inputs, source_health)
+        total_weight = sum(CATEGORY_WEIGHTS.values())
+        expected_0_1 = (CATEGORY_WEIGHTS["food"] + CATEGORY_WEIGHTS["housing"]) / total_weight
+        expected_2_7 = (CATEGORY_WEIGHTS["transport"] + CATEGORY_WEIGHTS["energy"]) / total_weight
+        expected_8_30 = (CATEGORY_WEIGHTS["communication"] + CATEGORY_WEIGHTS["health_personal"]) / total_weight
+        expected_overflow = CATEGORY_WEIGHTS["recreation_education"] / total_weight
+
+        self.assertAlmostEqual(expected_0_1, out["fresh_0_1d_weight_ratio"], places=4)
+        self.assertAlmostEqual(expected_2_7, out["fresh_2_7d_weight_ratio"], places=4)
+        self.assertAlmostEqual(expected_8_30, out["fresh_8_30d_weight_ratio"], places=4)
+        self.assertAlmostEqual(expected_overflow, out["stale_gt_30d_or_missing_weight_ratio"], places=4)
+        self.assertAlmostEqual(
+            1.0,
+            out["fresh_0_1d_weight_ratio"]
+            + out["fresh_2_7d_weight_ratio"]
+            + out["fresh_8_30d_weight_ratio"]
+            + out["stale_gt_30d_or_missing_weight_ratio"],
+            places=3,
+        )
+
+    def test_compute_freshness_composition_missing_age_goes_overflow(self) -> None:
+        category_signal_inputs = {
+            category: [{"source": f"src_{category}", "effective_weight": 1.0}]
+            for category in CATEGORY_WEIGHTS.keys()
+        }
+        source_health = [{"source": f"src_{category}", "age_days": 0} for category in CATEGORY_WEIGHTS.keys()]
+        source_health[0]["age_days"] = None
+        out = compute_freshness_composition(category_signal_inputs, source_health)
+        self.assertGreater(out["stale_gt_30d_or_missing_weight_ratio"], 0.0)
+
+    def test_build_carry_forward_snapshot_marks_degraded_published(self) -> None:
+        sample = {
+            "as_of_date": "2026-02-23",
+            "timestamp": "2026-02-23T00:00:00+00:00",
+            "headline": {
+                "nowcast_mom_pct": 0.0,
+                "nowcast_yoy_pct": 1.382,
+                "confidence": "low",
+                "coverage_ratio": 0.8,
+                "signal_quality_score": 25,
+                "lead_signal": "flat",
+                "method_label": "test",
+            },
+            "categories": {},
+            "official_cpi": {},
+            "bank_of_canada": {},
+            "source_health": [{"source": "src_food", "category": "food", "tier": 1, "status": "fresh", "detail": "", "age_days": 0}],
+            "notes": [],
+            "meta": {"category_signal_inputs": {"food": [{"source": "src_food", "effective_weight": 1.0}]}},
+            "release": {"status": "published", "run_id": "run_x", "qa_status": "passed", "lifecycle_states": [], "blocked_conditions": [], "created_at": "2026-02-23T00:00:00+00:00"},
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            published_path = Path(tmp) / "published_latest.json"
+            latest_path = Path(tmp) / "latest.json"
+            published_path.write_text(json.dumps(sample))
+            latest_path.write_text(json.dumps(sample))
+            with patch.object(process_module, "PUBLISHED_LATEST_PATH", published_path), patch.object(process_module, "LATEST_PATH", latest_path):
+                out = build_carry_forward_snapshot(
+                    now=datetime(2026, 2, 24, 12, 0, 0, tzinfo=timezone.utc),
+                    reason="pipeline_exception:RuntimeError",
+                )
+        assert out is not None
+        self.assertEqual("published", out["release"]["status"])
+        self.assertEqual("degraded", out["release"]["quality_tier"])
+        self.assertTrue(out["release"]["carry_forward"])
+        self.assertIn("fresh_0_1d_weight_ratio", out["meta"]["freshness_composition"])
 
 
 if __name__ == "__main__":

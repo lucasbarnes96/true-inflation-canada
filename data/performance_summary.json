@@ -1,8 +1,8 @@
 {
   "method_version": "v1.3.2",
   "window_days": 120,
-  "evaluated_points": 2,
-  "evaluated_live_points": 1,
+  "evaluated_points": 3,
+  "evaluated_live_points": 2,
   "mae_yoy_pct": 0.912,
   "median_abs_error_yoy_pct": 0.912,
   "directional_accuracy_yoy_pct": 100.0,
@@ -14,5 +14,5 @@
     "YoY metrics are primary in v1.3.1.",
     "MoM metrics are retained for backward compatibility and should be treated as secondary."
   ],
-  "generated_at": "2026-02-24T15:18:24+00:00"
+  "generated_at": "2026-02-24T17:07:39+00:00"
 }

@@ -85,6 +85,11 @@
       "health_personal": null,
       "recreation_education": null
     },
+    "meta": {
+      "freshness_composition": {},
+      "carry_forward": false,
+      "quality_tier": null
+    },
     "source_health": [
       {
         "source": "openfoodfacts_api",
@@ -423,6 +428,11 @@
       "communication": null,
       "health_personal": null,
       "recreation_education": null
+    },
+    "meta": {
+      "freshness_composition": {},
+      "carry_forward": false,
+      "quality_tier": null
     },
     "source_health": [
       {

@@ -1187,6 +1187,19 @@
       return `${Number(v).toFixed(digits)}%`;
     }
 
+    function pctFromRatio(v, digits = 1) {
+      if (v === null || v === undefined || Number.isNaN(Number(v))) return "--";
+      return `${(Number(v) * 100).toFixed(digits)}%`;
+    }
+
+    function freshnessSummary(composition) {
+      if (!composition || typeof composition !== "object") return "Freshness mix unavailable";
+      const d01 = pctFromRatio(composition.fresh_0_1d_weight_ratio, 1);
+      const d27 = pctFromRatio(composition.fresh_2_7d_weight_ratio, 1);
+      const d830 = pctFromRatio(composition.fresh_8_30d_weight_ratio, 1);
+      return `Freshness mix (weight): 0–1d ${d01} | 2–7d ${d27} | 8–30d ${d830}`;
+    }
+
     function formatPctTick(value) {
       const n = Number(value);
       if (Number.isNaN(n)) return "";
@@ -1332,6 +1345,9 @@
         meta: {
           seeded: false,
           provisional: isProvisional,
+          freshness_composition: latest?.meta?.freshness_composition || null,
+          carry_forward: Boolean(latest?.release?.carry_forward),
+          quality_tier: latest?.release?.quality_tier || null,
         },
         release: latest?.release || {},
       });
@@ -1387,14 +1403,15 @@
       return d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
     }
 
-    function renderChartMaturity(liveDays, provisionalPoints = 0, chartStartDate = "2026-02-17", liveStartDate = null) {
+    function renderChartMaturity(liveDays, provisionalPoints = 0, chartStartDate = "2026-02-17", liveStartDate = null, published = null, latest = null) {
       const maturity = document.getElementById("chart-maturity");
       const phase = liveDays < 30 ? "calibration phase" : (liveDays < 60 ? "developing phase" : "stable phase");
       const provisionalText = provisionalPoints > 0 ? ` | Provisional points: ${provisionalPoints}` : "";
       const liveStartText = liveStartDate
         ? ` Published series begins ${formatUiDate(liveStartDate)}.`
         : " Published series will appear once a gate-passing live run is available.";
-      maturity.textContent = `Window starts ${formatUiDate(chartStartDate)} (official CPI context). Published live days: ${liveDays} / 30${provisionalText} — ${phase}.${liveStartText}`;
+      const freshness = freshnessSummary(published?.meta?.freshness_composition || latest?.meta?.freshness_composition);
+      maturity.textContent = `Window starts ${formatUiDate(chartStartDate)} (official CPI context). Published live days: ${liveDays} / 30${provisionalText} — ${phase}. ${freshness}.${liveStartText}`;
       maturity.title = "Headline nowcast and blue chart line use published gate-passing runs. Amber points are provisional failed-gate runs shown for transparency.";
     }
 
@@ -1527,6 +1544,24 @@
                 font: { size: 12, family: "-apple-system, sans-serif" },
                 boxWidth: 16,
                 padding: 16,
+              },
+            },
+            tooltip: {
+              callbacks: {
+                footer(tooltipItems) {
+                  if (!Array.isArray(tooltipItems) || tooltipItems.length === 0) return "";
+                  const idx = tooltipItems[0].dataIndex;
+                  const row = chartItems[idx] || {};
+                  const lines = [];
+                  if (row?.release?.carry_forward) {
+                    lines.push(`Carry-forward: yes (${row?.release?.carry_forward_source_as_of || "prior snapshot"})`);
+                  }
+                  const freshness = row?.meta?.freshness_composition;
+                  if (freshness && typeof freshness === "object") {
+                    lines.push(freshnessSummary(freshness));
+                  }
+                  return lines;
+                },
               },
             },
           },
@@ -1896,8 +1931,12 @@
       }
       const nowcastStatusEl = document.getElementById("hero-nowcast-status");
       const hasPublishedNowcast = hasNumber(publishedNowcast);
+      const publishedCarryForward = Boolean(published?.release?.carry_forward);
       const provisionalLatest = Boolean(latest?.release?.status && latest.release.status !== "published");
-      if (provisionalLatest && hasNumber(latestNowcast) && latest?.as_of_date !== published?.as_of_date) {
+      if (publishedCarryForward) {
+        nowcastStatusEl.textContent = `Carry-forward published point from ${published?.release?.carry_forward_source_as_of || "prior date"} (${published?.release?.carry_forward_reason || "pipeline fallback"}).`;
+        nowcastStatusEl.title = freshnessSummary(published?.meta?.freshness_composition);
+      } else if (provisionalLatest && hasNumber(latestNowcast) && latest?.as_of_date !== published?.as_of_date) {
         nowcastStatusEl.textContent = `Primary signal uses published run. Latest provisional (${latest.as_of_date}): ${Number(latestNowcast).toFixed(3)}% (${latest.release?.status}).`;
         nowcastStatusEl.title = "Provisional values are failed-gate runs shown for transparency, not used as headline signal.";
       } else if (hasPublishedNowcast) {
@@ -1915,10 +1954,13 @@
       } else {
         setPending(releaseEl, "data", "official_release_month_missing");
       }
-      const quality = latest.headline?.signal_quality_score;
+      const quality = published?.headline?.signal_quality_score ?? latest.headline?.signal_quality_score;
+      const qualityTier = published?.release?.quality_tier || latest?.release?.quality_tier;
       const confidenceEl = document.getElementById("hero-confidence");
-      if (latest.headline?.confidence || hasNumber(quality)) {
-        confidenceEl.textContent = `${String(latest.headline?.confidence || "pending").toUpperCase()} | ${quality ?? "pending"}/100`;
+      const confidence = published?.headline?.confidence || latest.headline?.confidence;
+      if (confidence || hasNumber(quality)) {
+        const tierText = qualityTier ? ` | ${String(qualityTier).toUpperCase()}` : "";
+        confidenceEl.textContent = `${String(confidence || "pending").toUpperCase()} | ${quality ?? "pending"}/100${tierText}`;
         confidenceEl.title = "";
       } else {
         setPending(confidenceEl, "data", "quality_not_available");
@@ -1934,7 +1976,8 @@
       const startText = liveStartDate
         ? ` Published live series started ${formatUiDate(liveStartDate)}.`
         : " Published live series has not started yet.";
-      contextEl.textContent = `Early signal context: ${liveDays} / 30 published live days.${provisionalText}${startText} ${phase}`;
+      const freshness = freshnessSummary(published?.meta?.freshness_composition || latest?.meta?.freshness_composition);
+      contextEl.textContent = `Early signal context: ${liveDays} / 30 published live days.${provisionalText} ${freshness}.${startText} ${phase}`;
     }
 
     function renderPurchasingPowerCard(latest) {
@@ -2035,7 +2078,7 @@
       });
     }
 
-    function renderExplainers(chartStartDate, liveStartDate, liveDays, provisionalPoints = 0) {
+    function renderExplainers(chartStartDate, liveStartDate, liveDays, provisionalPoints = 0, published = null, latest = null) {
       const grid = document.getElementById("explain-grid");
       grid.innerHTML = "";
       const provisionalText = provisionalPoints > 0
@@ -2046,6 +2089,7 @@
         "Nowcast Signal: headline value uses the latest gate-passing published run.",
         `Chart window starts ${formatUiDate(chartStartDate)} (official context). Published live series starts ${liveStartDate ? formatUiDate(liveStartDate) : "when first published point arrives"}.`,
         `Published live history: ${liveDays}/30 days. ${provisionalText}`,
+        freshnessSummary(published?.meta?.freshness_composition || latest?.meta?.freshness_composition),
         "Deviation from Expectations is nowcast YoY minus available consensus YoY and is withheld when guardrails fail.",
       ];
       rows.forEach((text) => {
@@ -2218,7 +2262,7 @@
         const chartStartDate = deriveChartStartDate(latest);
         const liveStartDate = firstPublishedLiveDate(items);
         const calibrationData = calibration?.meta?.calibration || calibration || latest.meta?.calibration || {};
-        renderChartMaturity(liveDays, provisionalPoints, chartStartDate, liveStartDate);
+        renderChartMaturity(liveDays, provisionalPoints, chartStartDate, liveStartDate, published, latest);
         renderLiveHistoryProgress(liveDays, provisionalPoints);
         applyReleaseBanner(latest, liveDays);
         renderHero(latest, published, liveDays, provisionalPoints, liveStartDate);
@@ -2229,7 +2273,7 @@
         renderSourceTable(latest.source_health || []);
         renderMethodology(methodology, latest);
         renderPerformance(performance, calibrationData, liveDays);
-        renderExplainers(chartStartDate, liveStartDate, liveDays, provisionalPoints);
+        renderExplainers(chartStartDate, liveStartDate, liveDays, provisionalPoints, published, latest);
         renderDivergence(items.slice(-120), latest, liveDays, provisionalPoints, chartStartDate);
         renderCategoryChart(latest);
         renderProjectGuide(latest, methodology, sourceCatalog, liveDays, provisionalPoints);

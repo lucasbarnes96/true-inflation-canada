@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import calendar
+from copy import deepcopy
 import json
 import sqlite3
 import statistics
@@ -348,6 +349,54 @@ def human_age(age_days: int | None) -> str:
     if age_days == 1:
         return "updated 1 day ago"
     return f"updated {age_days} days ago"
+
+
+def refresh_snapshot_source_health(source_health: list[dict], now: datetime) -> list[dict]:
+    refreshed: list[dict] = []
+    for row in source_health:
+        if not isinstance(row, dict):
+            continue
+        payload = dict(row)
+        source = str(payload.get("source") or "")
+        ts = payload.get("last_success_timestamp")
+        age_days = source_age_days(ts, now=now)
+        sla_days = SOURCE_SLA_DAYS.get(source)
+        if age_days is None:
+            status = "missing"
+        elif sla_days is not None and age_days <= sla_days:
+            status = "fresh"
+        else:
+            status = "stale"
+        ingestion_state = payload.get("ingestion_state")
+        if status == "missing":
+            ingestion_state = "missing"
+        elif ingestion_state not in {"live_collected", "reused_last_success"}:
+            ingestion_state = "live_collected"
+
+        error_class = payload.get("error_class") or classify_source_error(payload.get("detail"))
+        payload["status"] = status
+        payload["ingestion_state"] = ingestion_state
+        payload["error_class"] = error_class
+        payload["age_days"] = age_days
+        payload["run_age_hours"] = source_age_hours(ts, now=now)
+        payload["updated_days_ago"] = human_age(age_days)
+        status_reason = payload.get("status_reason") or derive_status_reason(
+            status=status,
+            ingestion_state=ingestion_state,
+            error_class=error_class,
+        )
+        payload["status_reason"] = status_reason
+        payload["pending_reason"] = payload.get("pending_reason") or derive_pending_reason(
+            status=status,
+            status_reason=status_reason,
+            error_class=error_class,
+        )
+        payload["degraded_usable"] = bool(
+            ingestion_state == "reused_last_success"
+            or (status in {"fresh", "stale"} and error_class is not None)
+        )
+        refreshed.append(payload)
+    return refreshed
 
 
 def classify_source_error(detail: str | None) -> str | None:
@@ -915,6 +964,78 @@ def summarize_categories(quotes: list[Quote], source_health: list[dict]) -> tupl
         signal_inputs[category] = sorted(source_rows, key=lambda row: row["source"])
 
     return summary, signal_inputs
+
+
+def compute_freshness_composition(category_signal_inputs: dict, source_health: list[dict]) -> dict[str, float]:
+    source_age_days = {
+        str(row.get("source")): row.get("age_days")
+        for row in source_health
+        if isinstance(row, dict) and isinstance(row.get("source"), str)
+    }
+    bucket_0_1d_weight = 0.0
+    bucket_2_7d_weight = 0.0
+    bucket_8_30d_weight = 0.0
+    bucket_gt_30d_or_missing = 0.0
+
+    total_weight = float(sum(CATEGORY_WEIGHTS.values()) or 0.0)
+    if total_weight <= 0:
+        return {
+            "fresh_0_1d_weight_ratio": 0.0,
+            "fresh_2_7d_weight_ratio": 0.0,
+            "fresh_8_30d_weight_ratio": 0.0,
+            "stale_gt_30d_or_missing_weight_ratio": 1.0,
+        }
+
+    for category, category_weight in CATEGORY_WEIGHTS.items():
+        rows = category_signal_inputs.get(category, [])
+        if not isinstance(rows, list) or not rows:
+            bucket_gt_30d_or_missing += float(category_weight)
+            continue
+
+        total_effective_weight = sum(float(row.get("effective_weight") or 0.0) for row in rows if isinstance(row, dict))
+        if total_effective_weight <= 0:
+            bucket_gt_30d_or_missing += float(category_weight)
+            continue
+
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            source_weight = float(row.get("effective_weight") or 0.0)
+            if source_weight <= 0:
+                continue
+            normalized_weight = float(category_weight) * (source_weight / total_effective_weight)
+            source = row.get("source")
+            if not isinstance(source, str):
+                bucket_gt_30d_or_missing += normalized_weight
+                continue
+            age_days = source_age_days.get(source)
+            if not isinstance(age_days, int):
+                bucket_gt_30d_or_missing += normalized_weight
+                continue
+            if age_days <= 1:
+                bucket_0_1d_weight += normalized_weight
+            elif age_days <= 7:
+                bucket_2_7d_weight += normalized_weight
+            elif age_days <= 30:
+                bucket_8_30d_weight += normalized_weight
+            else:
+                bucket_gt_30d_or_missing += normalized_weight
+
+    total_bucket_weight = bucket_0_1d_weight + bucket_2_7d_weight + bucket_8_30d_weight + bucket_gt_30d_or_missing
+    if total_bucket_weight <= 0:
+        return {
+            "fresh_0_1d_weight_ratio": 0.0,
+            "fresh_2_7d_weight_ratio": 0.0,
+            "fresh_8_30d_weight_ratio": 0.0,
+            "stale_gt_30d_or_missing_weight_ratio": 1.0,
+        }
+
+    return {
+        "fresh_0_1d_weight_ratio": round(bucket_0_1d_weight / total_bucket_weight, 4),
+        "fresh_2_7d_weight_ratio": round(bucket_2_7d_weight / total_bucket_weight, 4),
+        "fresh_8_30d_weight_ratio": round(bucket_8_30d_weight / total_bucket_weight, 4),
+        "stale_gt_30d_or_missing_weight_ratio": round(bucket_gt_30d_or_missing / total_bucket_weight, 4),
+    }
 
 
 def previous_indicator_value(key: str) -> float | None:
@@ -2089,6 +2210,11 @@ def historical_row_from_snapshot(snapshot: dict) -> dict:
             for k, v in snapshot["categories"].items()
         },
         "category_contributions": snapshot.get("meta", {}).get("category_contributions", {}),
+        "meta": {
+            "freshness_composition": snapshot.get("meta", {}).get("freshness_composition", {}),
+            "carry_forward": bool(snapshot.get("release", {}).get("carry_forward")),
+            "quality_tier": snapshot.get("release", {}).get("quality_tier"),
+        },
         "source_health": [
             {
                 "source": s["source"],
@@ -2198,6 +2324,7 @@ def build_snapshot() -> dict:
             row["source_weight_share"] = round_or_none(share, 3)
             row["category_contribution_pct"] = category_contribution
             row["source_contribution_pct"] = round_or_none(float(category_contribution) * share, 4) if category_contribution is not None else None
+    freshness_composition = compute_freshness_composition(category_signal_inputs, computed_health)
     official_cpi = fetch_official_cpi_summary()
     official_series = fetch_official_cpi_series()
     official_yoy = official_cpi.get("yoy_pct")
@@ -2291,6 +2418,7 @@ def build_snapshot() -> dict:
             "nowcast_mom_pct": nowcast_mom,
             "nowcast_yoy_pct": nowcast_yoy,
             "pending_reason": None,
+            "publish_warning": None,
             "confidence": "low",
             "coverage_ratio": coverage_ratio,
             "signal_quality_score": 0,
@@ -2317,6 +2445,7 @@ def build_snapshot() -> dict:
             "representativeness_ratio": representativeness_ratio,
             "source_diversity_by_category": diversity_by_category,
             "category_signal_inputs": category_signal_inputs,
+            "freshness_composition": freshness_composition,
             "category_contributions": category_contributions,
             "top_driver": compute_top_driver(category_contributions),
             "qa_summary": qa_summary,
@@ -2354,6 +2483,8 @@ def build_snapshot() -> dict:
         "release": {
             "run_id": run_id,
             "status": "started",
+            "quality_tier": "pending",
+            "carry_forward": False,
             "qa_status": "pending",
             "qa_window_close_at": qa_window_close_at,
             "lifecycle_states": ["started", "collect"],
@@ -2375,9 +2506,11 @@ def build_snapshot() -> dict:
 
     status = "published" if not blocked_conditions else "failed_gate"
     snapshot["release"]["status"] = status
+    snapshot["release"]["quality_tier"] = "good" if status == "published" else "blocked"
     snapshot["release"]["lifecycle_states"].append(status)
     snapshot["release"]["blocked_conditions"] = blocked_conditions
     snapshot["release"]["qa_status"] = "passed" if status == "published" else "failed"
+    snapshot["headline"]["publish_warning"] = None if status == "published" else "Gate blocked publication for this run."
     if status == "published":
         snapshot["release"]["published_at"] = now.isoformat()
 
@@ -2537,6 +2670,68 @@ def write_outputs(snapshot: dict) -> None:
     )
 
 
+def build_carry_forward_snapshot(now: datetime, reason: str) -> dict | None:
+    base = load_json(PUBLISHED_LATEST_PATH, {})
+    if not isinstance(base, dict) or not isinstance(base.get("headline"), dict):
+        base = load_json(LATEST_PATH, {})
+    if not isinstance(base, dict) or not isinstance(base.get("headline"), dict):
+        return None
+
+    carry = deepcopy(base)
+    as_of_day = reporting_date(now).isoformat()
+    source_as_of = str(base.get("as_of_date") or "--")
+    run_id = f"carry_{uuid.uuid4().hex[:12]}"
+
+    carry["as_of_date"] = as_of_day
+    carry["timestamp"] = now.isoformat()
+
+    source_health = carry.get("source_health", [])
+    if isinstance(source_health, list):
+        carry["source_health"] = refresh_snapshot_source_health(source_health, now)
+
+    meta = carry.setdefault("meta", {})
+    if not isinstance(meta, dict):
+        meta = {}
+        carry["meta"] = meta
+    freshness = compute_freshness_composition(meta.get("category_signal_inputs", {}), carry.get("source_health", []))
+    meta["freshness_composition"] = freshness
+    meta["carry_forward"] = {
+        "active": True,
+        "source_as_of_date": source_as_of,
+        "reason": reason,
+    }
+
+    headline = carry.setdefault("headline", {})
+    if not isinstance(headline, dict):
+        headline = {}
+        carry["headline"] = headline
+    headline["publish_warning"] = f"Carry-forward publication from {source_as_of} due to pipeline failure."
+
+    release = carry.setdefault("release", {})
+    if not isinstance(release, dict):
+        release = {}
+        carry["release"] = release
+    release["run_id"] = run_id
+    release["status"] = "published"
+    release["quality_tier"] = "degraded"
+    release["carry_forward"] = True
+    release["carry_forward_source_as_of"] = source_as_of
+    release["carry_forward_reason"] = reason
+    release["qa_status"] = "passed"
+    release["qa_window_close_at"] = None
+    release["lifecycle_states"] = ["started", "carry_forward_fallback", "published"]
+    release["blocked_conditions"] = []
+    release["created_at"] = now.isoformat()
+    release["published_at"] = now.isoformat()
+
+    notes = carry.setdefault("notes", [])
+    if not isinstance(notes, list):
+        notes = []
+        carry["notes"] = notes
+    notes.append(f"Carry-forward publication on {as_of_day} from {source_as_of}: {reason}.")
+    return carry
+
+
 def main() -> int:
     if sys.version_info >= (3, 13):
         print("Runtime guard failed: Python 3.11 is required for stable source ingestion (apify-client compatibility).")
@@ -2545,14 +2740,20 @@ def main() -> int:
     try:
         snap = build_snapshot()
     except Exception as exc:
-        # Crash guard: write a diagnostic error snapshot so the workflow
-        # can still report what happened instead of failing silently.
         now = utc_now().replace(microsecond=0)
+        reason = f"pipeline_exception:{type(exc).__name__}"
+        carry = build_carry_forward_snapshot(now=now, reason=reason)
+        if carry is not None:
+            write_outputs(carry)
+            print(f"WARN: Pipeline exception fallback: published carry-forward snapshot ({reason}).")
+            return 0
+        # Crash guard fallback when no prior snapshot exists.
         error_snapshot = {
             "as_of_date": reporting_date(now).isoformat(),
             "headline": {
                 "nowcast_mom_pct": None,
                 "nowcast_yoy_pct": None,
+                "publish_warning": None,
                 "confidence": "low",
                 "coverage_ratio": 0.0,
                 "signal_quality_score": 0,
@@ -2573,6 +2774,8 @@ def main() -> int:
             "release": {
                 "run_id": f"crash_{uuid.uuid4().hex[:12]}",
                 "status": "crashed",
+                "quality_tier": "blocked",
+                "carry_forward": False,
                 "qa_status": "failed",
                 "qa_window_close_at": None,
                 "lifecycle_states": ["crashed"],
