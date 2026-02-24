@@ -1198,6 +1198,32 @@
       return `${n.toFixed(1).replace(/\.0$/, "")}%`;
     }
 
+    function toUtcDate(day) {
+      if (!day || typeof day !== "string") return null;
+      const d = new Date(`${day}T00:00:00Z`);
+      if (Number.isNaN(d.getTime())) return null;
+      return d;
+    }
+
+    function toIsoDay(dateObj) {
+      if (!(dateObj instanceof Date) || Number.isNaN(dateObj.getTime())) return null;
+      return dateObj.toISOString().slice(0, 10);
+    }
+
+    function enumerateDays(startDay, endDay) {
+      const start = toUtcDate(startDay);
+      const end = toUtcDate(endDay);
+      if (!start || !end || start > end) return [];
+      const out = [];
+      const d = new Date(start.getTime());
+      while (d <= end) {
+        const iso = toIsoDay(d);
+        if (iso) out.push(iso);
+        d.setUTCDate(d.getUTCDate() + 1);
+      }
+      return out;
+    }
+
     function maybe(v) {
       return v ?? "--";
     }
@@ -1336,6 +1362,19 @@
       }).length;
     }
 
+    function deriveChartStartDate(latest) {
+      const fallback = "2026-02-17";
+      const asOf = latest?.as_of_date;
+      const events = latest?.meta?.release_events?.events;
+      if (!asOf || !Array.isArray(events)) return fallback;
+      const pastDates = events
+        .map((row) => row?.event_date)
+        .filter((day) => typeof day === "string" && day <= asOf)
+        .sort();
+      if (!pastDates.length) return fallback;
+      return pastDates[pastDates.length - 1];
+    }
+
     function emaSeries(values, period) {
       const alpha = 2 / (period + 1);
       let ema = null;
@@ -1378,15 +1417,26 @@
       node.title = "Category movement ranking stabilizes as live non-seeded history accumulates.";
     }
 
-    function renderDivergence(items, latest, liveDays, provisionalPoints = 0) {
-      const firstNonSeededIdx = items.findIndex((d) => !Boolean(d.meta && d.meta.seeded));
-      const chartItems = firstNonSeededIdx >= 0 ? items.slice(firstNonSeededIdx) : items;
-      const days = chartItems.map(d => d.date);
+    function renderDivergence(items, latest, liveDays, provisionalPoints = 0, chartStartDate = "2026-02-17") {
+      const lastDate = latest?.as_of_date || (items.length ? items[items.length - 1]?.date : null);
+      const timelineDays = enumerateDays(chartStartDate, lastDate);
+      const byDate = new Map((Array.isArray(items) ? items : []).map((row) => [row.date, row]));
+      const chartItems = timelineDays.map((day) => {
+        const row = byDate.get(day);
+        if (row) return row;
+        return {
+          date: day,
+          headline: { nowcast_yoy_pct: null },
+          official_cpi: {},
+          meta: { seeded: false, gap: true, provisional: false },
+          release: {},
+        };
+      });
+      const days = chartItems.map((d) => d.date);
 
-      const publishedNowcast = chartItems.map((d) => {
+      const liveNowcastRaw = chartItems.map((d) => {
         const seeded = Boolean(d.meta && d.meta.seeded);
-        const provisional = Boolean(d.meta && d.meta.provisional);
-        if (seeded || provisional) return null;
+        if (seeded) return null;
         const value = d.headline?.nowcast_yoy_pct;
         return value === null || value === undefined ? null : Number(value);
       });
@@ -1399,7 +1449,7 @@
         return value === null || value === undefined ? null : Number(value);
       });
 
-      const nowcastEma = emaSeries(publishedNowcast, 7);
+      const nowcastEma = emaSeries(liveNowcastRaw, 3);
       const officialFlatValue = hasNumber(latest?.official_cpi?.yoy_pct)
         ? Number(latest.official_cpi.yoy_pct)
         : null;
@@ -1407,7 +1457,7 @@
       const band = confidenceBandHalfWidth(latest, liveDays);
       const bandUpper = nowcastEma.map(v => (v === null || v === undefined) ? null : Number((v + band).toFixed(3)));
       const bandLower = nowcastEma.map(v => (v === null || v === undefined) ? null : Number((v - band).toFixed(3)));
-      const firstLiveIndex = publishedNowcast.findIndex(v => v !== null && v !== undefined);
+      const firstLiveIndex = liveNowcastRaw.findIndex(v => v !== null && v !== undefined);
       const showConfidenceBand = (liveDays + provisionalPoints) >= 7;
 
       const decorPlugin = {
@@ -1433,7 +1483,7 @@
           const yScale = chart.scales.y;
           const area = chart.chartArea;
           if (!xScale || !yScale || !area) return;
-          const val = publishedNowcast[firstLiveIndex];
+          const val = liveNowcastRaw[firstLiveIndex];
           if (val === null || val === undefined) return;
           const x = xScale.getPixelForValue(firstLiveIndex);
           const y = yScale.getPixelForValue(val);
@@ -1494,7 +1544,7 @@
         {
           type: "line",
           label: "Nowcast YoY (raw)",
-          data: publishedNowcast,
+          data: liveNowcastRaw,
           borderColor: "rgba(0,113,227,0.25)",
           backgroundColor: "rgba(0,113,227,0.08)",
           tension: 0,
@@ -2274,6 +2324,7 @@
         const items = appendLatestPoint(itemsBase, latest, published);
         const liveDays = countLiveNowcastDays(items);
         const provisionalPoints = countProvisionalLivePoints(items);
+        const chartStartDate = deriveChartStartDate(latest);
         renderChartMaturity(liveDays, provisionalPoints);
         renderLiveHistoryProgress(liveDays, provisionalPoints);
         applyReleaseBanner(latest, liveDays);
@@ -2286,7 +2337,7 @@
         renderMethodology(methodology, latest);
         renderPerformance(performance, liveDays);
         renderCalibration(calibration?.meta?.calibration || calibration || latest.meta?.calibration || {});
-        renderDivergence(items.slice(-90), latest, liveDays, provisionalPoints);
+        renderDivergence(items.slice(-120), latest, liveDays, provisionalPoints, chartStartDate);
         renderCategoryChart(latest);
         renderAbout(latest, methodology, sourceCatalog, liveDays);
       }).catch(err => {
