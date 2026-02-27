@@ -1,18 +1,18 @@
 {
   "method_version": "v1.3.2",
   "window_days": 120,
-  "evaluated_points": 6,
-  "evaluated_live_points": 5,
-  "mae_yoy_pct": 0.721,
+  "evaluated_points": 7,
+  "evaluated_live_points": 6,
+  "mae_yoy_pct": 0.7183,
   "median_abs_error_yoy_pct": 0.705,
   "directional_accuracy_yoy_pct": 100.0,
-  "bias_yoy_pct": -0.721,
-  "mae_mom_pct": 0.1182,
-  "directional_accuracy_pct": 80.0,
-  "lead_time_score_pct": 80.0,
+  "bias_yoy_pct": -0.7183,
+  "mae_mom_pct": 0.0985,
+  "directional_accuracy_pct": 83.33,
+  "lead_time_score_pct": 83.33,
   "compatibility_notes": [
     "YoY metrics are primary in v1.3.1.",
     "MoM metrics are retained for backward compatibility and should be treated as secondary."
   ],
-  "generated_at": "2026-02-26T06:44:32+00:00"
+  "generated_at": "2026-02-27T06:37:51+00:00"
 }

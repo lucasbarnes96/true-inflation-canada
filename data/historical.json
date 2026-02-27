@@ -1777,5 +1777,359 @@
       "created_at": "2026-02-26T06:42:48+00:00",
       "published_at": null
     }
+  },
+  "2026-02-27": {
+    "headline": {
+      "nowcast_mom_pct": 0.0,
+      "nowcast_yoy_pct": 1.589,
+      "confidence": "low",
+      "coverage_ratio": 1.0,
+      "signal_quality_score": 25,
+      "lead_signal": "flat",
+      "next_release_at_utc": "2026-03-17T13:30:00+00:00",
+      "consensus_yoy": null,
+      "consensus_spread_yoy": null,
+      "deviation_yoy_pct": null,
+      "divergence_mom_pct": 0.0
+    },
+    "official_cpi": {
+      "latest_release_month": "2026-01",
+      "mom_pct": 0.0,
+      "yoy_pct": 2.294,
+      "yoy_display_pct": 2.3
+    },
+    "categories": {
+      "food": {
+        "proxy_level": 4.2739,
+        "daily_change_pct": 0.0,
+        "status": "fresh"
+      },
+      "housing": {
+        "proxy_level": 183.7667,
+        "daily_change_pct": 0.0,
+        "status": "fresh"
+      },
+      "transport": {
+        "proxy_level": 130.4,
+        "daily_change_pct": 0.0,
+        "status": "fresh"
+      },
+      "energy": {
+        "proxy_level": 4.75,
+        "daily_change_pct": 0.0,
+        "status": "stale"
+      },
+      "communication": {
+        "proxy_level": 94.5878,
+        "daily_change_pct": 0.0,
+        "status": "stale"
+      },
+      "health_personal": {
+        "proxy_level": 62.459,
+        "daily_change_pct": 0.0,
+        "status": "stale"
+      },
+      "recreation_education": {
+        "proxy_level": 61.4568,
+        "daily_change_pct": 0.0,
+        "status": "fresh"
+      }
+    },
+    "category_contributions": {
+      "food": 0.0,
+      "housing": 0.0,
+      "transport": 0.0,
+      "energy": 0.0,
+      "communication": 0.0,
+      "health_personal": 0.0,
+      "recreation_education": 0.0
+    },
+    "meta": {
+      "freshness_composition": {
+        "fresh_0_1d_weight_ratio": 0.8159,
+        "fresh_2_7d_weight_ratio": 0.0,
+        "fresh_8_30d_weight_ratio": 0.0,
+        "stale_gt_30d_or_missing_weight_ratio": 0.1841
+      },
+      "carry_forward": false,
+      "quality_tier": "blocked"
+    },
+    "source_health": [
+      {
+        "source": "openfoodfacts_api",
+        "status": "fresh",
+        "ingestion_state": "live_collected",
+        "error_class": null,
+        "status_reason": "live_collection_success",
+        "pending_reason": null,
+        "degraded_usable": false,
+        "category": "food",
+        "tier": 1,
+        "age_days": 0,
+        "last_success_timestamp": "2026-02-27T06:36:15+00:00",
+        "last_observation_period": null
+      },
+      {
+        "source": "statcan_food_prices",
+        "status": "fresh",
+        "ingestion_state": "live_collected",
+        "error_class": null,
+        "status_reason": "live_collection_success",
+        "pending_reason": null,
+        "degraded_usable": false,
+        "category": "food",
+        "tier": 1,
+        "age_days": 0,
+        "last_success_timestamp": "2026-02-27T06:36:20+00:00",
+        "last_observation_period": "2025-12"
+      },
+      {
+        "source": "apify_loblaws",
+        "status": "fresh",
+        "ingestion_state": "live_collected",
+        "error_class": null,
+        "status_reason": "live_collection_success",
+        "pending_reason": null,
+        "degraded_usable": false,
+        "category": "food",
+        "tier": 1,
+        "age_days": 13,
+        "last_success_timestamp": "2026-02-14T00:00:00+00:00",
+        "last_observation_period": null
+      },
+      {
+        "source": "statcan_gas_csv",
+        "status": "fresh",
+        "ingestion_state": "live_collected",
+        "error_class": null,
+        "status_reason": "live_collection_success",
+        "pending_reason": null,
+        "degraded_usable": false,
+        "category": "transport",
+        "tier": 1,
+        "age_days": 0,
+        "last_success_timestamp": "2026-02-27T06:36:21+00:00",
+        "last_observation_period": "2026-01"
+      },
+      {
+        "source": "nrcan_fuel_scrape",
+        "status": "fresh",
+        "ingestion_state": "live_collected",
+        "error_class": "parse",
+        "status_reason": "live_collection_success",
+        "pending_reason": "recent_parse_error_reused_or_recovered",
+        "degraded_usable": true,
+        "category": "transport",
+        "tier": 2,
+        "age_days": 0,
+        "last_success_timestamp": "2026-02-27T06:36:24+00:00",
+        "last_observation_period": null
+      },
+      {
+        "source": "statcan_cpi_csv",
+        "status": "fresh",
+        "ingestion_state": "live_collected",
+        "error_class": null,
+        "status_reason": "live_collection_success",
+        "pending_reason": null,
+        "degraded_usable": false,
+        "category": "housing",
+        "tier": 1,
+        "age_days": 0,
+        "last_success_timestamp": "2026-02-27T06:36:36+00:00",
+        "last_observation_period": "2026-01"
+      },
+      {
+        "source": "rentals_ca_scrape",
+        "status": "fresh",
+        "ingestion_state": "live_collected",
+        "error_class": "parse",
+        "status_reason": "live_collection_success",
+        "pending_reason": "recent_parse_error_reused_or_recovered",
+        "degraded_usable": true,
+        "category": "housing",
+        "tier": 2,
+        "age_days": 0,
+        "last_success_timestamp": "2026-02-27T06:36:37+00:00",
+        "last_observation_period": null
+      },
+      {
+        "source": "oeb_scrape",
+        "status": "fresh",
+        "ingestion_state": "live_collected",
+        "error_class": null,
+        "status_reason": "live_collection_success",
+        "pending_reason": null,
+        "degraded_usable": false,
+        "category": "energy",
+        "tier": 2,
+        "age_days": 0,
+        "last_success_timestamp": "2026-02-27T06:36:38+00:00",
+        "last_observation_period": null
+      },
+      {
+        "source": "statcan_energy_cpi_csv",
+        "status": "fresh",
+        "ingestion_state": "live_collected",
+        "error_class": null,
+        "status_reason": "live_collection_success",
+        "pending_reason": null,
+        "degraded_usable": false,
+        "category": "energy",
+        "tier": 1,
+        "age_days": 0,
+        "last_success_timestamp": "2026-02-27T06:36:47+00:00",
+        "last_observation_period": "2026-01"
+      },
+      {
+        "source": "statcan_cpi_csv",
+        "status": "fresh",
+        "ingestion_state": "live_collected",
+        "error_class": null,
+        "status_reason": "live_collection_success",
+        "pending_reason": null,
+        "degraded_usable": false,
+        "category": "communication",
+        "tier": 1,
+        "age_days": 0,
+        "last_success_timestamp": "2026-02-27T06:36:57+00:00",
+        "last_observation_period": "2026-01"
+      },
+      {
+        "source": "ised_mobile_plan_tracker",
+        "status": "fresh",
+        "ingestion_state": "live_collected",
+        "error_class": null,
+        "status_reason": "live_collection_success",
+        "pending_reason": null,
+        "degraded_usable": false,
+        "category": "communication",
+        "tier": 2,
+        "age_days": 0,
+        "last_success_timestamp": "2026-02-27T06:36:58+00:00",
+        "last_observation_period": null
+      },
+      {
+        "source": "crtc_cmr_report",
+        "status": "fresh",
+        "ingestion_state": "reused_last_success",
+        "error_class": "tls",
+        "status_reason": "degraded_but_usable_reused_last_success_tls",
+        "pending_reason": "recent_tls_error_reused_or_recovered",
+        "degraded_usable": true,
+        "category": "communication",
+        "tier": 2,
+        "age_days": 4,
+        "last_success_timestamp": "2026-02-23T14:59:27+00:00",
+        "last_observation_period": null
+      },
+      {
+        "source": "statcan_cpi_csv",
+        "status": "fresh",
+        "ingestion_state": "live_collected",
+        "error_class": null,
+        "status_reason": "live_collection_success",
+        "pending_reason": null,
+        "degraded_usable": false,
+        "category": "health_personal",
+        "tier": 1,
+        "age_days": 0,
+        "last_success_timestamp": "2026-02-27T06:37:12+00:00",
+        "last_observation_period": "2026-01"
+      },
+      {
+        "source": "healthcanada_dpd",
+        "status": "fresh",
+        "ingestion_state": "live_collected",
+        "error_class": null,
+        "status_reason": "live_collection_success",
+        "pending_reason": null,
+        "degraded_usable": false,
+        "category": "health_personal",
+        "tier": 2,
+        "age_days": 0,
+        "last_success_timestamp": "2026-02-27T06:37:13+00:00",
+        "last_observation_period": null
+      },
+      {
+        "source": "pmprb_reports",
+        "status": "fresh",
+        "ingestion_state": "live_collected",
+        "error_class": null,
+        "status_reason": "live_collection_success",
+        "pending_reason": null,
+        "degraded_usable": false,
+        "category": "health_personal",
+        "tier": 2,
+        "age_days": 0,
+        "last_success_timestamp": "2026-02-27T06:37:16+00:00",
+        "last_observation_period": null
+      },
+      {
+        "source": "statcan_cpi_csv",
+        "status": "fresh",
+        "ingestion_state": "live_collected",
+        "error_class": null,
+        "status_reason": "live_collection_success",
+        "pending_reason": null,
+        "degraded_usable": false,
+        "category": "recreation_education",
+        "tier": 1,
+        "age_days": 0,
+        "last_success_timestamp": "2026-02-27T06:37:25+00:00",
+        "last_observation_period": "2026-01"
+      },
+      {
+        "source": "parkscanada_fees",
+        "status": "fresh",
+        "ingestion_state": "live_collected",
+        "error_class": null,
+        "status_reason": "live_collection_success",
+        "pending_reason": null,
+        "degraded_usable": false,
+        "category": "recreation_education",
+        "tier": 2,
+        "age_days": 0,
+        "last_success_timestamp": "2026-02-27T06:37:27+00:00",
+        "last_observation_period": null
+      },
+      {
+        "source": "statcan_education_portal",
+        "status": "fresh",
+        "ingestion_state": "live_collected",
+        "error_class": null,
+        "status_reason": "live_collection_success",
+        "pending_reason": null,
+        "degraded_usable": false,
+        "category": "recreation_education",
+        "tier": 2,
+        "age_days": 0,
+        "last_success_timestamp": "2026-02-27T06:37:27+00:00",
+        "last_observation_period": null
+      }
+    ],
+    "release": {
+      "run_id": "run_4b1e4203d94f",
+      "status": "failed_gate",
+      "quality_tier": "blocked",
+      "carry_forward": false,
+      "qa_status": "failed",
+      "qa_window_close_at": "2026-02-28T06:36:12+00:00",
+      "lifecycle_states": [
+        "started",
+        "collect",
+        "validate",
+        "reconcile",
+        "completed",
+        "publish",
+        "failed_gate"
+      ],
+      "blocked_conditions": [
+        "Gate G failed: trailing source contract pass rate below minimum.",
+        "Gate H failed: imputed basket weight above allowed threshold."
+      ],
+      "created_at": "2026-02-27T06:36:12+00:00",
+      "published_at": null
+    }
   }
 }
