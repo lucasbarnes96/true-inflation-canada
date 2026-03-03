@@ -10,6 +10,7 @@ from unittest.mock import patch
 import process as process_module
 from process import (
     CATEGORY_WEIGHTS,
+    build_qa_failure_fingerprint,
     build_gate_diagnostics,
     build_carry_forward_snapshot,
     classify_source_error,
@@ -25,6 +26,7 @@ from process import (
     historical_row_from_snapshot,
     recompute_source_health,
     reconcile_historical_from_runs,
+    retry_with_contracts,
     validate_source_contract,
     write_outputs,
 )
@@ -153,6 +155,154 @@ class ProcessTests(unittest.TestCase):
             },
         )
         self.assertFalse(check["passed"])
+
+    def test_validate_source_contract_uses_source_category_baseline_for_supplemental(self) -> None:
+        check = validate_source_contract(
+            contract_name="supp_source",
+            source_name="supp_source",
+            category="communication",
+            quotes=[Quote("communication", "plan_a", 105.0, date(2026, 2, 24), "supp_source")],
+            source_health={
+                "source": "supp_source",
+                "category": "communication",
+                "last_success_timestamp": "2026-02-24T00:00:00+00:00",
+            },
+            historical={
+                "2026-02-23": {
+                    "categories": {
+                        "communication": {"proxy_level": 220.0},
+                    }
+                }
+            },
+            now=datetime(2026, 2, 24, 12, 0, 0, tzinfo=timezone.utc),
+            source_contracts={
+                "supp_source": {
+                    "min_records": 1,
+                    "max_records": 100,
+                    "allowed_value_range": [1.0, 400.0],
+                    "max_stale_hours": 48.0,
+                    "max_daily_median_jump_pct": 20.0,
+                }
+            },
+            source_category_baselines={("supp_source", "communication"): 100.0},
+        )
+        median_check = next(item for item in check["checks"] if item["name"] == "median_jump")
+        self.assertTrue(median_check["passed"])
+        self.assertEqual("source_category", median_check["baseline_type"])
+
+    def test_validate_source_contract_falls_back_to_category_proxy_for_official_sources(self) -> None:
+        check = validate_source_contract(
+            contract_name="statcan_cpi_csv",
+            source_name="statcan_cpi_csv",
+            category="housing",
+            quotes=[Quote("housing", "shelter_idx", 135.0, date(2026, 2, 24), "statcan_cpi_csv")],
+            source_health={
+                "source": "statcan_cpi_csv",
+                "category": "housing",
+                "last_success_timestamp": "2026-02-24T00:00:00+00:00",
+            },
+            historical={
+                "2026-02-23": {
+                    "categories": {
+                        "housing": {"proxy_level": 100.0},
+                    }
+                }
+            },
+            now=datetime(2026, 2, 24, 12, 0, 0, tzinfo=timezone.utc),
+            source_contracts={
+                "statcan_cpi_csv": {
+                    "min_records": 1,
+                    "max_records": 100,
+                    "allowed_value_range": [1.0, 400.0],
+                    "max_stale_hours": 48.0,
+                    "max_daily_median_jump_pct": 10.0,
+                }
+            },
+            source_category_baselines={},
+        )
+        median_check = next(item for item in check["checks"] if item["name"] == "median_jump")
+        self.assertFalse(median_check["passed"])
+        self.assertEqual("category_proxy", median_check["baseline_type"])
+
+    def test_retry_with_contracts_validates_per_source_category_partition(self) -> None:
+        def scraper():
+            quotes = [
+                Quote("food", "food_idx", 101.0, date(2026, 2, 24), "statcan_cpi_csv"),
+                Quote("communication", "comm_idx", 205.0, date(2026, 2, 24), "statcan_cpi_csv"),
+            ]
+            health = [
+                SourceHealth(
+                    source="statcan_cpi_csv",
+                    category="food",
+                    tier=1,
+                    status="fresh",
+                    last_success_timestamp="2026-02-24T00:00:00+00:00",
+                    detail="ok",
+                ),
+                SourceHealth(
+                    source="statcan_cpi_csv",
+                    category="communication",
+                    tier=1,
+                    status="fresh",
+                    last_success_timestamp="2026-02-24T00:00:00+00:00",
+                    detail="ok",
+                ),
+            ]
+            return quotes, health
+
+        snapshot = {
+            "meta": {
+                "category_signal_inputs": {
+                    "food": [{"source": "statcan_cpi_csv", "source_mean": 100.0}],
+                    "communication": [{"source": "statcan_cpi_csv", "source_mean": 200.0}],
+                }
+            }
+        }
+        with patch.object(process_module, "latest_run_snapshot_before", return_value=snapshot):
+            _, _, checks = retry_with_contracts(
+                scraper_name="statcan_cpi_csv",
+                scraper=scraper,
+                historical={},
+                now=datetime(2026, 2, 24, 12, 0, 0, tzinfo=timezone.utc),
+                source_contracts={
+                    "statcan_cpi_csv": {
+                        "min_records": 1,
+                        "max_records": 100,
+                        "allowed_value_range": [1.0, 400.0],
+                        "max_stale_hours": 48.0,
+                        "max_daily_median_jump_pct": 10.0,
+                    }
+                },
+            )
+        categories = sorted(check.get("category") for check in checks)
+        self.assertEqual(["communication", "food"], categories)
+        self.assertTrue(all(check.get("passed") for check in checks))
+
+    def test_build_qa_failure_fingerprint_counts_failures(self) -> None:
+        checks = [
+            {
+                "source": "a",
+                "category": "food",
+                "passed": False,
+                "checks": [
+                    {"name": "freshness", "passed": False},
+                    {"name": "median_jump", "passed": False},
+                ],
+            },
+            {
+                "source": "b",
+                "category": "transport",
+                "passed": True,
+                "checks": [
+                    {"name": "freshness", "passed": True},
+                ],
+            },
+        ]
+        out = build_qa_failure_fingerprint(checks)
+        self.assertEqual(2, out["failed_check_events"])
+        self.assertEqual(1, out["failed_source_checks"])
+        self.assertEqual("freshness", out["top_failed_check"])
+        self.assertEqual({"freshness": 1, "median_jump": 1}, out["by_check"])
 
     def test_classify_source_error(self) -> None:
         self.assertEqual("tls", classify_source_error("SSL certificate verify failed"))

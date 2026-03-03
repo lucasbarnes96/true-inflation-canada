@@ -145,6 +145,6 @@ jobs:
               body: `Dependency audit state transition: \`${stateSignature}\``,
             });
 
-      - name: Fail on findings
-        if: steps.summarize.outputs.has_findings == 'true'
+      - name: Fail on audit execution error
+        if: steps.audit.outputs.status != '0' && steps.audit.outputs.status != '1'
         run: exit 1

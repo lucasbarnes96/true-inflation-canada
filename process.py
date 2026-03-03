@@ -143,6 +143,13 @@ SOURCE_SLA_DAYS = {
     "statcan_education_portal": 180,
 }
 
+OFFICIAL_INDEX_SOURCES = {
+    "statcan_cpi_csv",
+    "statcan_food_prices",
+    "statcan_gas_csv",
+    "statcan_energy_cpi_csv",
+}
+
 METHOD_LABEL = "YoY nowcast from public category proxies with month-to-date prorating"
 CORE_GATE_CATEGORIES = ("food", "housing", "transport")
 MIN_PLAUSIBLE_CONSENSUS_YOY = 1.0
@@ -526,6 +533,73 @@ def previous_category_median(historical: dict, category: str, as_of_day: str) ->
         return None
 
 
+def latest_run_snapshot_before(as_of_day: str) -> dict | None:
+    if not RUNS_DIR.exists():
+        return None
+    latest_payload: dict | None = None
+    latest_created_at = ""
+    for path in sorted(RUNS_DIR.glob("run_*.json")):
+        payload = load_json(path, {})
+        if not isinstance(payload, dict):
+            continue
+        run_day = payload.get("as_of_date")
+        if not isinstance(run_day, str) or run_day >= as_of_day:
+            continue
+        release = payload.get("release", {})
+        if not isinstance(release, dict):
+            continue
+        status = release.get("status")
+        if status not in {"published", "failed_gate"}:
+            continue
+        created_at = str(release.get("created_at") or "")
+        if created_at >= latest_created_at:
+            latest_created_at = created_at
+            latest_payload = payload
+    return latest_payload
+
+
+def source_category_baselines_from_snapshot(snapshot: dict | None) -> dict[tuple[str, str], float]:
+    if not isinstance(snapshot, dict):
+        return {}
+    category_inputs = snapshot.get("meta", {}).get("category_signal_inputs", {})
+    if not isinstance(category_inputs, dict):
+        return {}
+    baselines: dict[tuple[str, str], float] = {}
+    for category, rows in category_inputs.items():
+        if not isinstance(category, str) or not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            source = row.get("source")
+            source_mean = row.get("source_mean")
+            if not isinstance(source, str):
+                continue
+            try:
+                baselines[(source, category)] = float(source_mean)
+            except (TypeError, ValueError):
+                continue
+    return baselines
+
+
+def previous_source_category_median(
+    historical: dict,
+    source: str,
+    category: str,
+    as_of_day: str,
+    source_category_baselines: dict[tuple[str, str], float] | None = None,
+) -> float | None:
+    del historical, as_of_day  # Baseline is sourced from prior run snapshots.
+    baselines = source_category_baselines or {}
+    baseline = baselines.get((source, category))
+    if baseline is None:
+        return None
+    try:
+        return float(baseline)
+    except (TypeError, ValueError):
+        return None
+
+
 def apply_outlier_filter(quotes: list[Quote], historical: dict, as_of_day: str) -> tuple[list[Quote], int]:
     by_category: dict[str, list[Quote]] = defaultdict(list)
     for quote in quotes:
@@ -614,6 +688,8 @@ def validate_source_contract(
     historical: dict,
     now: datetime,
     source_contracts: dict[str, dict],
+    category: str | None = None,
+    source_category_baselines: dict[tuple[str, str], float] | None = None,
 ) -> dict:
     contract = source_contracts.get(contract_name) or {}
     checks: list[dict] = []
@@ -659,9 +735,23 @@ def validate_source_contract(
     checks.append({"name": "freshness", "passed": freshness_ok, "detail": f"{age_hours} <= {max_stale_hours}"})
 
     prev_median = None
-    category = quotes[0].category if quotes else (source_health.get("category") if isinstance(source_health, dict) else None)
-    if isinstance(category, str):
-        prev_median = previous_category_median(historical, category, as_of_day=reporting_date(now).isoformat())
+    baseline_type = None
+    effective_category = category or (quotes[0].category if quotes else (source_health.get("category") if isinstance(source_health, dict) else None))
+    as_of_day = reporting_date(now).isoformat()
+    if isinstance(effective_category, str):
+        prev_median = previous_source_category_median(
+            historical=historical,
+            source=source_name,
+            category=effective_category,
+            as_of_day=as_of_day,
+            source_category_baselines=source_category_baselines,
+        )
+        if prev_median is not None:
+            baseline_type = "source_category"
+        elif source_name in OFFICIAL_INDEX_SOURCES:
+            prev_median = previous_category_median(historical, effective_category, as_of_day=as_of_day)
+            if prev_median is not None:
+                baseline_type = "category_proxy"
     max_jump = float(contract.get("max_daily_median_jump_pct", 50.0))
     if quotes and prev_median not in (None, 0):
         current_median = statistics.median(float(q.value) for q in quotes)
@@ -671,11 +761,12 @@ def validate_source_contract(
     else:
         jump_ok = True
         jump_detail = None
-    checks.append({"name": "median_jump", "passed": jump_ok, "detail": jump_detail})
+    checks.append({"name": "median_jump", "passed": jump_ok, "detail": jump_detail, "baseline_type": baseline_type})
 
     passed = all(check["passed"] for check in checks)
     return {
         "source": source_name,
+        "category": effective_category,
         "contract": contract_name,
         "attempts": 1,
         "passed": passed,
@@ -696,31 +787,54 @@ def retry_with_contracts(
     checks_out: list[dict] = []
     max_attempts = len(QA_RETRY_OFFSETS_MINUTES) + 1
     previous_failure_signature: set[tuple[str, str]] | None = None
+    as_of_day = reporting_date(now).isoformat()
+    source_category_baselines = source_category_baselines_from_snapshot(latest_run_snapshot_before(as_of_day))
     for attempt in range(1, max_attempts + 1):
         quotes, health = scraper()
         best_quotes = quotes
         best_health = health
         source_rows = [asdict(h) for h in health]
         by_source_quotes: dict[str, list[Quote]] = defaultdict(list)
+        by_source_category_quotes: dict[tuple[str, str], list[Quote]] = defaultdict(list)
         for q in quotes:
             by_source_quotes[q.source].append(q)
+            by_source_category_quotes[(q.source, q.category)].append(q)
         attempt_checks: list[dict] = []
+        seen_source_category: set[tuple[str, str | None]] = set()
         for row in source_rows:
             source = row.get("source")
             if not isinstance(source, str):
                 continue
+            row_category = row.get("category") if isinstance(row.get("category"), str) else None
+            categories = [row_category] if row_category is not None else []
+            if not categories:
+                categories = sorted({q.category for q in by_source_quotes.get(source, []) if isinstance(q.category, str)})
+            if not categories:
+                categories = [None]
             contract_name = source_contract_name(scraper_name, source)
-            check = validate_source_contract(
-                contract_name=contract_name,
-                source_name=source,
-                quotes=by_source_quotes.get(source, []),
-                source_health=row,
-                historical=historical,
-                now=now,
-                source_contracts=source_contracts,
-            )
-            check["attempts"] = attempt
-            attempt_checks.append(check)
+            for category in categories:
+                key = (source, category)
+                if key in seen_source_category:
+                    continue
+                seen_source_category.add(key)
+                category_quotes = (
+                    by_source_category_quotes.get((source, category), [])
+                    if isinstance(category, str)
+                    else by_source_quotes.get(source, [])
+                )
+                check = validate_source_contract(
+                    contract_name=contract_name,
+                    source_name=source,
+                    category=category,
+                    quotes=category_quotes,
+                    source_health=row,
+                    historical=historical,
+                    now=now,
+                    source_contracts=source_contracts,
+                    source_category_baselines=source_category_baselines,
+                )
+                check["attempts"] = attempt
+                attempt_checks.append(check)
         checks_out = attempt_checks
         if attempt_checks and all(c["passed"] for c in attempt_checks):
             break
@@ -732,7 +846,7 @@ def retry_with_contracts(
                 if item.get("passed"):
                     continue
                 name = str(item.get("name"))
-                failed_pairs.add((check.get("source", ""), name))
+                failed_pairs.add((f"{check.get('source', '')}:{check.get('category', '')}", name))
                 if name in {"freshness", "required_fields"}:
                     transient_failed = True
         if not transient_failed:
@@ -2057,19 +2171,50 @@ def ensure_qa_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS qa_failure_fingerprints (
+                run_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL,
+                as_of_date TEXT NOT NULL,
+                total_source_checks INTEGER NOT NULL,
+                failed_source_checks INTEGER NOT NULL,
+                failed_check_events INTEGER NOT NULL,
+                by_check_json TEXT NOT NULL,
+                by_source_json TEXT NOT NULL,
+                by_category_json TEXT NOT NULL,
+                top_failed_check TEXT
+            )
+            """
+        )
         conn.commit()
 
 
 def record_qa_checks(run_id: str, created_at: str, checks: list[dict], source_health: list[dict], as_of_date: str) -> None:
     ensure_qa_db()
-    health_by_source = {row.get("source"): row for row in source_health if isinstance(row, dict)}
+    health_rows_by_source: dict[str, list[dict]] = defaultdict(list)
+    for row in source_health:
+        if not isinstance(row, dict):
+            continue
+        source = row.get("source")
+        if isinstance(source, str):
+            health_rows_by_source[source].append(row)
     with sqlite3.connect(QA_DB_PATH) as conn:
         for check in checks:
             source = check.get("source")
             if not isinstance(source, str):
                 continue
-            health = health_by_source.get(source, {})
-            category = health.get("category")
+            check_category = check.get("category")
+            source_rows = health_rows_by_source.get(source, [])
+            health = next(
+                (
+                    row
+                    for row in source_rows
+                    if isinstance(check_category, str) and row.get("category") == check_category
+                ),
+                source_rows[0] if source_rows else {},
+            )
+            category = check_category if isinstance(check_category, str) else health.get("category")
             freshness_hours = health.get("run_age_hours")
             freshness_sla_hours = None
             freshness_passed = None
@@ -2136,6 +2281,23 @@ def record_qa_checks(run_id: str, created_at: str, checks: list[dict], source_he
                     int(runs or 0),
                 ),
             )
+        fingerprint = build_qa_failure_fingerprint(checks)
+        conn.execute(
+            "INSERT OR REPLACE INTO qa_failure_fingerprints (run_id, created_at, as_of_date, total_source_checks, failed_source_checks, failed_check_events, by_check_json, by_source_json, by_category_json, top_failed_check) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                run_id,
+                created_at,
+                as_of_date,
+                int(fingerprint.get("total_source_checks") or 0),
+                int(fingerprint.get("failed_source_checks") or 0),
+                int(fingerprint.get("failed_check_events") or 0),
+                json.dumps(fingerprint.get("by_check", {})),
+                json.dumps(fingerprint.get("by_source", {})),
+                json.dumps(fingerprint.get("by_category", {})),
+                fingerprint.get("top_failed_check"),
+            ),
+        )
         conn.commit()
 
 
@@ -2171,6 +2333,36 @@ def check_pass_rate(checks: list[dict], check_name: str) -> float | None:
     if not outcomes:
         return None
     return round_or_none(sum(outcomes) / len(outcomes), 4)
+
+
+def build_qa_failure_fingerprint(checks: list[dict]) -> dict:
+    by_check: dict[str, int] = defaultdict(int)
+    by_source: dict[str, int] = defaultdict(int)
+    by_category: dict[str, int] = defaultdict(int)
+    failed_events = 0
+    for check in checks:
+        source = str(check.get("source") or "unknown")
+        category = str(check.get("category") or "unknown")
+        for item in check.get("checks", []):
+            if item.get("passed"):
+                continue
+            failed_events += 1
+            check_name = str(item.get("name") or "unknown")
+            by_check[check_name] += 1
+            by_source[source] += 1
+            by_category[category] += 1
+    top_failed_check = None
+    if by_check:
+        top_failed_check = max(by_check.items(), key=lambda row: row[1])[0]
+    return {
+        "total_source_checks": len(checks),
+        "failed_source_checks": sum(1 for check in checks if not check.get("passed")),
+        "failed_check_events": failed_events,
+        "by_check": dict(sorted(by_check.items())),
+        "by_source": dict(sorted(by_source.items())),
+        "by_category": dict(sorted(by_category.items())),
+        "top_failed_check": top_failed_check,
+    }
 
 
 def historical_row_from_snapshot(snapshot: dict) -> dict:
@@ -2395,6 +2587,7 @@ def build_snapshot() -> dict:
         if trailing_freshness_by_source
         else this_run_freshness_pass_rate
     )
+    qa_failure_fingerprint = build_qa_failure_fingerprint(qa_checks)
 
     expected_sources = set(SOURCE_SLA_DAYS.keys())
     observed_sources = {
@@ -2409,6 +2602,10 @@ def build_snapshot() -> dict:
     )
 
     qa_summary = {
+        "this_run_source_contract_pass_rate": this_run_contract_pass_rate,
+        "this_run_source_freshness_pass_rate": this_run_freshness_pass_rate,
+        "trailing_30d_source_contract_pass_rate": source_contract_pass_rate,
+        "trailing_30d_source_freshness_pass_rate": source_freshness_pass_rate,
         "source_contract_pass_rate": source_contract_pass_rate,
         "source_freshness_pass_rate": source_freshness_pass_rate,
         "fresh_weight_ratio": representativeness_ratio,
@@ -2424,6 +2621,7 @@ def build_snapshot() -> dict:
         "observed_sources": sorted(observed_sources),
         "missing_sources": missing_sources,
         "source_checks": qa_checks,
+        "failure_fingerprint": qa_failure_fingerprint,
         "retry_schedule_minutes": QA_RETRY_OFFSETS_MINUTES,
     }
 
@@ -2465,6 +2663,7 @@ def build_snapshot() -> dict:
             "category_contributions": category_contributions,
             "top_driver": compute_top_driver(category_contributions),
             "qa_summary": qa_summary,
+            "qa_failure_fingerprint": qa_failure_fingerprint,
             "province_overlays": [],
             "release_intelligence": next_release or {},
             "release_events": release_events,
