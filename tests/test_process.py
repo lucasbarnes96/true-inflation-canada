@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import tempfile
 import unittest
 from datetime import date, datetime, timezone
@@ -23,6 +24,7 @@ from process import (
     compute_signal_quality_score,
     dedupe_quotes,
     evaluate_gate,
+    ensure_qa_db,
     historical_row_from_snapshot,
     recompute_source_health,
     reconcile_historical_from_runs,
@@ -710,7 +712,29 @@ class ProcessTests(unittest.TestCase):
         self.assertEqual("published", out["release"]["status"])
         self.assertEqual("degraded", out["release"]["quality_tier"])
         self.assertTrue(out["release"]["carry_forward"])
+        self.assertEqual("tool_error", out["release"]["execution_outcome"])
+        self.assertEqual("carry_forward", out["release"]["publication_outcome"])
         self.assertIn("fresh_0_1d_weight_ratio", out["meta"]["freshness_composition"])
+
+    def test_ensure_qa_db_creates_source_check_events_and_fingerprint_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            qa_path = Path(tmp) / "qa_runs.db"
+            data_dir = Path(tmp)
+            with patch.object(process_module, "QA_DB_PATH", qa_path), patch.object(process_module, "DATA_DIR", data_dir):
+                ensure_qa_db()
+            with sqlite3.connect(qa_path) as conn:
+                source_events_cols = {
+                    row[1]
+                    for row in conn.execute("PRAGMA table_info(source_check_events)").fetchall()
+                    if len(row) >= 2
+                }
+                fingerprint_cols = {
+                    row[1]
+                    for row in conn.execute("PRAGMA table_info(qa_failure_fingerprints)").fetchall()
+                    if len(row) >= 2
+                }
+        self.assertIn("validator_version", source_events_cols)
+        self.assertIn("validator_version", fingerprint_cols)
 
 
 if __name__ == "__main__":

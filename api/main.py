@@ -317,8 +317,42 @@ def qa_status() -> dict:
         "run_id": release.get("run_id"),
         "release_status": release.get("status"),
         "qa_status": release.get("qa_status", "pending"),
+        "execution_outcome": release.get("execution_outcome", "unknown"),
+        "publication_outcome": release.get("publication_outcome", release.get("status")),
         "qa_window_close_at": release.get("qa_window_close_at"),
         "blocked_conditions": release.get("blocked_conditions", []),
+        "this_run_source_contract_pass_rate": qa_summary.get("this_run_source_contract_pass_rate"),
+        "trailing_30d_source_contract_pass_rate": qa_summary.get("trailing_30d_source_contract_pass_rate"),
+        "failure_fingerprint": qa_summary.get("failure_fingerprint", {}),
+        "top_failed_check": (qa_summary.get("failure_fingerprint", {}) or {}).get("top_failed_check"),
         "qa_summary": qa_summary,
         "source_reliability_30d": reliability,
+    }
+
+
+@app.get("/v1/ops/run-health")
+def ops_run_health() -> dict:
+    payload = _load_json(LATEST_PATH, {})
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=404, detail="No snapshot available.")
+    release = payload.get("release", {})
+    if not isinstance(release, dict):
+        release = {}
+    blocked = release.get("blocked_conditions", [])
+    if not isinstance(blocked, list):
+        blocked = []
+    source_health = payload.get("source_health", [])
+    degraded_count = 0
+    if isinstance(source_health, list):
+        degraded_count = sum(1 for row in source_health if isinstance(row, dict) and row.get("status") in {"stale", "missing"})
+    return {
+        "run_id": release.get("run_id"),
+        "as_of_date": payload.get("as_of_date"),
+        "execution_outcome": release.get("execution_outcome", "unknown"),
+        "publication_outcome": release.get("publication_outcome", release.get("status")),
+        "release_status": release.get("status"),
+        "qa_status": release.get("qa_status"),
+        "blocked_conditions": blocked,
+        "degraded_sources": degraded_count,
+        "severity": "P1" if blocked else ("P2" if degraded_count >= 5 else "P3"),
     }

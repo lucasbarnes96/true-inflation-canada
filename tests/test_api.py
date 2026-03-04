@@ -105,6 +105,8 @@ class ApiContractTests(unittest.TestCase):
                 },
                 "qa_summary": {
                     "source_contract_pass_rate": 0.98,
+                    "this_run_source_contract_pass_rate": 1.0,
+                    "trailing_30d_source_contract_pass_rate": 0.98,
                     "fresh_weight_ratio": 0.9,
                     "cross_source_disagreement_score": 0.12,
                     "cross_source_disagreement_by_category": {"food": 0.12},
@@ -112,6 +114,10 @@ class ApiContractTests(unittest.TestCase):
                     "imputation_used": False,
                     "imputed_categories": [],
                     "imputed_weight_ratio": 0.0,
+                    "failure_fingerprint": {
+                        "top_failed_check": None,
+                        "failed_source_checks": 0,
+                    },
                 },
             },
             "performance_ref": {
@@ -122,6 +128,8 @@ class ApiContractTests(unittest.TestCase):
                 "run_id": "run_123",
                 "status": "published",
                 "qa_status": "passed",
+                "execution_outcome": "success",
+                "publication_outcome": "published",
                 "qa_window_close_at": "2026-02-16T00:00:00+00:00",
                 "lifecycle_states": ["started", "completed", "published"],
                 "blocked_conditions": [],
@@ -296,7 +304,20 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         body = resp.json()
         self.assertEqual("passed", body["qa_status"])
+        self.assertEqual("success", body["execution_outcome"])
+        self.assertEqual("published", body["publication_outcome"])
+        self.assertIn("this_run_source_contract_pass_rate", body)
+        self.assertIn("trailing_30d_source_contract_pass_rate", body)
+        self.assertIn("failure_fingerprint", body)
         self.assertIn("qa_summary", body)
+
+    def test_ops_run_health_endpoint(self) -> None:
+        resp = self.client.get("/v1/ops/run-health")
+        self.assertEqual(200, resp.status_code)
+        body = resp.json()
+        self.assertEqual("run_123", body["run_id"])
+        self.assertEqual("success", body["execution_outcome"])
+        self.assertEqual("published", body["publication_outcome"])
 
     def test_history_preserves_seeded_meta(self) -> None:
         resp = self.client.get("/v1/nowcast/history")

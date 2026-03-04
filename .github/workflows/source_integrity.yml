@@ -80,6 +80,8 @@ jobs:
 
           with open(summary_path, "a", encoding="utf-8") as f:
             f.write("## Source Integrity Report\\n")
+            f.write(f"- Execution outcome: **{payload.get('release', {}).get('execution_outcome', '--')}**\\n")
+            f.write(f"- Publication outcome: **{payload.get('release', {}).get('publication_outcome', status)}**\\n")
             f.write(f"- Run status: **{status}**\\n")
             f.write(f"- Severity tier: **{severity}**\\n")
             f.write(f"- Alert reason: **{reason}**\\n")

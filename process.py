@@ -17,6 +17,12 @@ from zoneinfo import ZoneInfo
 from gate_policy import BASKET_WEIGHTS, GATE_POLICY, METHOD_VERSION, gate_policy_payload, weights_payload
 from models import NowcastSnapshot
 from performance import compute_performance_summary, write_performance_summary
+from pipeline.collect import collect_run_data
+from pipeline.gate import evaluate_gate_decision
+from pipeline.persistence import persist_pipeline_outputs
+from pipeline.publish import apply_release_decision
+from pipeline.types import PersistenceInputs
+from pipeline.validate import build_validation_result
 from source_catalog import SOURCE_CATALOG
 from scrapers.common import dns_preflight, tls_trust_store_info
 from scrapers import (
@@ -2138,6 +2144,7 @@ def ensure_qa_db() -> None:
             CREATE TABLE IF NOT EXISTS source_run_checks (
                 run_id TEXT NOT NULL,
                 created_at TEXT NOT NULL,
+                as_of_date TEXT,
                 source TEXT NOT NULL,
                 category TEXT,
                 passed INTEGER NOT NULL,
@@ -2150,6 +2157,22 @@ def ensure_qa_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS source_check_events (
+                run_id TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                as_of_date TEXT NOT NULL,
+                source TEXT NOT NULL,
+                category TEXT,
+                check_name TEXT NOT NULL,
+                passed INTEGER NOT NULL,
+                detail TEXT,
+                attempts INTEGER NOT NULL,
+                validator_version TEXT NOT NULL
+            )
+            """
+        )
         existing_cols = {
             row[1]
             for row in conn.execute("PRAGMA table_info(source_run_checks)").fetchall()
@@ -2159,6 +2182,8 @@ def ensure_qa_db() -> None:
             conn.execute("ALTER TABLE source_run_checks ADD COLUMN freshness_sla_hours REAL")
         if "freshness_passed" not in existing_cols:
             conn.execute("ALTER TABLE source_run_checks ADD COLUMN freshness_passed INTEGER")
+        if "as_of_date" not in existing_cols:
+            conn.execute("ALTER TABLE source_run_checks ADD COLUMN as_of_date TEXT")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS daily_source_reliability (
@@ -2183,10 +2208,18 @@ def ensure_qa_db() -> None:
                 by_check_json TEXT NOT NULL,
                 by_source_json TEXT NOT NULL,
                 by_category_json TEXT NOT NULL,
-                top_failed_check TEXT
+                top_failed_check TEXT,
+                validator_version TEXT NOT NULL
             )
             """
         )
+        fingerprint_cols = {
+            row[1]
+            for row in conn.execute("PRAGMA table_info(qa_failure_fingerprints)").fetchall()
+            if len(row) >= 2
+        }
+        if "validator_version" not in fingerprint_cols:
+            conn.execute("ALTER TABLE qa_failure_fingerprints ADD COLUMN validator_version TEXT NOT NULL DEFAULT 'unknown'")
         conn.commit()
 
 
@@ -2241,11 +2274,12 @@ def record_qa_checks(run_id: str, created_at: str, checks: list[dict], source_he
                 if isinstance(sla_days, (int, float)):
                     freshness_sla_hours = float(sla_days) * 24.0
             conn.execute(
-                "INSERT INTO source_run_checks (run_id, created_at, source, category, passed, attempts, freshness_hours, freshness_sla_hours, freshness_passed, record_count, details_json) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO source_run_checks (run_id, created_at, as_of_date, source, category, passed, attempts, freshness_hours, freshness_sla_hours, freshness_passed, record_count, details_json) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     run_id,
                     created_at,
+                    as_of_date,
                     source,
                     category,
                     1 if check.get("passed") else 0,
@@ -2257,6 +2291,29 @@ def record_qa_checks(run_id: str, created_at: str, checks: list[dict], source_he
                     json.dumps(check),
                 ),
             )
+            for item in check.get("checks", []):
+                if not isinstance(item, dict):
+                    continue
+                check_name = item.get("name")
+                if not isinstance(check_name, str):
+                    continue
+                detail = item.get("detail")
+                conn.execute(
+                    "INSERT INTO source_check_events (run_id, created_at, as_of_date, source, category, check_name, passed, detail, attempts, validator_version) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        run_id,
+                        created_at,
+                        as_of_date,
+                        source,
+                        category,
+                        check_name,
+                        1 if item.get("passed") else 0,
+                        None if detail is None else str(detail),
+                        int(check.get("attempts") or 1),
+                        METHOD_VERSION,
+                    ),
+                )
 
         window_start = (date.fromisoformat(as_of_date) - timedelta(days=30)).isoformat()
         rows = conn.execute(
@@ -2266,8 +2323,8 @@ def record_qa_checks(run_id: str, created_at: str, checks: list[dict], source_he
             "WHEN freshness_hours IS NOT NULL AND freshness_sla_hours IS NOT NULL AND freshness_hours <= freshness_sla_hours THEN 1.0 "
             "WHEN freshness_hours IS NOT NULL AND freshness_hours <= 48 THEN 1.0 "
             "ELSE 0.0 END) AS freshness_rate "
-            "FROM source_run_checks WHERE DATE(created_at) >= DATE(?) GROUP BY source",
-            (window_start,),
+            "FROM source_run_checks WHERE DATE(created_at) >= DATE(?) AND DATE(created_at) <= DATE(?) GROUP BY source",
+            (window_start, as_of_date),
         ).fetchall()
         for source, runs, pass_rate, freshness_rate in rows:
             conn.execute(
@@ -2283,8 +2340,8 @@ def record_qa_checks(run_id: str, created_at: str, checks: list[dict], source_he
             )
         fingerprint = build_qa_failure_fingerprint(checks)
         conn.execute(
-            "INSERT OR REPLACE INTO qa_failure_fingerprints (run_id, created_at, as_of_date, total_source_checks, failed_source_checks, failed_check_events, by_check_json, by_source_json, by_category_json, top_failed_check) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT OR REPLACE INTO qa_failure_fingerprints (run_id, created_at, as_of_date, total_source_checks, failed_source_checks, failed_check_events, by_check_json, by_source_json, by_category_json, top_failed_check, validator_version) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 run_id,
                 created_at,
@@ -2296,6 +2353,7 @@ def record_qa_checks(run_id: str, created_at: str, checks: list[dict], source_he
                 json.dumps(fingerprint.get("by_source", {})),
                 json.dumps(fingerprint.get("by_category", {})),
                 fingerprint.get("top_failed_check"),
+                METHOD_VERSION,
             ),
         )
         conn.commit()
@@ -2489,11 +2547,17 @@ def build_snapshot() -> dict:
     consensus_latest = fetch_consensus_estimate()
     next_release = compute_next_release(release_events, now)
 
-    quotes, source_health, collection_diagnostics, qa_checks = collect_all_quotes(
+    collected = collect_run_data(
         historical=historical,
         now=now,
         source_contracts=source_contracts,
+        collect_all_quotes_fn=collect_all_quotes,
+        recompute_source_health_fn=recompute_source_health,
     )
+    quotes = collected.quotes
+    source_health = collected.source_health
+    collection_diagnostics = collected.collection_diagnostics
+    qa_checks = collected.qa_checks
 
     # Filter out "scrappy" raw price quotes from the main index calculation
     # to prevent mixing Index (100-basis) with Prices ($2000).
@@ -2503,7 +2567,7 @@ def build_snapshot() -> dict:
 
     indicators = extract_hero_indicators(quotes)
 
-    computed_health = recompute_source_health(source_health, now)
+    computed_health = collected.computed_source_health
 
     # Use index_quotes for the main calculation
     deduped = dedupe_quotes(index_quotes)
@@ -2566,64 +2630,23 @@ def build_snapshot() -> dict:
         deviation_yoy = round_or_none(float(nowcast_yoy) - float(consensus_yoy), 3)
     # Deprecated alias retained for compatibility during transition.
     consensus_spread_yoy = deviation_yoy
-    this_run_contract_pass_rate = (
-        round_or_none(sum(1 for c in qa_checks if c.get("passed")) / len(qa_checks), 4)
-        if qa_checks
-        else 0.0
+    validation = build_validation_result(
+        qa_checks=qa_checks,
+        as_of_day=as_of_day,
+        representativeness_ratio=representativeness_ratio,
+        reconciliation=reconciliation,
+        imputation=imputation,
+        source_sla_days=SOURCE_SLA_DAYS,
+        computed_health=computed_health,
+        retry_offsets_minutes=QA_RETRY_OFFSETS_MINUTES,
+        build_qa_failure_fingerprint_fn=build_qa_failure_fingerprint,
+        check_pass_rate_fn=check_pass_rate,
+        source_pass_rate_30d_fn=source_pass_rate_30d,
+        source_freshness_rate_30d_fn=source_freshness_rate_30d,
+        round_or_none_fn=round_or_none,
     )
-    this_run_freshness_pass_rate = check_pass_rate(qa_checks, "freshness")
-    if this_run_freshness_pass_rate is None:
-        this_run_freshness_pass_rate = 0.0
-
-    trailing_by_source = source_pass_rate_30d(as_of_day)
-    trailing_freshness_by_source = source_freshness_rate_30d(as_of_day)
-    source_contract_pass_rate = (
-        round_or_none(sum(trailing_by_source.values()) / len(trailing_by_source), 4)
-        if trailing_by_source
-        else this_run_contract_pass_rate
-    )
-    source_freshness_pass_rate = (
-        round_or_none(sum(trailing_freshness_by_source.values()) / len(trailing_freshness_by_source), 4)
-        if trailing_freshness_by_source
-        else this_run_freshness_pass_rate
-    )
-    qa_failure_fingerprint = build_qa_failure_fingerprint(qa_checks)
-
-    expected_sources = set(SOURCE_SLA_DAYS.keys())
-    observed_sources = {
-        row.get("source")
-        for row in computed_health
-        if isinstance(row, dict) and isinstance(row.get("source"), str)
-    }
-    missing_sources = sorted(expected_sources - observed_sources)
-    source_inventory_ratio = round_or_none(
-        (len(observed_sources) / len(expected_sources)) if expected_sources else 1.0,
-        4,
-    )
-
-    qa_summary = {
-        "this_run_source_contract_pass_rate": this_run_contract_pass_rate,
-        "this_run_source_freshness_pass_rate": this_run_freshness_pass_rate,
-        "trailing_30d_source_contract_pass_rate": source_contract_pass_rate,
-        "trailing_30d_source_freshness_pass_rate": source_freshness_pass_rate,
-        "source_contract_pass_rate": source_contract_pass_rate,
-        "source_freshness_pass_rate": source_freshness_pass_rate,
-        "fresh_weight_ratio": representativeness_ratio,
-        "cross_source_disagreement_score": reconciliation["cross_source_disagreement_score"],
-        "cross_source_disagreement_by_category": reconciliation["cross_source_disagreement_by_category"],
-        "quarantine_sources": reconciliation["quarantine_sources"],
-        "quarantine_reasons": reconciliation["quarantine_reasons"],
-        "imputation_used": imputation["imputation_used"],
-        "imputed_categories": imputation["imputed_categories"],
-        "imputed_weight_ratio": imputation["imputed_weight_ratio"],
-        "source_inventory_ratio": source_inventory_ratio,
-        "expected_sources": sorted(expected_sources),
-        "observed_sources": sorted(observed_sources),
-        "missing_sources": missing_sources,
-        "source_checks": qa_checks,
-        "failure_fingerprint": qa_failure_fingerprint,
-        "retry_schedule_minutes": QA_RETRY_OFFSETS_MINUTES,
-    }
+    qa_summary = validation.qa_summary
+    qa_failure_fingerprint = validation.qa_failure_fingerprint
 
     snapshot = {
         "as_of_date": as_of_day,
@@ -2714,20 +2737,17 @@ def build_snapshot() -> dict:
     snapshot["release"]["status"] = "completed"
     snapshot["release"]["lifecycle_states"].append("completed")
     snapshot["release"]["lifecycle_states"].append("publish")
-    gate_diagnostics = build_gate_diagnostics(snapshot)
+    gate_decision, gate_diagnostics = evaluate_gate_decision(
+        snapshot=snapshot,
+        now=now,
+        build_gate_diagnostics_fn=build_gate_diagnostics,
+        evaluate_gate_fn=evaluate_gate,
+        validate_snapshot_fn=validate_snapshot,
+    )
     snapshot["meta"]["gate_diagnostics"] = gate_diagnostics
-    blocked_conditions = evaluate_gate(snapshot)
-    blocked_conditions.extend(validate_snapshot(snapshot))
-
-    status = "published" if not blocked_conditions else "failed_gate"
-    snapshot["release"]["status"] = status
-    snapshot["release"]["quality_tier"] = "good" if status == "published" else "blocked"
-    snapshot["release"]["lifecycle_states"].append(status)
-    snapshot["release"]["blocked_conditions"] = blocked_conditions
-    snapshot["release"]["qa_status"] = "passed" if status == "published" else "failed"
-    snapshot["headline"]["publish_warning"] = None if status == "published" else "Gate blocked publication for this run."
-    if status == "published":
-        snapshot["release"]["published_at"] = now.isoformat()
+    snapshot = apply_release_decision(snapshot, gate_decision)
+    blocked_conditions = gate_decision.blocked_conditions
+    status = gate_decision.status
 
     snapshot["headline"]["signal_quality_score"] = compute_signal_quality_score(
         coverage_ratio=coverage_ratio,
@@ -2942,6 +2962,8 @@ def build_carry_forward_snapshot(now: datetime, reason: str) -> dict | None:
     release["blocked_conditions"] = []
     release["created_at"] = now.isoformat()
     release["published_at"] = now.isoformat()
+    release["execution_outcome"] = "tool_error"
+    release["publication_outcome"] = "carry_forward"
 
     notes = carry.setdefault("notes", [])
     if not isinstance(notes, list):
@@ -2963,7 +2985,16 @@ def main() -> int:
         reason = f"pipeline_exception:{type(exc).__name__}"
         carry = build_carry_forward_snapshot(now=now, reason=reason)
         if carry is not None:
-            write_outputs(carry)
+            persist_pipeline_outputs(
+                inputs=PersistenceInputs(
+                    snapshot=carry,
+                    historical={},
+                    run_path=RUNS_DIR / f"{carry['release']['run_id']}.json",
+                    status=carry["release"]["status"],
+                    release_created_at=carry["release"]["created_at"],
+                ),
+                persist_fn=write_outputs,
+            )
             print(f"WARN: Pipeline exception fallback: published carry-forward snapshot ({reason}).")
             return 0
         # Crash guard fallback when no prior snapshot exists.
@@ -3001,6 +3032,8 @@ def main() -> int:
                 "blocked_conditions": [f"Pipeline crash: {type(exc).__name__}: {exc}"],
                 "created_at": now.isoformat(),
                 "published_at": None,
+                "execution_outcome": "crash",
+                "publication_outcome": "failed_gate",
             },
         }
         DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -3009,7 +3042,16 @@ def main() -> int:
         import traceback
         traceback.print_exc()
         return 2
-    write_outputs(snap)
+    persist_pipeline_outputs(
+        inputs=PersistenceInputs(
+            snapshot=snap,
+            historical={},
+            run_path=RUNS_DIR / f"{snap['release']['run_id']}.json",
+            status=snap["release"]["status"],
+            release_created_at=snap["release"]["created_at"],
+        ),
+        persist_fn=write_outputs,
+    )
     status = snap["release"]["status"]
     blocked = snap["release"].get("blocked_conditions", [])
     print(f"Run status: {status}")

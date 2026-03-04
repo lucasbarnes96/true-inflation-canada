@@ -110,6 +110,9 @@ jobs:
           summary_path = os.environ["GITHUB_STEP_SUMMARY"]
           with open(summary_path, "a", encoding="utf-8") as f:
             f.write(f"## Run Summary\n")
+            release = data.get("release", {})
+            f.write(f"- Execution outcome: **{release.get('execution_outcome', '--')}**\n")
+            f.write(f"- Publication outcome: **{release.get('publication_outcome', release.get('status', '--'))}**\n")
             f.write(f"- Confidence: **{data['headline']['confidence']}**\n")
             f.write(f"- Signal quality: **{data['headline'].get('signal_quality_score', '--')}/100**\n")
             f.write(f"- Coverage ratio: **{data['headline']['coverage_ratio']}**\n")
