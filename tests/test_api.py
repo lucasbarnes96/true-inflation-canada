@@ -319,6 +319,25 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual("success", body["execution_outcome"])
         self.assertEqual("published", body["publication_outcome"])
 
+    def test_qa_status_legacy_fallbacks(self) -> None:
+        payload = json.loads(self.latest.read_text())
+        payload["release"].pop("execution_outcome", None)
+        payload["release"].pop("publication_outcome", None)
+        payload["meta"]["qa_failure_fingerprint"] = {"top_failed_check": "median_jump", "failed_check_events": 3}
+        payload["meta"]["qa_summary"].pop("failure_fingerprint", None)
+        payload["meta"]["qa_summary"].pop("this_run_source_contract_pass_rate", None)
+        payload["meta"]["qa_summary"].pop("trailing_30d_source_contract_pass_rate", None)
+        payload["meta"]["qa_summary"]["source_contract_pass_rate"] = 0.88
+        self.latest.write_text(json.dumps(payload))
+
+        resp = self.client.get("/v1/qa/status")
+        self.assertEqual(200, resp.status_code)
+        body = resp.json()
+        self.assertEqual("success", body["execution_outcome"])
+        self.assertEqual("published", body["publication_outcome"])
+        self.assertEqual(0.88, body["this_run_source_contract_pass_rate"])
+        self.assertEqual("median_jump", body["top_failed_check"])
+
     def test_history_preserves_seeded_meta(self) -> None:
         resp = self.client.get("/v1/nowcast/history")
         self.assertEqual(200, resp.status_code)

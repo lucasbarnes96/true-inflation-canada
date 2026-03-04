@@ -21,6 +21,7 @@ from pipeline.collect import collect_run_data
 from pipeline.gate import evaluate_gate_decision
 from pipeline.persistence import persist_pipeline_outputs
 from pipeline.publish import apply_release_decision
+from pipeline.run_state import normalize_snapshot_run_state
 from pipeline.types import PersistenceInputs
 from pipeline.validate import build_validation_result
 from source_catalog import SOURCE_CATALOG
@@ -2811,7 +2812,10 @@ def build_snapshot() -> dict:
         forecast=forecast,
         calibration_diagnostics=calibration_diagnostics,
     )
-    return snapshot
+    return normalize_snapshot_run_state(
+        snapshot,
+        build_qa_failure_fingerprint_fn=build_qa_failure_fingerprint,
+    )
 
 
 def build_methodology_payload(snapshot: dict) -> dict:
@@ -2970,7 +2974,10 @@ def build_carry_forward_snapshot(now: datetime, reason: str) -> dict | None:
         notes = []
         carry["notes"] = notes
     notes.append(f"Carry-forward publication on {as_of_day} from {source_as_of}: {reason}.")
-    return carry
+    return normalize_snapshot_run_state(
+        carry,
+        build_qa_failure_fingerprint_fn=build_qa_failure_fingerprint,
+    )
 
 
 def main() -> int:
@@ -3036,6 +3043,7 @@ def main() -> int:
                 "publication_outcome": "failed_gate",
             },
         }
+        error_snapshot = normalize_snapshot_run_state(error_snapshot)
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         LATEST_PATH.write_text(json.dumps(error_snapshot, indent=2))
         print(f"FATAL: Pipeline crashed: {type(exc).__name__}: {exc}")

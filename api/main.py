@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 
 from gate_policy import METHOD_VERSION, gate_policy_payload, weights_payload
 from models import NowcastSnapshot
+from pipeline.run_state import normalize_snapshot_run_state
 from source_catalog import SOURCE_CATALOG
 
 DATA_DIR = Path("data")
@@ -87,30 +88,6 @@ def _load_json(path: Path, default: dict | list) -> dict | list:
         return json.loads(path.read_text())
     except Exception:
         return default
-
-
-def _infer_execution_outcome(release: dict) -> str:
-    execution_outcome = release.get("execution_outcome")
-    if isinstance(execution_outcome, str) and execution_outcome:
-        return execution_outcome
-    status = release.get("status")
-    if status in {"published", "failed_gate", "degraded_published"}:
-        return "success"
-    return "unknown"
-
-
-def _infer_publication_outcome(release: dict) -> str | None:
-    publication_outcome = release.get("publication_outcome")
-    if isinstance(publication_outcome, str) and publication_outcome:
-        return publication_outcome
-    status = release.get("status")
-    if status == "published":
-        return "published"
-    if status == "failed_gate":
-        return "failed_gate"
-    if status == "degraded_published":
-        return "carry_forward"
-    return status
 
 
 @app.get("/v1/nowcast/latest")
@@ -318,32 +295,8 @@ def qa_status() -> dict:
     release = payload.get("release", {})
     if not isinstance(release, dict):
         release = {}
-    meta = payload.get("meta", {})
-    if not isinstance(meta, dict):
-        meta = {}
-    qa_summary = meta.get("qa_summary", {})
-    if not isinstance(qa_summary, dict):
-        qa_summary = {}
-
-    summary_fingerprint = qa_summary.get("failure_fingerprint")
-    if not isinstance(summary_fingerprint, dict):
-        summary_fingerprint = {}
-    meta_fingerprint = meta.get("qa_failure_fingerprint")
-    if not isinstance(meta_fingerprint, dict):
-        meta_fingerprint = {}
-    failure_fingerprint = summary_fingerprint or meta_fingerprint
-
-    this_run_source_contract_pass_rate = qa_summary.get("this_run_source_contract_pass_rate")
-    if this_run_source_contract_pass_rate is None:
-        this_run_source_contract_pass_rate = qa_summary.get("source_contract_pass_rate")
-
-    this_run_source_freshness_pass_rate = qa_summary.get("this_run_source_freshness_pass_rate")
-    if this_run_source_freshness_pass_rate is None:
-        this_run_source_freshness_pass_rate = qa_summary.get("source_freshness_pass_rate")
-
-    trailing_30d_source_contract_pass_rate = qa_summary.get("trailing_30d_source_contract_pass_rate")
-    trailing_30d_source_freshness_pass_rate = qa_summary.get("trailing_30d_source_freshness_pass_rate")
     reliability: list[dict] = []
+    reliability_rows: list[tuple[float, float]] = []
     if QA_DB_PATH.exists():
         as_of_date = payload.get("as_of_date")
         if isinstance(as_of_date, str):
@@ -353,6 +306,7 @@ def qa_status() -> dict:
                     "FROM daily_source_reliability WHERE as_of_date = ? ORDER BY source",
                     (as_of_date,),
                 ).fetchall()
+            reliability_rows = [(pass_rate, freshness) for _, pass_rate, freshness, _ in rows]
             reliability = [
                 {
                     "source": source,
@@ -362,34 +316,29 @@ def qa_status() -> dict:
                 }
                 for source, pass_rate, freshness, runs in rows
             ]
-            if trailing_30d_source_contract_pass_rate is None and rows:
-                trailing_30d_source_contract_pass_rate = round(
-                    sum(float(pass_rate) for _, pass_rate, _, _ in rows) / len(rows),
-                    4,
-                )
-            if trailing_30d_source_freshness_pass_rate is None and rows:
-                trailing_30d_source_freshness_pass_rate = round(
-                    sum(float(freshness) for _, _, freshness, _ in rows) / len(rows),
-                    4,
-                )
-
-    if trailing_30d_source_contract_pass_rate is None:
-        trailing_30d_source_contract_pass_rate = this_run_source_contract_pass_rate
-    if trailing_30d_source_freshness_pass_rate is None:
-        trailing_30d_source_freshness_pass_rate = this_run_source_freshness_pass_rate
+    normalize_snapshot_run_state(
+        payload,
+        reliability_rows=reliability_rows,
+    )
+    release = payload.get("release", {})
+    meta = payload.get("meta", {})
+    qa_summary = meta.get("qa_summary", {})
+    failure_fingerprint = qa_summary.get("failure_fingerprint", {}) if isinstance(qa_summary, dict) else {}
+    if not isinstance(failure_fingerprint, dict):
+        failure_fingerprint = {}
 
     return {
         "run_id": release.get("run_id"),
         "release_status": release.get("status"),
         "qa_status": release.get("qa_status", "pending"),
-        "execution_outcome": _infer_execution_outcome(release),
-        "publication_outcome": _infer_publication_outcome(release),
+        "execution_outcome": release.get("execution_outcome"),
+        "publication_outcome": release.get("publication_outcome"),
         "qa_window_close_at": release.get("qa_window_close_at"),
         "blocked_conditions": release.get("blocked_conditions", []),
-        "this_run_source_contract_pass_rate": this_run_source_contract_pass_rate,
-        "this_run_source_freshness_pass_rate": this_run_source_freshness_pass_rate,
-        "trailing_30d_source_contract_pass_rate": trailing_30d_source_contract_pass_rate,
-        "trailing_30d_source_freshness_pass_rate": trailing_30d_source_freshness_pass_rate,
+        "this_run_source_contract_pass_rate": qa_summary.get("this_run_source_contract_pass_rate"),
+        "this_run_source_freshness_pass_rate": qa_summary.get("this_run_source_freshness_pass_rate"),
+        "trailing_30d_source_contract_pass_rate": qa_summary.get("trailing_30d_source_contract_pass_rate"),
+        "trailing_30d_source_freshness_pass_rate": qa_summary.get("trailing_30d_source_freshness_pass_rate"),
         "failure_fingerprint": failure_fingerprint,
         "top_failed_check": failure_fingerprint.get("top_failed_check"),
         "qa_summary": qa_summary,
@@ -405,6 +354,8 @@ def ops_run_health() -> dict:
     release = payload.get("release", {})
     if not isinstance(release, dict):
         release = {}
+    normalize_snapshot_run_state(payload)
+    release = payload.get("release", {})
     blocked = release.get("blocked_conditions", [])
     if not isinstance(blocked, list):
         blocked = []
@@ -415,8 +366,8 @@ def ops_run_health() -> dict:
     return {
         "run_id": release.get("run_id"),
         "as_of_date": payload.get("as_of_date"),
-        "execution_outcome": _infer_execution_outcome(release),
-        "publication_outcome": _infer_publication_outcome(release),
+        "execution_outcome": release.get("execution_outcome"),
+        "publication_outcome": release.get("publication_outcome"),
         "release_status": release.get("status"),
         "qa_status": release.get("qa_status"),
         "blocked_conditions": blocked,

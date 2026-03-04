@@ -66,7 +66,7 @@ class CategorySummary(BaseModel):
 
 class ReleaseGateResult(BaseModel):
     passed: bool
-    status: Literal["published", "failed_gate", "completed", "started"]
+    status: Literal["published", "failed_gate", "degraded_published", "completed", "started", "crashed"]
     blocked_conditions: list[str] = Field(default_factory=list)
     evaluated_at: datetime
 
@@ -88,13 +88,15 @@ class HeadlineModel(BaseModel):
 
 class ReleaseMeta(BaseModel):
     run_id: str
-    status: Literal["published", "failed_gate", "completed", "started"]
+    status: Literal["published", "failed_gate", "degraded_published", "completed", "started", "crashed"]
     qa_status: Literal["pending", "passed", "failed"] = "pending"
     qa_window_close_at: datetime | None = None
     lifecycle_states: list[str] = Field(default_factory=list)
     blocked_conditions: list[str] = Field(default_factory=list)
     created_at: datetime
     published_at: datetime | None = None
+    execution_outcome: Literal["success", "tool_error", "crash", "unknown"] | None = None
+    publication_outcome: Literal["published", "failed_gate", "carry_forward"] | str | None = None
 
 
 class NowcastSnapshot(BaseModel):
