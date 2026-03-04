@@ -58,6 +58,42 @@
 
       --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
       --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Fira Code", monospace;
+      --nav-bg: rgba(245, 245, 247, 0.72);
+      --chart-grid: rgba(0, 0, 0, 0.05);
+      --chart-grid-soft: rgba(0, 0, 0, 0.04);
+      --chart-ticks: #98989d;
+      --chart-nowcast: #0071e3;
+      --chart-nowcast-fill: rgba(0, 113, 227, 0.08);
+      --chart-official: #ff9f0a;
+      --chart-prelive: rgba(110, 110, 115, 0.06);
+      --chart-prelive-text: #98989d;
+      color-scheme: light;
+    }
+
+    html[data-theme="dark"] {
+      --bg: #0f131a;
+      --surface: #171d27;
+      --surface-2: #202938;
+      --surface-elevated: rgba(23, 29, 39, 0.9);
+      --border: rgba(255, 255, 255, 0.12);
+      --border-strong: rgba(255, 255, 255, 0.22);
+      --text: #e6edf7;
+      --text-secondary: #a7b3c4;
+      --text-tertiary: #8793a6;
+      --blue-light: rgba(0, 113, 227, 0.2);
+      --green-light: rgba(47, 161, 68, 0.2);
+      --amber-light: rgba(220, 134, 20, 0.2);
+      --red-light: rgba(223, 59, 48, 0.2);
+      --nav-bg: rgba(15, 19, 26, 0.78);
+      --chart-grid: rgba(255, 255, 255, 0.12);
+      --chart-grid-soft: rgba(255, 255, 255, 0.08);
+      --chart-ticks: #a7b3c4;
+      --chart-nowcast: #5ba7ff;
+      --chart-nowcast-fill: rgba(91, 167, 255, 0.18);
+      --chart-official: #ffb347;
+      --chart-prelive: rgba(255, 255, 255, 0.05);
+      --chart-prelive-text: #a7b3c4;
+      color-scheme: dark;
     }
 
     /* =========================================================
@@ -91,7 +127,7 @@
       position: sticky;
       top: 0;
       z-index: 100;
-      background: rgba(245, 245, 247, 0.72);
+      background: var(--nav-bg);
       backdrop-filter: blur(20px) saturate(180%);
       -webkit-backdrop-filter: blur(20px) saturate(180%);
       border-bottom: 1px solid var(--border);
@@ -151,6 +187,38 @@
       font-size: 0.78rem;
       color: var(--text-secondary);
       font-family: var(--font-mono);
+    }
+
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.25rem;
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.95rem;
+      line-height: 1;
+    }
+
+    .theme-toggle:hover {
+      background: var(--surface-2);
+    }
+
+    .theme-toggle .icon-moon {
+      display: none;
+    }
+
+    html[data-theme="dark"] .theme-toggle .icon-sun {
+      display: none;
+    }
+
+    html[data-theme="dark"] .theme-toggle .icon-moon {
+      display: inline;
     }
 
     /* =========================================================
@@ -928,6 +996,10 @@
       <span class="nav-date" id="asof">—</span>
       <a class="nav-link" href="/about">About</a>
       <a class="nav-link" href="/changelog">Changelog</a>
+      <button id="theme-toggle" class="theme-toggle" aria-label="Enable dark mode" title="Toggle dark mode">
+        <span class="icon-sun" aria-hidden="true">☀️</span>
+        <span class="icon-moon" aria-hidden="true">🌙</span>
+      </button>
       <span class="pill"
         style="background:var(--copper-light); color:var(--copper-dark); font-size:0.7rem; padding:0.2rem 0.6rem;">NOWCAST</span>
     </div>
@@ -1096,8 +1168,10 @@
 
   <script>
     const UI_MODE_V2 = new URLSearchParams(window.location.search).get("ui_v2") !== "0";
+    const THEME_KEY = "tic_theme";
     let divergenceChart = null;
     let categoryChart = null;
+    let dashboardState = null;
 
     function el(tag, className, text) {
       const node = document.createElement(tag);
@@ -1175,6 +1249,11 @@
 
     function maybe(v) {
       return v ?? "--";
+    }
+
+    function uiToken(name, fallback) {
+      const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      return raw || fallback;
     }
 
     function hasNumber(value) {
@@ -1324,6 +1403,40 @@
       return String(a) >= String(b) ? String(a) : String(b);
     }
 
+    function applyTheme(theme) {
+      const mode = theme === "dark" ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", mode);
+      const btn = document.getElementById("theme-toggle");
+      if (btn) {
+        const next = mode === "dark" ? "light" : "dark";
+        btn.setAttribute("aria-label", `Enable ${next} mode`);
+        btn.title = `Switch to ${next} mode`;
+      }
+    }
+
+    function initThemeToggle() {
+      const saved = localStorage.getItem(THEME_KEY);
+      const preferred = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      applyTheme(saved || preferred);
+      const btn = document.getElementById("theme-toggle");
+      if (!btn) return;
+      btn.addEventListener("click", () => {
+        const current = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+        const next = current === "dark" ? "light" : "dark";
+        localStorage.setItem(THEME_KEY, next);
+        applyTheme(next);
+        if (dashboardState) {
+          renderDivergence(
+            dashboardState.items.slice(-120),
+            dashboardState.latest,
+            dashboardState.liveDays,
+            dashboardState.chartStartDate,
+          );
+          renderCategoryChart(dashboardState.latest);
+        }
+      });
+    }
+
     function freshnessTier(composition) {
       const ratio = Number(composition?.fresh_0_1d_weight_ratio);
       if (!Number.isFinite(ratio)) return { key: "unknown", label: "unknown", color: "#9a9aa0" };
@@ -1402,9 +1515,9 @@
           const liveX = xScale.getPixelForValue(firstLiveIndex);
           const ctx = chart.ctx;
           ctx.save();
-          ctx.fillStyle = "rgba(110,110,115,0.06)";
+          ctx.fillStyle = uiToken("--chart-prelive", "rgba(110,110,115,0.06)");
           ctx.fillRect(area.left, area.top, Math.max(0, liveX - area.left), area.bottom - area.top);
-          ctx.fillStyle = "#98989d";
+          ctx.fillStyle = uiToken("--chart-prelive-text", "#98989d");
           ctx.font = "11px 'SF Mono', ui-monospace, monospace";
           ctx.fillText("Pre-live (official only)", area.left + 8, area.top + 16);
           ctx.restore();
@@ -1416,8 +1529,8 @@
           type: "line",
           label: "Nowcast YoY (daily published)",
           data: nowcastSeries,
-          borderColor: "#0071e3",
-          backgroundColor: "rgba(0,113,227,0.08)",
+          borderColor: uiToken("--chart-nowcast", "#0071e3"),
+          backgroundColor: uiToken("--chart-nowcast-fill", "rgba(0,113,227,0.08)"),
           tension: 0,
           spanGaps: false,
           yAxisID: "y",
@@ -1433,7 +1546,7 @@
           type: "line",
           label: "Official CPI YoY",
           data: official,
-          borderColor: "#ff9f0a",
+          borderColor: uiToken("--chart-official", "#ff9f0a"),
           borderDash: [6, 4],
           backgroundColor: "rgba(0,0,0,0)",
           tension: 0,
@@ -1456,7 +1569,7 @@
           plugins: {
             legend: {
               labels: {
-                color: "#6e6e73",
+                color: uiToken("--text-secondary", "#6e6e73"),
                 font: { size: 12, family: "-apple-system, sans-serif" },
                 boxWidth: 16,
                 padding: 16,
@@ -1485,13 +1598,13 @@
           scales: {
             y: {
               position: "left",
-              ticks: { color: "#98989d", font: { size: 11 }, callback: (v) => formatPctTick(v) },
-              grid: { color: "rgba(0,0,0,0.05)" },
+              ticks: { color: uiToken("--chart-ticks", "#98989d"), font: { size: 11 }, callback: (v) => formatPctTick(v) },
+              grid: { color: uiToken("--chart-grid", "rgba(0,0,0,0.05)") },
               border: { display: false },
             },
             x: {
-              ticks: { color: "#98989d", font: { size: 11 }, maxTicksLimit: 8 },
-              grid: { color: "rgba(0,0,0,0.04)" },
+              ticks: { color: uiToken("--chart-ticks", "#98989d"), font: { size: 11 }, maxTicksLimit: 8 },
+              grid: { color: uiToken("--chart-grid-soft", "rgba(0,0,0,0.04)") },
               border: { display: false },
             },
           },
@@ -2070,6 +2183,7 @@
       }
     }
 
+    initThemeToggle();
     if (!UI_MODE_V2) {
       const app = document.getElementById("app");
       app.innerHTML = "";
@@ -2105,6 +2219,7 @@
         const liveDays = countLiveNowcastDays(items);
         const chartStartDate = deriveChartStartDate(latest);
         const liveStartDate = firstLiveDate(items);
+        dashboardState = { items, latest, liveDays, chartStartDate };
         const calibrationData = calibration?.meta?.calibration || calibration || latest.meta?.calibration || {};
         renderChartMaturity(liveDays, chartStartDate, liveStartDate, latest);
         renderLiveHistoryProgress(liveDays);
