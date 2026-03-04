@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-METHOD_VERSION = "v1.3.2"
+METHOD_VERSION = "v1.3.3"
 
 BASKET_WEIGHTS: dict[str, float] = {
     "housing": 0.2941,

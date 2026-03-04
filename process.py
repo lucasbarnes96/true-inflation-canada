@@ -86,7 +86,7 @@ CATEGORY_REGISTRY: dict[str, dict] = {
     },
     "energy": {
         "weight": BASKET_WEIGHTS["energy"],
-        "value_bounds": (0.1, 100.0),
+        "value_bounds": (0.1, 400.0),
         "outlier_threshold_pct": 50.0,
         "min_points": 1,
     },
@@ -621,6 +621,16 @@ def apply_outlier_filter(quotes: list[Quote], historical: dict, as_of_day: str) 
             kept.extend(cat_quotes)
             continue
 
+        # Guard against scale/domain mismatch between historical proxy medians
+        # and raw quote medians (e.g., monthly index level vs transformed proxy).
+        scale_ratio = max(
+            float(median_today) / float(median_prev),
+            float(median_prev) / float(median_today) if median_today not in (None, 0) else float("inf"),
+        )
+        if scale_ratio >= 2.0:
+            kept.extend(cat_quotes)
+            continue
+
         delta_pct = abs((median_today / median_prev - 1) * 100)
         threshold = OUTLIER_THRESHOLD_PCT.get(category, 50.0)
         if delta_pct > threshold:
@@ -755,10 +765,8 @@ def validate_source_contract(
         )
         if prev_median is not None:
             baseline_type = "source_category"
-        elif source_name in OFFICIAL_INDEX_SOURCES:
-            prev_median = previous_category_median(historical, effective_category, as_of_day=as_of_day)
-            if prev_median is not None:
-                baseline_type = "category_proxy"
+        # Do not fall back to category proxy medians here. Source contract
+        # median_jump must compare within a source/category-compatible domain.
     max_jump = float(contract.get("max_daily_median_jump_pct", 50.0))
     if quotes and prev_median not in (None, 0):
         current_median = statistics.median(float(q.value) for q in quotes)
@@ -1181,11 +1189,24 @@ def compute_daily_changes(categories: dict, historical: dict, as_of_day: str) ->
 
     for category, payload in categories.items():
         current = payload.get("proxy_level")
-        prev = prev_categories.get(category, {}).get("proxy_level")
+        prev_payload = prev_categories.get(category, {})
+        prev = prev_payload.get("proxy_level")
         if current is None or prev in (None, 0):
             payload["daily_change_pct"] = None
             continue
-        payload["daily_change_pct"] = round_or_none(((float(current) / float(prev)) - 1) * 100)
+        prev_status = prev_payload.get("status")
+        current_status = payload.get("status")
+        if prev_status in {"stale", "missing"} and current_status == "fresh":
+            # When a category recovers from stale/missing, avoid one-day step
+            # changes from imputed baselines contaminating the headline signal.
+            payload["daily_change_pct"] = 0.0
+            continue
+        change = ((float(current) / float(prev)) - 1) * 100
+        threshold = float(OUTLIER_THRESHOLD_PCT.get(category, 50.0))
+        if abs(change) > threshold:
+            payload["daily_change_pct"] = 0.0
+            continue
+        payload["daily_change_pct"] = round_or_none(change, 4)
 
 
 def apply_housing_signal_overlay(categories: dict, indicators: dict[str, float | None]) -> dict:
@@ -2154,7 +2175,8 @@ def ensure_qa_db() -> None:
                 freshness_sla_hours REAL,
                 freshness_passed INTEGER,
                 record_count INTEGER,
-                details_json TEXT NOT NULL
+                details_json TEXT NOT NULL,
+                validator_version TEXT NOT NULL DEFAULT 'unknown'
             )
             """
         )
@@ -2185,6 +2207,8 @@ def ensure_qa_db() -> None:
             conn.execute("ALTER TABLE source_run_checks ADD COLUMN freshness_passed INTEGER")
         if "as_of_date" not in existing_cols:
             conn.execute("ALTER TABLE source_run_checks ADD COLUMN as_of_date TEXT")
+        if "validator_version" not in existing_cols:
+            conn.execute("ALTER TABLE source_run_checks ADD COLUMN validator_version TEXT NOT NULL DEFAULT 'unknown'")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS daily_source_reliability (
@@ -2275,8 +2299,8 @@ def record_qa_checks(run_id: str, created_at: str, checks: list[dict], source_he
                 if isinstance(sla_days, (int, float)):
                     freshness_sla_hours = float(sla_days) * 24.0
             conn.execute(
-                "INSERT INTO source_run_checks (run_id, created_at, as_of_date, source, category, passed, attempts, freshness_hours, freshness_sla_hours, freshness_passed, record_count, details_json) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO source_run_checks (run_id, created_at, as_of_date, source, category, passed, attempts, freshness_hours, freshness_sla_hours, freshness_passed, record_count, details_json, validator_version) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     run_id,
                     created_at,
@@ -2290,6 +2314,7 @@ def record_qa_checks(run_id: str, created_at: str, checks: list[dict], source_he
                     int(freshness_passed) if isinstance(freshness_passed, int) else None,
                     record_count,
                     json.dumps(check),
+                    METHOD_VERSION,
                 ),
             )
             for item in check.get("checks", []):
@@ -2318,14 +2343,19 @@ def record_qa_checks(run_id: str, created_at: str, checks: list[dict], source_he
 
         window_start = (date.fromisoformat(as_of_date) - timedelta(days=30)).isoformat()
         rows = conn.execute(
-            "SELECT source, COUNT(*) AS runs, AVG(passed * 1.0) AS pass_rate, "
-            "AVG(CASE "
-            "WHEN freshness_passed IS NOT NULL THEN freshness_passed * 1.0 "
-            "WHEN freshness_hours IS NOT NULL AND freshness_sla_hours IS NOT NULL AND freshness_hours <= freshness_sla_hours THEN 1.0 "
-            "WHEN freshness_hours IS NOT NULL AND freshness_hours <= 48 THEN 1.0 "
-            "ELSE 0.0 END) AS freshness_rate "
-            "FROM source_run_checks WHERE DATE(created_at) >= DATE(?) AND DATE(created_at) <= DATE(?) GROUP BY source",
-            (window_start, as_of_date),
+            "SELECT source, COUNT(*) AS runs, AVG(source_passed * 1.0) AS pass_rate, AVG(source_freshness * 1.0) AS freshness_rate "
+            "FROM ("
+            "  SELECT run_id, source, MIN(passed) AS source_passed, "
+            "  MIN(CASE "
+            "    WHEN freshness_passed IS NOT NULL THEN freshness_passed "
+            "    WHEN freshness_hours IS NOT NULL AND freshness_sla_hours IS NOT NULL AND freshness_hours <= freshness_sla_hours THEN 1 "
+            "    WHEN freshness_hours IS NOT NULL AND freshness_hours <= 48 THEN 1 "
+            "    ELSE 0 END) AS source_freshness "
+            "  FROM source_run_checks "
+            "  WHERE DATE(created_at) >= DATE(?) AND DATE(created_at) <= DATE(?) AND validator_version = ? "
+            "  GROUP BY run_id, source"
+            ") GROUP BY source",
+            (window_start, as_of_date, METHOD_VERSION),
         ).fetchall()
         for source, runs, pass_rate, freshness_rate in rows:
             conn.execute(

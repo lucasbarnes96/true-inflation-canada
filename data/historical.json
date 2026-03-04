@@ -365,7 +365,9 @@
       ],
       "blocked_conditions": [],
       "created_at": "2026-02-23T17:48:09+00:00",
-      "published_at": "2026-02-23T17:48:09+00:00"
+      "published_at": "2026-02-23T17:48:09+00:00",
+      "execution_outcome": "success",
+      "publication_outcome": "published"
     }
   },
   "2026-02-22": {
@@ -714,7 +716,9 @@
       ],
       "blocked_conditions": [],
       "created_at": "2026-02-23T00:04:41+00:00",
-      "published_at": "2026-02-23T00:04:41+00:00"
+      "published_at": "2026-02-23T00:04:41+00:00",
+      "execution_outcome": "success",
+      "publication_outcome": "published"
     }
   },
   "2026-02-24": {
@@ -1067,7 +1071,9 @@
         "Gate G failed: trailing source contract pass rate below minimum."
       ],
       "created_at": "2026-02-24T17:06:13+00:00",
-      "published_at": null
+      "published_at": null,
+      "execution_outcome": "success",
+      "publication_outcome": "failed_gate"
     }
   },
   "2026-02-25": {
@@ -3196,17 +3202,17 @@
   },
   "2026-03-03": {
     "headline": {
-      "nowcast_mom_pct": 0.0,
-      "nowcast_yoy_pct": 1.589,
-      "confidence": "low",
+      "nowcast_mom_pct": 0.195,
+      "nowcast_yoy_pct": 1.717,
+      "confidence": "medium",
       "coverage_ratio": 1.0,
-      "signal_quality_score": 25,
-      "lead_signal": "flat",
+      "signal_quality_score": 76,
+      "lead_signal": "up",
       "next_release_at_utc": "2026-03-17T13:30:00+00:00",
       "consensus_yoy": null,
       "consensus_spread_yoy": null,
       "deviation_yoy_pct": null,
-      "divergence_mom_pct": 0.0
+      "divergence_mom_pct": 0.195
     },
     "official_cpi": {
       "latest_release_month": "2026-01",
@@ -3216,8 +3222,8 @@
     },
     "categories": {
       "food": {
-        "proxy_level": 4.2739,
-        "daily_change_pct": 0.0,
+        "proxy_level": 4.3183,
+        "daily_change_pct": 1.0389,
         "status": "fresh"
       },
       "housing": {
@@ -3231,9 +3237,9 @@
         "status": "fresh"
       },
       "energy": {
-        "proxy_level": 4.75,
+        "proxy_level": 101.1014,
         "daily_change_pct": 0.0,
-        "status": "stale"
+        "status": "fresh"
       },
       "communication": {
         "proxy_level": 94.5878,
@@ -3243,7 +3249,7 @@
       "health_personal": {
         "proxy_level": 62.459,
         "daily_change_pct": 0.0,
-        "status": "stale"
+        "status": "fresh"
       },
       "recreation_education": {
         "proxy_level": 61.4568,
@@ -3252,7 +3258,7 @@
       }
     },
     "category_contributions": {
-      "food": 0.0,
+      "food": 0.1757,
       "housing": 0.0,
       "transport": 0.0,
       "energy": 0.0,
@@ -3262,13 +3268,13 @@
     },
     "meta": {
       "freshness_composition": {
-        "fresh_0_1d_weight_ratio": 0.8159,
+        "fresh_0_1d_weight_ratio": 0.9611,
         "fresh_2_7d_weight_ratio": 0.0,
         "fresh_8_30d_weight_ratio": 0.0,
-        "stale_gt_30d_or_missing_weight_ratio": 0.1841
+        "stale_gt_30d_or_missing_weight_ratio": 0.0389
       },
       "carry_forward": false,
-      "quality_tier": "blocked"
+      "quality_tier": "good"
     },
     "source_health": [
       {
@@ -3282,7 +3288,7 @@
         "category": "food",
         "tier": 1,
         "age_days": 0,
-        "last_success_timestamp": "2026-03-03T06:34:29+00:00",
+        "last_success_timestamp": "2026-03-04T02:36:00+00:00",
         "last_observation_period": null
       },
       {
@@ -3296,20 +3302,20 @@
         "category": "food",
         "tier": 1,
         "age_days": 0,
-        "last_success_timestamp": "2026-03-03T06:34:33+00:00",
-        "last_observation_period": "2025-12"
+        "last_success_timestamp": "2026-03-04T02:36:02+00:00",
+        "last_observation_period": "2026-01"
       },
       {
         "source": "apify_loblaws",
         "status": "stale",
         "ingestion_state": "live_collected",
-        "error_class": null,
-        "status_reason": "source_stale_beyond_sla",
-        "pending_reason": "source_stale_beyond_sla",
-        "degraded_usable": false,
+        "error_class": "other",
+        "status_reason": "source_stale_beyond_sla_other",
+        "pending_reason": "source_stale_beyond_sla_other",
+        "degraded_usable": true,
         "category": "food",
         "tier": 1,
-        "age_days": 17,
+        "age_days": 18,
         "last_success_timestamp": "2026-02-14T00:00:00+00:00",
         "last_observation_period": null
       },
@@ -3324,7 +3330,7 @@
         "category": "transport",
         "tier": 1,
         "age_days": 0,
-        "last_success_timestamp": "2026-03-03T06:34:35+00:00",
+        "last_success_timestamp": "2026-03-04T02:36:03+00:00",
         "last_observation_period": "2026-01"
       },
       {
@@ -3338,7 +3344,7 @@
         "category": "transport",
         "tier": 2,
         "age_days": 0,
-        "last_success_timestamp": "2026-03-03T06:34:38+00:00",
+        "last_success_timestamp": "2026-03-04T02:36:05+00:00",
         "last_observation_period": null
       },
       {
@@ -3352,7 +3358,7 @@
         "category": "housing",
         "tier": 1,
         "age_days": 0,
-        "last_success_timestamp": "2026-03-03T06:34:48+00:00",
+        "last_success_timestamp": "2026-03-04T02:36:12+00:00",
         "last_observation_period": "2026-01"
       },
       {
@@ -3366,7 +3372,7 @@
         "category": "housing",
         "tier": 2,
         "age_days": 0,
-        "last_success_timestamp": "2026-03-03T06:34:49+00:00",
+        "last_success_timestamp": "2026-03-04T02:36:12+00:00",
         "last_observation_period": null
       },
       {
@@ -3380,7 +3386,7 @@
         "category": "energy",
         "tier": 2,
         "age_days": 0,
-        "last_success_timestamp": "2026-03-03T06:34:50+00:00",
+        "last_success_timestamp": "2026-03-04T02:36:13+00:00",
         "last_observation_period": null
       },
       {
@@ -3394,7 +3400,7 @@
         "category": "energy",
         "tier": 1,
         "age_days": 0,
-        "last_success_timestamp": "2026-03-03T06:35:01+00:00",
+        "last_success_timestamp": "2026-03-04T02:36:20+00:00",
         "last_observation_period": "2026-01"
       },
       {
@@ -3408,7 +3414,7 @@
         "category": "communication",
         "tier": 1,
         "age_days": 0,
-        "last_success_timestamp": "2026-03-03T06:35:11+00:00",
+        "last_success_timestamp": "2026-03-04T02:36:27+00:00",
         "last_observation_period": "2026-01"
       },
       {
@@ -3422,7 +3428,7 @@
         "category": "communication",
         "tier": 2,
         "age_days": 0,
-        "last_success_timestamp": "2026-03-03T06:35:12+00:00",
+        "last_success_timestamp": "2026-03-04T02:36:27+00:00",
         "last_observation_period": null
       },
       {
@@ -3435,7 +3441,7 @@
         "degraded_usable": true,
         "category": "communication",
         "tier": 2,
-        "age_days": 8,
+        "age_days": 9,
         "last_success_timestamp": "2026-02-23T14:59:27+00:00",
         "last_observation_period": null
       },
@@ -3450,7 +3456,7 @@
         "category": "health_personal",
         "tier": 1,
         "age_days": 0,
-        "last_success_timestamp": "2026-03-03T06:35:26+00:00",
+        "last_success_timestamp": "2026-03-04T02:36:41+00:00",
         "last_observation_period": "2026-01"
       },
       {
@@ -3464,7 +3470,7 @@
         "category": "health_personal",
         "tier": 2,
         "age_days": 0,
-        "last_success_timestamp": "2026-03-03T06:35:27+00:00",
+        "last_success_timestamp": "2026-03-04T02:36:42+00:00",
         "last_observation_period": null
       },
       {
@@ -3478,7 +3484,7 @@
         "category": "health_personal",
         "tier": 2,
         "age_days": 0,
-        "last_success_timestamp": "2026-03-03T06:35:30+00:00",
+        "last_success_timestamp": "2026-03-04T02:36:45+00:00",
         "last_observation_period": null
       },
       {
@@ -3492,7 +3498,7 @@
         "category": "recreation_education",
         "tier": 1,
         "age_days": 0,
-        "last_success_timestamp": "2026-03-03T06:35:41+00:00",
+        "last_success_timestamp": "2026-03-04T02:36:53+00:00",
         "last_observation_period": "2026-01"
       },
       {
@@ -3506,7 +3512,7 @@
         "category": "recreation_education",
         "tier": 2,
         "age_days": 0,
-        "last_success_timestamp": "2026-03-03T06:35:42+00:00",
+        "last_success_timestamp": "2026-03-04T02:36:54+00:00",
         "last_observation_period": null
       },
       {
@@ -3520,17 +3526,17 @@
         "category": "recreation_education",
         "tier": 2,
         "age_days": 0,
-        "last_success_timestamp": "2026-03-03T06:35:42+00:00",
+        "last_success_timestamp": "2026-03-04T02:36:54+00:00",
         "last_observation_period": null
       }
     ],
     "release": {
-      "run_id": "run_3af226716e96",
-      "status": "failed_gate",
-      "quality_tier": "blocked",
+      "run_id": "run_893c069143df",
+      "status": "published",
+      "quality_tier": "good",
       "carry_forward": false,
-      "qa_status": "failed",
-      "qa_window_close_at": "2026-03-04T06:34:25+00:00",
+      "qa_status": "passed",
+      "qa_window_close_at": "2026-03-05T02:35:58+00:00",
       "lifecycle_states": [
         "started",
         "collect",
@@ -3538,14 +3544,13 @@
         "reconcile",
         "completed",
         "publish",
-        "failed_gate"
+        "published"
       ],
-      "blocked_conditions": [
-        "Gate G failed: trailing source contract pass rate below minimum.",
-        "Gate H failed: imputed basket weight above allowed threshold."
-      ],
-      "created_at": "2026-03-03T06:34:25+00:00",
-      "published_at": null
+      "blocked_conditions": [],
+      "created_at": "2026-03-04T02:35:58+00:00",
+      "published_at": "2026-03-04T02:35:58+00:00",
+      "execution_outcome": "success",
+      "publication_outcome": "published"
     }
   }
 }

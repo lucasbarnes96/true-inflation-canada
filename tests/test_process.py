@@ -18,6 +18,7 @@ from process import (
     compute_freshness_composition,
     compute_nowcast_yoy_prorated,
     compute_category_contributions,
+    compute_daily_changes,
     compute_confidence,
     compute_coverage,
     compute_next_release,
@@ -90,6 +91,23 @@ class ProcessTests(unittest.TestCase):
         self.assertEqual(0.2, out["food"])
         self.assertEqual(-0.15, out["housing"])
         self.assertIsNone(out["energy"])
+
+    def test_compute_daily_changes_stale_to_fresh_resets_delta(self) -> None:
+        categories = {
+            "communication": {
+                "proxy_level": 180.0,
+                "status": "fresh",
+            }
+        }
+        historical = {
+            "2026-03-02": {
+                "categories": {
+                    "communication": {"proxy_level": 95.0, "status": "stale"},
+                }
+            }
+        }
+        compute_daily_changes(categories, historical, as_of_day="2026-03-03")
+        self.assertEqual(0.0, categories["communication"]["daily_change_pct"])
 
     def test_compute_next_release(self) -> None:
         payload = {
@@ -192,7 +210,7 @@ class ProcessTests(unittest.TestCase):
         self.assertTrue(median_check["passed"])
         self.assertEqual("source_category", median_check["baseline_type"])
 
-    def test_validate_source_contract_falls_back_to_category_proxy_for_official_sources(self) -> None:
+    def test_validate_source_contract_does_not_use_category_proxy_baseline(self) -> None:
         check = validate_source_contract(
             contract_name="statcan_cpi_csv",
             source_name="statcan_cpi_csv",
@@ -223,8 +241,9 @@ class ProcessTests(unittest.TestCase):
             source_category_baselines={},
         )
         median_check = next(item for item in check["checks"] if item["name"] == "median_jump")
-        self.assertFalse(median_check["passed"])
-        self.assertEqual("category_proxy", median_check["baseline_type"])
+        self.assertTrue(median_check["passed"])
+        self.assertIsNone(median_check["baseline_type"])
+        self.assertIsNone(median_check["detail"])
 
     def test_retry_with_contracts_validates_per_source_category_partition(self) -> None:
         def scraper():
@@ -728,12 +747,18 @@ class ProcessTests(unittest.TestCase):
                     for row in conn.execute("PRAGMA table_info(source_check_events)").fetchall()
                     if len(row) >= 2
                 }
+                source_checks_cols = {
+                    row[1]
+                    for row in conn.execute("PRAGMA table_info(source_run_checks)").fetchall()
+                    if len(row) >= 2
+                }
                 fingerprint_cols = {
                     row[1]
                     for row in conn.execute("PRAGMA table_info(qa_failure_fingerprints)").fetchall()
                     if len(row) >= 2
                 }
         self.assertIn("validator_version", source_events_cols)
+        self.assertIn("validator_version", source_checks_cols)
         self.assertIn("validator_version", fingerprint_cols)
 
 
