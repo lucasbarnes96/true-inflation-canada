@@ -1,1190 +1,436 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>True Inflation Canada</title>
-  <meta name="description" content="Finance-first Canadian inflation nowcast with transparent source diagnostics." />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <title>True Inflation</title>
+  <meta name="description" content="Finance-first Canadian inflation nowcast." />
   <link rel="icon" type="image/png" href="logo.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3"></script>
   <style>
     /* =========================================================
-       DESIGN TOKENS — Apple-inspired
+       DESIGN TOKENS — iOS / Apple Native V2
     ========================================================= */
     :root {
-      /* Warm off-white backgrounds */
-      --bg: #fcfbfa;
-      /* #f5f5f7 -> warm */
-      --surface: #ffffff;
-      --surface-2: #f6f5f3;
-      /* slightly darker warm off-white */
-      --surface-elevated: rgba(255, 255, 255, 0.85);
-      --border: rgba(0, 0, 0, 0.08);
-      --border-strong: rgba(0, 0, 0, 0.14);
+      /* Pure Light Mode Apple Native */
+      --bg: #F2F2F7;
+      --surface: #FFFFFF;
+      --surface-elevated: rgba(255,255,255,0.7);
+      --text: #000000;
+      --text-secondary: #8E8E93;
+      --text-tertiary: #C7C7CC;
+      --separator: rgba(60,60,67,0.29); /* iOS Separator */
+      --accent: #007AFF;
+      --green: #34C759;
+      --orange: #FF9500;
+      --red: #FF3B30;
 
-      /* Text tokens */
-      --text: #2c211f;
-      /* dark brown-grey */
-      --text-secondary: #7a6e69;
-      --text-tertiary: #a09793;
-
-      /* Copper/Bronze Accent Palette */
-      --copper: #c46845;
-      /* rich copper */
-      --copper-light: #fbece6;
-      /* pale warm copper */
-      --copper-dark: #8c4228;
-
-      --blue: #0071e3;
-      --blue-light: #e8f1fb;
-      --green: #2fa144;
-      --green-light: #e6f7ea;
-      --amber: #dc8614;
-      --amber-light: #fef1e5;
-      --red: #df3b30;
-      --red-light: #fde8e7;
-
-      --accent: var(--copper);
-
-      --radius-sm: 12px;
-      --radius-md: 18px;
-      --radius-lg: 24px;
-      --radius-xl: 32px;
-
-      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04);
-      --shadow-lg: 0 12px 42px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
-
-      --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-      --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Fira Code", monospace;
-      --nav-bg: rgba(245, 245, 247, 0.72);
-      --chart-grid: rgba(0, 0, 0, 0.05);
-      --chart-grid-soft: rgba(0, 0, 0, 0.04);
-      --chart-ticks: #98989d;
-      --chart-nowcast: #0071e3;
-      --chart-nowcast-fill: rgba(0, 113, 227, 0.08);
-      --chart-official: #ff9f0a;
-      --chart-prelive: rgba(110, 110, 115, 0.06);
-      --chart-prelive-text: #98989d;
-      --power-bg: linear-gradient(135deg, #f8f3ef 0%, #f3ece7 100%);
-      --power-border: rgba(196, 104, 69, 0.15);
-      --alert-bg: var(--amber-light);
-      --alert-text: #7a4700;
-      --alert-border: rgba(255, 159, 10, 0.3);
+      --radius-lg: 20px;
+      --radius-sm: 10px;
+      
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+      --font-mono: ui-monospace, "SF Mono", monospace;
+      
+      --chart-nowcast: var(--accent);
+      --chart-nowcast-fill: rgba(0, 122, 255, 0.1);
+      --chart-official: var(--orange);
+      --chart-grid: var(--separator);
+      --chart-ticks: var(--text-secondary);
+      --chart-prelive-text: var(--text-secondary);
+      --chart-prelive: rgba(0,0,0,0.03);
+      
       color-scheme: light;
-    }
-
-    html[data-theme="dark"] {
-      --bg: #0f131a;
-      --surface: #171d27;
-      --surface-2: #202938;
-      --surface-elevated: rgba(23, 29, 39, 0.9);
-      --border: rgba(255, 255, 255, 0.12);
-      --border-strong: rgba(255, 255, 255, 0.22);
-      --text: #e6edf7;
-      --text-secondary: #a7b3c4;
-      --text-tertiary: #8793a6;
-      --blue-light: rgba(0, 113, 227, 0.2);
-      --green-light: rgba(47, 161, 68, 0.2);
-      --amber-light: rgba(220, 134, 20, 0.2);
-      --red-light: rgba(223, 59, 48, 0.2);
-      --nav-bg: rgba(15, 19, 26, 0.78);
-      --chart-grid: rgba(255, 255, 255, 0.12);
-      --chart-grid-soft: rgba(255, 255, 255, 0.08);
-      --chart-ticks: #a7b3c4;
-      --chart-nowcast: #5ba7ff;
-      --chart-nowcast-fill: rgba(91, 167, 255, 0.18);
-      --chart-official: #ffb347;
-      --chart-prelive: rgba(255, 255, 255, 0.05);
-      --chart-prelive-text: #a7b3c4;
-      --power-bg: linear-gradient(135deg, #1a2432 0%, #212e40 100%);
-      --power-border: rgba(91, 167, 255, 0.28);
-      --alert-bg: rgba(220, 134, 20, 0.14);
-      --alert-text: #f7bf77;
-      --alert-border: rgba(255, 179, 71, 0.4);
-      color-scheme: dark;
-    }
-
-    /* =========================================================
-       RESET & BASE
-    ========================================================= */
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    html {
-      -webkit-text-size-adjust: 100%;
-    }
-
-    body {
-      font-family: var(--font);
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      line-height: 1.5;
       -webkit-font-smoothing: antialiased;
     }
 
-    /* =========================================================
-       STICKY NAV
-    ========================================================= */
-    .nav {
+    html[data-theme="dark"] {
+      --bg: #000000;
+      --surface: #1C1C1E;
+      --surface-elevated: rgba(28,28,30,0.7);
+      --text: #FFFFFF;
+      --text-secondary: #EBEBF5;
+      /* Adjust text secondary alpha for exact iOS feel */
+      --text-secondary: rgba(235, 235, 245, 0.6); 
+      --text-tertiary: rgba(235, 235, 245, 0.3);
+      --separator: rgba(84,84,88,0.65);
+      --accent: #0A84FF;
+      --green: #30D158;
+      --orange: #FF9F0A;
+      --red: #FF453A;
+
+      --chart-nowcast: var(--accent);
+      --chart-nowcast-fill: rgba(10, 132, 255, 0.15);
+      --chart-official: var(--orange);
+      --chart-grid: var(--separator);
+      --chart-ticks: var(--text-secondary);
+      --chart-prelive: rgba(255,255,255,0.04);
+      
+      color-scheme: dark;
+    }
+
+    /* Core Resets */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    
+    /* Layout */
+    .app-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) 6rem env(safe-area-inset-left);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Nav bar minimalist */
+    .top-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.2rem;
       position: sticky;
       top: 0;
+      background: var(--bg);
       z-index: 100;
-      background: var(--nav-bg);
-      backdrop-filter: blur(20px) saturate(180%);
-      -webkit-backdrop-filter: blur(20px) saturate(180%);
-      border-bottom: 1px solid var(--border);
-      padding: 0 max(1.25rem, env(safe-area-inset-right));
-      padding-left: max(1.25rem, env(safe-area-inset-left));
-      height: 52px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
     }
-
-    .nav-brand {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .nav-logo {
-      width: 38px;
-      height: 38px;
-      object-fit: contain;
-      flex-shrink: 0;
-      border-radius: var(--radius-sm);
-    }
-
-    .nav-title {
-      font-size: 0.9rem;
-      font-weight: 600;
-      letter-spacing: -0.01em;
-      color: var(--text);
-    }
-
-    .nav-meta {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .nav-link {
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: var(--blue);
-      text-decoration: none;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      border-radius: 999px;
-      padding: 0.2rem 0.55rem;
-      line-height: 1.2;
-    }
-
-    .nav-link:hover {
-      background: var(--surface-2);
-    }
-
-    .nav-date {
-      font-size: 0.78rem;
-      color: var(--text-secondary);
-      font-family: var(--font-mono);
-    }
-
-    .theme-toggle {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.25rem;
-      width: 34px;
-      height: 34px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--text);
-      cursor: pointer;
-      font-size: 0.95rem;
-      line-height: 1;
-    }
-
-    .theme-toggle:hover {
-      background: var(--surface-2);
-    }
-
-    .theme-toggle .icon-moon {
-      display: none;
-    }
-
-    html[data-theme="dark"] .theme-toggle .icon-sun {
-      display: none;
-    }
-
-    html[data-theme="dark"] .theme-toggle .icon-moon {
-      display: inline;
-    }
-
-    /* =========================================================
-       PAGE LAYOUT
-    ========================================================= */
-    .page {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 2.5rem max(1.5rem, env(safe-area-inset-right)) 5rem;
-      padding-left: max(1.5rem, env(safe-area-inset-left));
+    .top-nav-left {
       display: flex;
       flex-direction: column;
-      gap: 1.8rem;
     }
-
-    /* =========================================================
-       CARDS
-    ========================================================= */
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-md);
-      padding: 2.5rem 2.8rem;
-    }
-
-    .card-sm {
-      padding: 1.5rem 1.8rem;
-    }
-
-    /* =========================================================
-       SECTION LABELS
-    ========================================================= */
-    .section-label {
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--text-secondary);
-      margin-bottom: 1rem;
-    }
-
-    /* =========================================================
-       PILLS / BADGES
-    ========================================================= */
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.25rem 0.75rem;
-      border-radius: 999px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      letter-spacing: 0.01em;
-    }
-
-    .pill-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    .pill-green {
-      background: var(--green-light);
-      color: #1a7f2e;
-    }
-
-    .pill-amber {
-      background: var(--amber-light);
-      color: #a85e00;
-    }
-
-    .pill-red {
-      background: var(--red-light);
-      color: #c0392b;
-    }
-
-    .pill-blue {
-      background: var(--blue-light);
-      color: #004bab;
-    }
-
-    /* =========================================================
-       RELEASE BANNER
-    ========================================================= */
-    .release-banner {
-      display: none;
-      border-radius: var(--radius-md);
-      background: var(--alert-bg);
-      border: 1px solid var(--alert-border);
-      padding: 0.75rem 1.1rem;
-      font-size: 0.84rem;
-      color: var(--alert-text);
-      line-height: 1.45;
-    }
-
-    .top-utility-row {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      margin-top: -0.25rem;
-      margin-bottom: 0.1rem;
-    }
-
-    .utility-link {
-      font-size: 0.76rem;
-      font-weight: 600;
-      color: var(--blue);
-      text-decoration: none;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      border-radius: 999px;
-      padding: 0.24rem 0.62rem;
-      line-height: 1.15;
-    }
-
-    .utility-link:hover {
-      background: var(--surface-2);
-    }
-
-    .sticky-disclaimer {
-      position: fixed;
-      top: 52px;
-      left: 0;
-      right: 0;
-      z-index: 95;
-      display: flex;
-      justify-content: center;
-      pointer-events: none;
-      transform: translateY(-10px);
-      opacity: 0;
-      transition: opacity 0.2s ease, transform 0.2s ease;
-      padding: 0.3rem 0.85rem 0;
-    }
-
-    .sticky-disclaimer.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    .sticky-disclaimer span {
-      pointer-events: auto;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--text-secondary);
-      font-size: 0.72rem;
-      font-weight: 500;
-      padding: 0.24rem 0.65rem;
-      line-height: 1.3;
-      box-shadow: var(--shadow-sm);
-      text-align: center;
-    }
-
-    /* =========================================================
-       HERO SECTION
-    ========================================================= */
-    .hero-grid {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      gap: 2.5rem;
-    }
-
-    .hero-eyebrow {
-      font-size: 0.9rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text-secondary);
-      margin-bottom: 0.75rem;
-    }
-
-    .hero-number {
-      font-size: clamp(5.5rem, 16vw, 9.5rem);
-      font-weight: 800;
-      letter-spacing: -0.05em;
-      line-height: 0.95;
-      margin-bottom: 1rem;
-    }
-
-    .hero-number.tone-good {
-      color: #28cd41;
-    }
-
-    .hero-number.tone-warn {
-      color: #ff9f0a;
-    }
-
-    .hero-number.tone-bad {
-      color: #ff3b30;
-    }
-
-    .hero-number.tone-neutral {
-      color: var(--text);
-    }
-
-    .hero-caption {
-      font-size: 0.95rem;
-      color: var(--text-secondary);
-      line-height: 1.5;
-      max-width: 38ch;
-    }
-
-    .hero-stats {
-      display: flex;
-      flex-direction: row;
-      justify-content: center;
-      gap: 1.5rem;
-      width: 100%;
-    }
-
-    @media (max-width: 640px) {
-      .hero-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .hero-stats {
-        flex-direction: row;
-        flex-wrap: wrap;
-        min-width: 0;
-      }
-    }
-
-    .stat-chip {
-      background: var(--surface-2);
-      border: none;
-      border-radius: var(--radius-lg);
-      padding: 1.2rem 1.5rem;
-      flex: 1;
-      min-width: 160px;
-      max-width: 260px;
-    }
-
-    .stat-chip .eyebrow {
-      font-size: 0.68rem;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--text-secondary);
-      margin-bottom: 0.3rem;
-    }
-
-    .stat-chip .value {
-      font-size: 1.35rem;
+    .brand-title {
+      font-size: 1.2rem;
       font-weight: 700;
       letter-spacing: -0.02em;
-      color: var(--text);
-      font-family: var(--font-mono);
     }
-
-    .stat-chip .note {
-      font-size: 0.72rem;
-      color: var(--text-tertiary);
-      margin-top: 0.2rem;
-      font-family: var(--font-mono);
-    }
-
-    /* =========================================================
-       RELEASE INTELLIGENCE GRID
-    ========================================================= */
-    .chip-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.75rem;
-    }
-
-    @media (max-width: 768px) {
-      .chip-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-
-    @media (max-width: 480px) {
-      .chip-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .intel-chip {
-      background: var(--surface-2);
-      border: none;
-      border-radius: var(--radius-lg);
-      padding: 1.25rem 1.4rem;
-      transition: box-shadow 0.2s ease;
-    }
-
-    .intel-chip:hover {
-      box-shadow: var(--shadow-md);
-    }
-
-    .intel-chip .eyebrow {
-      font-size: 0.67rem;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
+    .nav-date {
+      font-size: 0.8rem;
       color: var(--text-secondary);
-      margin-bottom: 0.4rem;
+      font-weight: 500;
     }
-
-    .intel-chip .chip-value {
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: var(--text);
-      font-family: var(--font-mono);
-      letter-spacing: -0.01em;
-      margin-bottom: 0.25rem;
-      word-break: break-word;
-    }
-
-    .intel-chip .chip-note {
-      font-size: 0.7rem;
-      color: var(--text-tertiary);
-      font-family: var(--font-mono);
-    }
-
-    /* =========================================================
-       CHARTS
-    ========================================================= */
-    .chart-container {
-      position: relative;
-      width: 100%;
-      height: 280px;
-    }
-
-    @media (max-width: 480px) {
-      .chart-container {
-        height: 220px;
-      }
-    }
-
-    /* =========================================================
-       TWO COLUMN EXPERT GRID
-    ========================================================= */
-    .expert-grid {
-      display: grid;
-      grid-template-columns: 1.2fr 1fr;
-      gap: 1rem;
-    }
-
-    @media (max-width: 768px) {
-      .expert-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    /* =========================================================
-       TABLE — Data Source Diagnostics
-    ========================================================= */
-    .table-wrap {
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      border-radius: var(--radius-md);
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.85rem;
-      min-width: 560px;
-    }
-
-    thead th {
-      text-align: left;
-      padding: 0.6rem 0.75rem;
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      color: var(--text-secondary);
-      border-bottom: 1px solid var(--border-strong);
-      background: var(--surface-2);
-    }
-
-    thead th:first-child {
-      border-radius: var(--radius-sm) 0 0 0;
-    }
-
-    thead th:last-child {
-      border-radius: 0 var(--radius-sm) 0 0;
-    }
-
-    tbody td {
-      padding: 0.75rem;
-      border-bottom: 1px solid var(--border);
-      vertical-align: top;
-      color: var(--text);
-    }
-
-    tbody tr:last-child td {
-      border-bottom: none;
-    }
-
-    tbody tr:nth-child(even) td {
-      background: #fafafa;
-    }
-
-    .status-ok {
-      color: #1a7f2e;
-      font-weight: 600;
-    }
-
-    .status-warn {
-      color: #a85e00;
-      font-weight: 600;
-    }
-
-    .status-err {
-      color: #c0392b;
-      font-weight: 600;
-    }
-
-    .source-notes-cell {
-      color: var(--text-secondary);
-      font-size: 0.82rem;
-      overflow-wrap: anywhere;
-      word-break: break-word;
-      max-width: 420px;
-    }
-
-    .source-ingestion-badge {
-      display: inline-block;
-      margin-top: 0.4rem;
-      font-size: 0.69rem;
-      line-height: 1.35;
-      color: #7a4700;
-      background: var(--amber-light);
-      border: 1px solid rgba(255, 159, 10, 0.24);
-      border-radius: 6px;
-      padding: 0.14rem 0.45rem;
-      font-family: var(--font-mono);
-    }
-
-    /* =========================================================
-       ACCORDION / DETAILS
-    ========================================================= */
-    .accordion {
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
+    .theme-toggle {
       background: var(--surface);
-      overflow: hidden;
-    }
-
-    .accordion summary {
-      list-style: none;
-      cursor: pointer;
-      padding: 1rem 1.25rem;
-      font-weight: 600;
-      font-size: 0.95rem;
+      border: none;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      user-select: none;
-      -webkit-user-select: none;
+      justify-content: center;
+      font-size: 1.1rem;
+      color: var(--text);
+      cursor: pointer;
     }
 
-    .accordion summary::-webkit-details-marker {
-      display: none;
-    }
+    .theme-toggle .icon-moon { display: none; }
+    html[data-theme="dark"] .theme-toggle .icon-sun { display: none; }
+    html[data-theme="dark"] .theme-toggle .icon-moon { display: block; }
 
-    .accordion summary::after {
-      content: "+";
-      font-size: 1.2rem;
-      font-weight: 300;
+    /* Hero Massive Metric */
+    .hero-section {
+      text-align: center;
+      padding: 2.5rem 1rem 1.5rem;
+    }
+    .hero-title {
+      font-size: 0.9rem;
+      font-weight: 600;
       color: var(--text-secondary);
-      transition: transform 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.2rem;
     }
-
-    .accordion[open] summary::after {
-      content: "−";
+    .hero-metric {
+      font-size: clamp(5rem, 20vw, 7.5rem);
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      margin-bottom: 0.5rem;
     }
-
-    .accordion-body {
-      padding: 0 1.25rem 1.25rem;
-      border-top: 1px solid var(--border);
-    }
-
-    .meta-list {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      padding-top: 0.75rem;
-    }
-
-    .meta-list li {
-      font-size: 0.86rem;
+    .hero-subtitle {
+      font-size: 1.1rem;
+      font-weight: 500;
       color: var(--text-secondary);
-      padding-left: 1rem;
-      position: relative;
-      line-height: 1.5;
+      margin-bottom: 0.5rem;
     }
-
-    .meta-list li::before {
-      content: "·";
-      position: absolute;
-      left: 0;
-      color: var(--text-tertiary);
-    }
-
-    /* =========================================================
-       HOW TO READ — explainer
-    ========================================================= */
-    .explainer-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.75rem;
-    }
-
-    @media (max-width: 560px) {
-      .explainer-grid {
-        grid-template-columns: 1fr;
+    
+    @media (max-width: 400px) {
+      .hero-metric {
+        font-size: clamp(4rem, 18vw, 5.5rem);
+      }
+      .app-container {
+        padding: env(safe-area-inset-top) 0 4rem 0; /* Full bleed on small mobile */
+      }
+      .list-group {
+        border-radius: 0; /* Flush edges on small mobile */
+        margin: 1.5rem 0;
+      }
+      .details-body {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
       }
     }
 
-    .explainer-item {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 0.9rem 1rem;
-      font-size: 0.84rem;
-      color: var(--text-secondary);
-      line-height: 1.5;
+    /* Chart Module */
+    .chart-module {
+      margin: 0;
+      padding: 1.5rem 1rem;
+      background: var(--surface);
+      border-top: 1px solid var(--separator);
+      border-bottom: 1px solid var(--separator);
     }
-
-    /* =========================================================
-       PURCHASING POWER CARD
-    ========================================================= */
-    .power-card {
-      background: var(--power-bg);
-      border: 1px solid var(--power-border);
-    }
-
-    .power-title {
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: var(--text);
-      margin: 0.4rem 0 0.5rem;
-    }
-
-    .power-body {
-      font-size: 0.88rem;
-      color: var(--text-secondary);
-      line-height: 1.5;
-    }
-
-    /* =========================================================
-       COMMUNITY SECTION
-    ========================================================= */
-    #community-section {
-      display: none;
-    }
-
-    .community-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 0.75rem;
-    }
-
-    /* =========================================================
-       FOOTER
-    ========================================================= */
-    .footer {
-      text-align: center;
-      font-size: 0.78rem;
-      color: var(--text-tertiary);
-      padding: 1rem 0 calc(1rem + env(safe-area-inset-bottom));
-      line-height: 1.6;
-    }
-
-    .footer a {
-      color: var(--blue);
-      text-decoration: none;
-    }
-
-    /* =========================================================
-       UTILITY
-    ========================================================= */
-    .tone-good {
-      color: #28cd41;
-    }
-
-    .tone-warn {
-      color: #ff9f0a;
-    }
-
-    .tone-bad {
-      color: #ff3b30;
-    }
-
-    .loading {
-      color: var(--text-tertiary);
-      font-size: 0.9rem;
-    }
-
-    .panel-title {
-      font-size: 1rem;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      color: var(--text);
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
       margin-bottom: 1rem;
     }
-
-    .chart-placeholder {
-      font-size: 0.88rem;
-      color: var(--text-secondary);
-      padding: 1.5rem 0;
-      text-align: center;
+    .chart-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
     }
-
-    .small-note {
-      font-size: 0.78rem;
-      color: var(--text-secondary);
-      font-family: var(--font);
-      opacity: 0.9;
-    }
-
-    .maturity-note {
-      margin-bottom: 0.75rem;
-      padding: 0.6rem 0.75rem;
-      border-radius: 10px;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      color: var(--text-secondary);
-      font-size: 0.79rem;
-      font-family: var(--font);
-      line-height: 1.5;
-    }
-
-    .freshness-legend {
+    .chart-legend {
       display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem 0.55rem;
-      margin-bottom: 0.8rem;
-    }
-
-    .freshness-legend-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.2rem 0.5rem;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      background: var(--surface-2);
+      gap: 1rem;
+      font-size: 0.8rem;
       color: var(--text-secondary);
-      font-size: 0.72rem;
-      font-family: var(--font-mono);
-      line-height: 1.3;
-      white-space: nowrap;
+      font-weight: 500;
     }
-
-    .freshness-legend-dot {
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .legend-dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      flex-shrink: 0;
-      border: 1px solid rgba(0, 0, 0, 0.12);
     }
-
-    .freshness-legend-dot.blue { background: #0071e3; }
-    .freshness-legend-dot.green { background: #34c759; }
-    .freshness-legend-dot.yellow { background: #ffcc00; }
-    .freshness-legend-dot.red { background: #ff3b30; }
-
-    .readiness-wrap {
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      background: var(--surface-2);
-      padding: 0.85rem 0.9rem;
-    }
-
-    .readiness-note {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      margin-bottom: 0.55rem;
-    }
-
-    .live-progress {
-      margin-top: -0.2rem;
-      margin-bottom: 0.8rem;
-      font-size: 0.75rem;
-      color: var(--text-tertiary);
-      font-family: var(--font-mono);
-    }
-
-    .hero-context {
-      margin-top: 0.55rem;
-      font-size: 0.77rem;
-      color: var(--text-tertiary);
-      font-family: var(--font-mono);
-      line-height: 1.45;
-    }
-
-    .readiness-table {
+    .legend-dot.nowcast { background: var(--accent); }
+    .legend-dot.official { background: var(--orange); }
+    
+    .chart-container-inner {
+      position: relative;
       width: 100%;
-      min-width: 0;
-      border-collapse: collapse;
-      font-size: 0.79rem;
+      height: 240px;
     }
 
-    .readiness-table th,
-    .readiness-table td {
-      padding: 0.42rem 0.2rem;
-      border-bottom: 1px solid var(--border);
+    /* iOS Native List View (Settings Style) */
+    .list-group {
+      margin: 1.5rem 1rem;
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .list-group-header {
+      padding: 0 1rem 0.5rem 1.2rem;
+      font-size: 0.85rem;
+      text-transform: uppercase;
       color: var(--text-secondary);
-      text-align: left;
+      font-weight: 600;
+      letter-spacing: 0.02em;
     }
-
-    .readiness-table tr:last-child td {
+    .list-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.2rem;
+      border-bottom: 0.5px solid var(--separator);
+    }
+    .list-row:last-child {
       border-bottom: none;
     }
+    .row-label {
+      font-size: 1.05rem;
+      font-weight: 500;
+    }
+    .row-value {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .row-sub {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.2rem;
+    }
 
-    .readiness-table th {
-      font-size: 0.68rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-tertiary);
+    /* Utilities */
+    .tone-good { color: var(--green) !important; }
+    .tone-warn { color: var(--orange) !important; }
+    .tone-bad { color: var(--red) !important; }
+    .tone-neutral { color: var(--text) !important; }
+
+    /* Progressive Disclosure Details */
+    .disclosure-section {
+      margin: 2rem 1rem;
+      background: transparent;
+    }
+    details {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+    details summary {
+      padding: 1.2rem;
       font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      list-style-type: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      outline: none;
     }
-
-    .about-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.8rem;
+    details summary::-webkit-details-marker { display: none; }
+    details summary::after {
+      content: "›"; /* iOS Chevron */
+      color: var(--text-tertiary);
+      font-size: 1.6rem;
+      font-weight: 400;
+      transition: transform 0.2s;
     }
-
-    @media (max-width: 768px) {
-      .about-grid {
-        grid-template-columns: 1fr;
-      }
+    details[open] summary::after {
+      transform: rotate(90deg);
     }
-
-    .about-item {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 0.9rem 1rem;
-    }
-
-    .about-item h4 {
-      font-size: 0.84rem;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
+    .details-body {
+      padding: 0 1.2rem 1.2rem;
+      border-top: 0.5px solid var(--separator);
+      font-size: 0.9rem;
       color: var(--text-secondary);
-      margin-bottom: 0.45rem;
+      line-height: 1.5;
     }
 
-    .about-item p,
-    .about-item ul {
-      font-size: 0.84rem;
-      color: var(--text-secondary);
-      line-height: 1.55;
-    }
+    /* Minimal Table for Analytics */
+    table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+    th, td { text-align: left; padding: 0.6rem 0; border-bottom: 0.5px solid var(--separator); vertical-align: top; }
+    th { font-weight: 500; font-size: 0.8rem; color: var(--text-secondary); }
+    td { font-size: 0.85rem; color: var(--text); }
+    tr:last-child td { border-bottom: none; }
 
-    .about-item p + p {
-      margin-top: 0.35rem;
-    }
+    /* Hide unneeded modules visually but leave in DOM for JS binding if required */
+    .hidden-for-v2 { display: none !important; }
 
-    .about-item ul {
-      padding-left: 1rem;
-    }
-
-    .about-item li + li {
-      margin-top: 0.3rem;
-    }
   </style>
 </head>
-
 <body>
 
-  <!-- NAV -->
-  <nav class="nav">
-    <div class="nav-brand">
-      <img src="logo.png" alt="Logo" class="nav-logo" />
-      <span class="nav-title">True Inflation Canada</span>
+<div class="app-container">
+  
+  <nav class="top-nav">
+    <div class="top-nav-left">
+      <div class="brand-title">True Inflation</div>
+      <div class="nav-date" id="asof">Syncing...</div>
     </div>
-    <div class="nav-meta">
-      <span class="nav-date" id="asof">—</span>
-      <a class="nav-link" href="/about">About</a>
-      <a class="nav-link" href="/changelog">Changelog</a>
-      <button id="theme-toggle" class="theme-toggle" aria-label="Enable dark mode" title="Toggle dark mode">
-        <span class="icon-sun" aria-hidden="true">☀️</span>
-        <span class="icon-moon" aria-hidden="true">🌙</span>
-      </button>
-      <span class="pill"
-        style="background:var(--copper-light); color:var(--copper-dark); font-size:0.7rem; padding:0.2rem 0.6rem;">NOWCAST</span>
-    </div>
+    <button id="theme-toggle" class="theme-toggle">
+      <span class="icon-sun">☀️</span>
+      <span class="icon-moon">🌙</span>
+    </button>
   </nav>
-  <div id="sticky-disclaimer" class="sticky-disclaimer" aria-live="polite">
-    <span>Experimental nowcast; calibration in progress; not official StatCan CPI.</span>
+
+  <!-- IMPORTANT: Hidden divs required by existing process.js logic to not throw null pointer errors -->
+  <div class="hidden-for-v2">
+    <div id="release-banner"></div>
+    <div id="chart-maturity"></div>
+    <div id="live-history-progress"></div>
+    <div id="category-readiness"></div>
+    <div id="category-readiness-body"></div>
+    <div id="methodology-list"></div>
+    <div id="community-stats-grid"></div>
+    <div id="explain-grid"></div>
+    <div id="project-guide-grid"></div>
+    <div id="performance-list"></div>
+    <div id="notes-list"></div>
+    <!-- Power Title Body expects text assignment -->
+    <div id="card-power-title"></div>
+    <div id="card-power-body"></div>
+    <!-- Hidden chart target -->
+    <canvas id="categoryChart"></canvas>
+    <!-- Hidden Release grid expected by JS -->
+    <div id="release-grid"></div>
   </div>
 
-  <!-- MAIN -->
-  <main class="page" id="app">
-    <div class="small-note">Experimental open-source nowcast using public data. Not official StatCan CPI.</div>
-
-    <!-- RELEASE BANNER -->
-    <div id="release-banner" class="release-banner"></div>
-    
-
-    <!-- HERO -->
-    <section class="card">
-      <div class="hero-grid">
-        <div>
-          <div class="hero-eyebrow">Official CPI — Year over Year</div>
-          <div id="hero-yoy" class="hero-number tone-neutral">—</div>
-          <div id="hero-summary" class="hero-caption loading">Loading inflation data…</div>
-          <div id="hero-context" class="hero-context">Early signal context will appear when the first live points load.</div>
-        </div>
-        <div class="hero-stats">
-          <div class="stat-chip">
-            <div class="eyebrow">Published Nowcast Signal</div>
-            <div class="value" id="hero-nowcast">—</div>
-            <div class="note" id="hero-divergence">YoY deviation: —</div>
-            <div class="note" id="hero-nowcast-status"></div>
-          </div>
-          <div class="stat-chip">
-            <div class="eyebrow">Release Month</div>
-            <div class="value" id="hero-release">—</div>
-            <div class="note" id="hero-confidence">Confidence: — | Quality: —</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- PURCHASING POWER -->
-    <section class="card power-card card-sm">
-      <div class="section-label">Purchasing Power</div>
-      <div class="power-title" id="card-power-title">—</div>
-      <div class="power-body" id="card-power-body">—</div>
-    </section>
-
-    <!-- RELEASE INTELLIGENCE -->
-    <section class="card">
-      <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">Release Intelligence</div>
-      <div class="chip-grid" id="release-grid"></div>
-    </section>
-
-    <!-- NOWCAST CHART -->
-    <section class="card">
-      <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">Nowcast vs Official CPI (Year-over-Year)</div>
-      <div id="chart-maturity" class="maturity-note">Live nowcast days: -- (target 30 for stable interpretation).</div>
-      <div class="freshness-legend" aria-label="Freshness color legend">
-        <span class="freshness-legend-item"><span class="freshness-legend-dot blue"></span>Blue: 0–1d >= 99.5%</span>
-        <span class="freshness-legend-item"><span class="freshness-legend-dot green"></span>Green: 85.5% to 99.4%</span>
-        <span class="freshness-legend-item"><span class="freshness-legend-dot yellow"></span>Yellow: 70.0% to 85.4%</span>
-        <span class="freshness-legend-item"><span class="freshness-legend-dot red"></span>Red: below 70.0%</span>
-      </div>
-      <div class="chart-container">
-        <canvas id="divergenceChart"></canvas>
-      </div>
-    </section>
-
-        <!-- EXPERT & TECHNICAL DETAILS -->
-    <details class="accordion card">
-      <summary style="font-size: 1.15rem; font-weight: 700; padding: 0.5rem 0.5rem; border: none;">Technical & Expert Diagnostics</summary>
-      <div class="accordion-body" style="padding: 2.5rem 1rem 1rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 2rem; margin-top: 1.5rem;">
-<!-- CATEGORY + METHODOLOGY -->
-    <div class="expert-grid">
-      <section class="card">
-        <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">Category Contribution Ranking</div>
-        <div id="live-history-progress" class="live-progress">Live history progress: -- / 30 days</div>
-        <p id="category-placeholder" class="chart-placeholder" style="display:none;"></p>
-        <div id="category-readiness" class="readiness-wrap" style="display:none;">
-          <div class="readiness-note">Movement ranking is withheld until enough day-over-day history exists. Category data readiness is shown below.</div>
-          <table class="readiness-table" aria-label="Category readiness table">
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th>Status</th>
-                <th>Points</th>
-                <th>Diversity</th>
-                <th>Delta Ready</th>
-              </tr>
-            </thead>
-            <tbody id="category-readiness-body"></tbody>
-          </table>
-        </div>
-        <div class="chart-container" style="height:260px;">
-          <canvas id="categoryChart"></canvas>
-        </div>
-      </section>
-      <section class="card">
-        <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">Run Method Snapshot</div>
-        <ul id="methodology-list" class="meta-list"></ul>
-      </section>
+  <section class="hero-section">
+    <div class="hero-title">Nowcast YoY</div>
+    <div id="hero-nowcast" class="hero-metric">—</div>
+    <div class="hero-subtitle">Official CPI is <span id="hero-yoy">—</span> <span id="hero-release"></span></div>
+    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.8rem;" id="hero-context">Analyzing daily pricing signals...</div>
+    <div class="hidden-for-v2">
+      <!-- Kept for JS binding -->
+      <span id="hero-divergence"></span>
+      <span id="hero-nowcast-status"></span>
+      <span id="hero-confidence"></span>
+      <span id="hero-summary"></span>
     </div>
+  </section>
 
-    <!-- COMMUNITY -->
-    <section id="community-section" class="card">
-      <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">Community Reports</div>
-      <div class="community-grid" id="community-stats-grid"></div>
-    </section>
-
-    <!-- HOW TO READ -->
-    <section class="card card-sm">
-      <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">Dashboard Guide</div>
-      <div class="explainer-grid" id="explain-grid"></div>
-    </section>
-
-    <!-- ABOUT -->
-    <section class="card card-sm">
-      <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">Project & Transparency</div>
-      <div class="about-grid" id="project-guide-grid"></div>
-    </section>
-
-    <!-- PERFORMANCE & CALIBRATION -->
-    <details class="accordion card-sm">
-      <summary>Signal Quality &amp; Maturity</summary>
-      <div class="accordion-body">
-        <ul id="performance-list" class="meta-list"></ul>
+  <div class="chart-module">
+    <div class="chart-header">
+      <div class="chart-title">Trend</div>
+      <div class="chart-legend">
+        <div class="legend-item"><span class="legend-dot nowcast"></span> Nowcast</div>
+        <div class="legend-item"><span class="legend-dot official"></span> Official</div>
       </div>
-    </details>
+    </div>
+    <div class="chart-container-inner">
+      <canvas id="divergenceChart"></canvas>
+    </div>
+  </div>
 
-    <!-- DATA SOURCE DIAGNOSTICS -->
-    <section id="source-diagnostics" class="card" style="padding: 1.5rem 1.5rem 1rem;">
-      <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">Data Source Diagnostics</div>
-      <div class="table-wrap">
-        <table>
+  <div class="list-group">
+    <div class="list-group-header" style="margin-top: 1rem;">Primary Insights</div>
+    <div class="list-row">
+      <div>
+        <div class="row-label">Signal Trust</div>
+      </div>
+      <div class="row-value tone-good" id="v2-quality-score">—</div>
+    </div>
+    <div class="list-row">
+      <div>
+        <div class="row-label">Data Freshness</div>
+      </div>
+      <div class="row-value tone-good" id="v2-freshness">—</div>
+    </div>
+  </div>
+
+  <!-- Technical Details via Progressive Disclosure -->
+  <div class="disclosure-section">
+    <div class="list-group-header">Diagnostics</div>
+    <details>
+      <summary>Data Source Health</summary>
+      <div class="details-body" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem; display: block; overflow-x: auto; white-space: nowrap;">
           <thead>
             <tr>
-              <th>Source</th>
-              <th>Category</th>
+              <th style="padding-left:1.2rem;">Source</th>
               <th>Status</th>
-              <th>Last Run</th>
-              <th>Period</th>
-              <th>Age (hrs)</th>
-              <th>Notes</th>
+              <th>Category</th>
+              <th>Age</th>
             </tr>
           </thead>
           <tbody id="source-health-body"></tbody>
         </table>
       </div>
-    </section>
-
-    <!-- METHODOLOGY NOTES -->
-    <details class="accordion card-sm">
-      <summary>Run Notes &amp; Caveats</summary>
-      <div class="accordion-body">
-        <ul id="notes-list" class="meta-list"></ul>
-      </div>
     </details>
-
-          </div>
-    </details>
-
-<!-- FOOTER -->
-    <footer class="footer">
-      Experimental open-source nowcast using public Statistics Canada data.<br />
-      Not official StatCan CPI. <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank" rel="noopener noreferrer">View on
-        GitHub</a>
-    </footer>
-
-  </main>
+    
+    <div style="text-align: center; margin-top: 2rem; font-size: 0.75rem; color: var(--text-tertiary);">
+      Experimental open-source inflation nowcast.<br>Not official StatCan CPI.<br>
+      <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank" style="color: var(--text-secondary); text-decoration: underline;">View on GitHub</a>
+    </div>
+  </div>
+</div>
 
   <script>
     const UI_MODE_V2 = new URLSearchParams(window.location.search).get("ui_v2") !== "0";
@@ -1547,8 +793,8 @@
           type: "line",
           label: "Nowcast YoY (daily published)",
           data: nowcastSeries,
-          borderColor: uiToken("--chart-nowcast", "#0071e3"),
-          backgroundColor: uiToken("--chart-nowcast-fill", "rgba(0,113,227,0.08)"),
+          borderColor: uiToken("--chart-nowcast", "#0A84FF"),
+          backgroundColor: uiToken("--chart-nowcast-fill", "rgba(10, 132, 255, 0.15)"),
           tension: 0,
           spanGaps: false,
           yAxisID: "y",
@@ -1564,7 +810,7 @@
           type: "line",
           label: "Official CPI YoY",
           data: official,
-          borderColor: uiToken("--chart-official", "#ff9f0a"),
+          borderColor: uiToken("--chart-official", "#FF9F0A"),
           borderDash: [6, 4],
           backgroundColor: "rgba(0,0,0,0)",
           tension: 0,
@@ -2253,6 +1499,23 @@
         setDataLoadError(err);
       });
     }
+  
+    // V2 Binding override
+    const origRender = window.renderDivergence;
+    if (dashboardState) {
+       setInterval(() => {
+           if(dashboardState && dashboardState.latest) {
+               const l = dashboardState.latest;
+               document.getElementById("v2-quality-score").textContent = (l.headline.signal_quality_score || "--") + " / 100";
+               document.getElementById("v2-quality-score").className = l.headline.signal_quality_score > 80 ? "row-value tone-good" : "row-value tone-warn";
+               
+               const fresh = l.meta && l.meta.freshness_composition ? Math.round(l.meta.freshness_composition.fresh_0_1d_weight_ratio * 100) : "--";
+               document.getElementById("v2-freshness").textContent = fresh + "%";
+               document.getElementById("v2-freshness").className = fresh > 90 ? "row-value tone-good" : (fresh > 70 ? "row-value tone-warn" : "row-value tone-bad");
+           }
+       }, 500); // Polling for state existence
+    }
+    
   </script>
 </body>
 
