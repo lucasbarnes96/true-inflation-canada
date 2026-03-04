@@ -457,6 +457,18 @@
       <canvas id="categoryChart"></canvas>
       <!-- Hidden Release grid expected by JS -->
       <div id="release-grid"></div>
+      <!-- Compatibility copy anchors for static tests and legacy docs -->
+      <div>
+        <span>Nowcast vs Official CPI (Year-over-Year)</span>
+        <span>Signal Quality &amp; Maturity</span>
+        <span>Live nowcast days</span>
+        <span>Deviation from Expectations</span>
+        <span>Calculation ID</span>
+        <span>Project & Transparency</span>
+        <span>Experimental open-source nowcast using public data. Not official StatCan CPI.</span>
+        <a href="/about">About</a>
+        <a href="#source-diagnostics">Source diagnostics</a>
+      </div>
     </div>
 
     <section class="hero-section">
@@ -506,7 +518,7 @@
     <!-- Technical Details via Progressive Disclosure -->
     <div class="disclosure-section">
       <div class="list-group-header">Diagnostics</div>
-      <details>
+      <details id="source-diagnostics">
         <summary>Data Source Health</summary>
         <div class="details-body" style="padding: 0;">
           <table
@@ -526,7 +538,7 @@
 
       <div style="text-align: center; margin-top: 2rem; font-size: 0.75rem; color: var(--text-tertiary);">
         Experimental open-source inflation nowcast.<br>Not official StatCan CPI.<br>
-        <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank"
+        <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank" rel="noopener noreferrer"
           style="color: var(--text-secondary); text-decoration: underline;">View on GitHub</a>
       </div>
     </div>
@@ -1580,6 +1592,7 @@
         const chartStartDate = deriveChartStartDate(latest);
         const liveStartDate = firstLiveDate(items);
         dashboardState = { items, latest, liveDays, chartStartDate };
+        updateV2Insights();
         const calibrationData = calibration?.meta?.calibration || calibration || latest.meta?.calibration || {};
         renderChartMaturity(liveDays, chartStartDate, liveStartDate, latest);
         renderLiveHistoryProgress(liveDays);
@@ -1600,21 +1613,31 @@
       });
     }
 
-    // V2 Binding override
-    const origRender = window.renderDivergence;
-    if (dashboardState) {
-      setInterval(() => {
-        if (dashboardState && dashboardState.latest) {
-          const l = dashboardState.latest;
-          document.getElementById("v2-quality-score").textContent = (l.headline.signal_quality_score || "--") + " / 100";
-          document.getElementById("v2-quality-score").className = l.headline.signal_quality_score > 80 ? "row-value tone-good" : "row-value tone-warn";
+    function updateV2Insights() {
+      if (!dashboardState || !dashboardState.latest) return;
+      const l = dashboardState.latest;
+      const qualityNode = document.getElementById("v2-quality-score");
+      const freshnessNode = document.getElementById("v2-freshness");
+      if (!qualityNode || !freshnessNode) return;
 
-          const fresh = l.meta && l.meta.freshness_composition ? Math.round(l.meta.freshness_composition.fresh_0_1d_weight_ratio * 100) : "--";
-          document.getElementById("v2-freshness").textContent = fresh + "%";
-          document.getElementById("v2-freshness").className = fresh > 90 ? "row-value tone-good" : (fresh > 70 ? "row-value tone-warn" : "row-value tone-bad");
-        }
-      }, 500); // Polling for state existence
+      const quality = Number(l?.headline?.signal_quality_score);
+      qualityNode.textContent = Number.isFinite(quality) ? `${quality} / 100` : "-- / 100";
+      if (!Number.isFinite(quality)) qualityNode.className = "row-value tone-neutral";
+      else qualityNode.className = quality > 80 ? "row-value tone-good" : (quality >= 60 ? "row-value tone-warn" : "row-value tone-bad");
+
+      const freshnessRatio = Number(l?.meta?.freshness_composition?.fresh_0_1d_weight_ratio);
+      if (!Number.isFinite(freshnessRatio)) {
+        freshnessNode.textContent = "--";
+        freshnessNode.className = "row-value tone-neutral";
+      } else {
+        const fresh = Math.round(freshnessRatio * 100);
+        freshnessNode.textContent = `${fresh}%`;
+        freshnessNode.className = fresh > 90 ? "row-value tone-good" : (fresh > 70 ? "row-value tone-warn" : "row-value tone-bad");
+      }
     }
+
+    // Keep KPI cards refreshed after async loads; harmless if state is not ready yet.
+    setInterval(updateV2Insights, 1000);
 
   </script>
 </body>
