@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
   <title>True Inflation</title>
   <meta name="description" content="Finance-first Canadian inflation nowcast." />
   <link rel="icon" type="image/png" href="logo.png" />
@@ -17,11 +19,12 @@
       /* Pure Light Mode Apple Native */
       --bg: #F2F2F7;
       --surface: #FFFFFF;
-      --surface-elevated: rgba(255,255,255,0.7);
+      --surface-elevated: rgba(255, 255, 255, 0.7);
       --text: #000000;
       --text-secondary: #8E8E93;
       --text-tertiary: #C7C7CC;
-      --separator: rgba(60,60,67,0.29); /* iOS Separator */
+      --separator: rgba(60, 60, 67, 0.29);
+      /* iOS Separator */
       --accent: #007AFF;
       --green: #34C759;
       --orange: #FF9500;
@@ -29,18 +32,18 @@
 
       --radius-lg: 20px;
       --radius-sm: 10px;
-      
+
       --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
       --font-mono: ui-monospace, "SF Mono", monospace;
-      
+
       --chart-nowcast: var(--accent);
       --chart-nowcast-fill: rgba(0, 122, 255, 0.1);
       --chart-official: var(--orange);
       --chart-grid: var(--separator);
       --chart-ticks: var(--text-secondary);
       --chart-prelive-text: var(--text-secondary);
-      --chart-prelive: rgba(0,0,0,0.03);
-      
+      --chart-prelive: rgba(0, 0, 0, 0.03);
+
       color-scheme: light;
       -webkit-font-smoothing: antialiased;
     }
@@ -48,13 +51,13 @@
     html[data-theme="dark"] {
       --bg: #000000;
       --surface: #1C1C1E;
-      --surface-elevated: rgba(28,28,30,0.7);
+      --surface-elevated: rgba(28, 28, 30, 0.7);
       --text: #FFFFFF;
       --text-secondary: #EBEBF5;
       /* Adjust text secondary alpha for exact iOS feel */
-      --text-secondary: rgba(235, 235, 245, 0.6); 
+      --text-secondary: rgba(235, 235, 245, 0.6);
       --text-tertiary: rgba(235, 235, 245, 0.3);
-      --separator: rgba(84,84,88,0.65);
+      --separator: rgba(84, 84, 88, 0.65);
       --accent: #0A84FF;
       --green: #30D158;
       --orange: #FF9F0A;
@@ -65,13 +68,18 @@
       --chart-official: var(--orange);
       --chart-grid: var(--separator);
       --chart-ticks: var(--text-secondary);
-      --chart-prelive: rgba(255,255,255,0.04);
-      
+      --chart-prelive: rgba(255, 255, 255, 0.04);
+
       color-scheme: dark;
     }
 
     /* Core Resets */
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
       font-family: var(--font);
       background-color: var(--bg);
@@ -79,8 +87,12 @@
       min-height: 100vh;
       overflow-x: hidden;
     }
-    a { color: var(--accent); text-decoration: none; }
-    
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
     /* Layout */
     .app-container {
       max-width: 600px;
@@ -103,20 +115,24 @@
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
     }
+
     .top-nav-left {
       display: flex;
       flex-direction: column;
     }
+
     .brand-title {
       font-size: 1.2rem;
       font-weight: 700;
       letter-spacing: -0.02em;
     }
+
     .nav-date {
       font-size: 0.8rem;
       color: var(--text-secondary);
       font-weight: 500;
     }
+
     .theme-toggle {
       background: var(--surface);
       border: none;
@@ -131,15 +147,24 @@
       cursor: pointer;
     }
 
-    .theme-toggle .icon-moon { display: none; }
-    html[data-theme="dark"] .theme-toggle .icon-sun { display: none; }
-    html[data-theme="dark"] .theme-toggle .icon-moon { display: block; }
+    .theme-toggle .icon-moon {
+      display: none;
+    }
+
+    html[data-theme="dark"] .theme-toggle .icon-sun {
+      display: none;
+    }
+
+    html[data-theme="dark"] .theme-toggle .icon-moon {
+      display: block;
+    }
 
     /* Hero Massive Metric */
     .hero-section {
       text-align: center;
       padding: 2.5rem 1rem 1.5rem;
     }
+
     .hero-title {
       font-size: 0.9rem;
       font-weight: 600;
@@ -148,6 +173,7 @@
       letter-spacing: 0.05em;
       margin-bottom: 0.2rem;
     }
+
     .hero-metric {
       font-size: clamp(5rem, 20vw, 7.5rem);
       font-weight: 700;
@@ -155,24 +181,30 @@
       line-height: 1;
       margin-bottom: 0.5rem;
     }
+
     .hero-subtitle {
       font-size: 1.1rem;
       font-weight: 500;
       color: var(--text-secondary);
       margin-bottom: 0.5rem;
     }
-    
+
     @media (max-width: 400px) {
       .hero-metric {
         font-size: clamp(4rem, 18vw, 5.5rem);
       }
+
       .app-container {
-        padding: env(safe-area-inset-top) 0 4rem 0; /* Full bleed on small mobile */
+        padding: env(safe-area-inset-top) 0 4rem 0;
+        /* Full bleed on small mobile */
       }
+
       .list-group {
-        border-radius: 0; /* Flush edges on small mobile */
+        border-radius: 0;
+        /* Flush edges on small mobile */
         margin: 1.5rem 0;
       }
+
       .details-body {
         padding-left: 0.5rem;
         padding-right: 0.5rem;
@@ -187,17 +219,20 @@
       border-top: 1px solid var(--separator);
       border-bottom: 1px solid var(--separator);
     }
+
     .chart-header {
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
       margin-bottom: 1rem;
     }
+
     .chart-title {
       font-size: 1.2rem;
       font-weight: 600;
       letter-spacing: -0.01em;
     }
+
     .chart-legend {
       display: flex;
       gap: 1rem;
@@ -205,19 +240,27 @@
       color: var(--text-secondary);
       font-weight: 500;
     }
+
     .legend-item {
       display: flex;
       align-items: center;
       gap: 0.3rem;
     }
+
     .legend-dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
     }
-    .legend-dot.nowcast { background: var(--accent); }
-    .legend-dot.official { background: var(--orange); }
-    
+
+    .legend-dot.nowcast {
+      background: var(--accent);
+    }
+
+    .legend-dot.official {
+      background: var(--orange);
+    }
+
     .chart-container-inner {
       position: relative;
       width: 100%;
@@ -231,6 +274,7 @@
       border-radius: var(--radius-lg);
       overflow: hidden;
     }
+
     .list-group-header {
       padding: 0 1rem 0.5rem 1.2rem;
       font-size: 0.85rem;
@@ -239,6 +283,7 @@
       font-weight: 600;
       letter-spacing: 0.02em;
     }
+
     .list-row {
       display: flex;
       justify-content: space-between;
@@ -246,13 +291,16 @@
       padding: 1rem 1.2rem;
       border-bottom: 0.5px solid var(--separator);
     }
+
     .list-row:last-child {
       border-bottom: none;
     }
+
     .row-label {
       font-size: 1.05rem;
       font-weight: 500;
     }
+
     .row-value {
       font-size: 1.05rem;
       color: var(--text-secondary);
@@ -260,6 +308,7 @@
       align-items: center;
       gap: 0.5rem;
     }
+
     .row-sub {
       font-size: 0.8rem;
       color: var(--text-secondary);
@@ -267,22 +316,35 @@
     }
 
     /* Utilities */
-    .tone-good { color: var(--green) !important; }
-    .tone-warn { color: var(--orange) !important; }
-    .tone-bad { color: var(--red) !important; }
-    .tone-neutral { color: var(--text) !important; }
+    .tone-good {
+      color: var(--green) !important;
+    }
+
+    .tone-warn {
+      color: var(--orange) !important;
+    }
+
+    .tone-bad {
+      color: var(--red) !important;
+    }
+
+    .tone-neutral {
+      color: var(--text) !important;
+    }
 
     /* Progressive Disclosure Details */
     .disclosure-section {
       margin: 2rem 1rem;
       background: transparent;
     }
+
     details {
       background: var(--surface);
       border-radius: var(--radius-lg);
       margin-bottom: 1rem;
       overflow: hidden;
     }
+
     details summary {
       padding: 1.2rem;
       font-weight: 600;
@@ -294,17 +356,24 @@
       align-items: center;
       outline: none;
     }
-    details summary::-webkit-details-marker { display: none; }
+
+    details summary::-webkit-details-marker {
+      display: none;
+    }
+
     details summary::after {
-      content: "›"; /* iOS Chevron */
+      content: "›";
+      /* iOS Chevron */
       color: var(--text-tertiary);
       font-size: 1.6rem;
       font-weight: 400;
       transition: transform 0.2s;
     }
+
     details[open] summary::after {
       transform: rotate(90deg);
     }
+
     .details-body {
       padding: 0 1.2rem 1.2rem;
       border-top: 0.5px solid var(--separator);
@@ -314,123 +383,154 @@
     }
 
     /* Minimal Table for Analytics */
-    table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
-    th, td { text-align: left; padding: 0.6rem 0; border-bottom: 0.5px solid var(--separator); vertical-align: top; }
-    th { font-weight: 500; font-size: 0.8rem; color: var(--text-secondary); }
-    td { font-size: 0.85rem; color: var(--text); }
-    tr:last-child td { border-bottom: none; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 0.6rem 0;
+      border-bottom: 0.5px solid var(--separator);
+      vertical-align: top;
+    }
+
+    th {
+      font-weight: 500;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    td {
+      font-size: 0.85rem;
+      color: var(--text);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
 
     /* Hide unneeded modules visually but leave in DOM for JS binding if required */
-    .hidden-for-v2 { display: none !important; }
-
+    .hidden-for-v2 {
+      display: none !important;
+    }
   </style>
 </head>
+
 <body>
 
-<div class="app-container">
-  
-  <nav class="top-nav">
-    <div class="top-nav-left">
-      <div class="brand-title">True Inflation</div>
-      <div class="nav-date" id="asof">Syncing...</div>
-    </div>
-    <button id="theme-toggle" class="theme-toggle">
-      <span class="icon-sun">☀️</span>
-      <span class="icon-moon">🌙</span>
-    </button>
-  </nav>
+  <div class="app-container" id="app">
 
-  <!-- IMPORTANT: Hidden divs required by existing process.js logic to not throw null pointer errors -->
-  <div class="hidden-for-v2">
-    <div id="release-banner"></div>
-    <div id="chart-maturity"></div>
-    <div id="live-history-progress"></div>
-    <div id="category-readiness"></div>
-    <div id="category-readiness-body"></div>
-    <div id="methodology-list"></div>
-    <div id="community-stats-grid"></div>
-    <div id="explain-grid"></div>
-    <div id="project-guide-grid"></div>
-    <div id="performance-list"></div>
-    <div id="notes-list"></div>
-    <!-- Power Title Body expects text assignment -->
-    <div id="card-power-title"></div>
-    <div id="card-power-body"></div>
-    <!-- Hidden chart target -->
-    <canvas id="categoryChart"></canvas>
-    <!-- Hidden Release grid expected by JS -->
-    <div id="release-grid"></div>
-  </div>
+    <nav class="top-nav">
+      <div class="top-nav-left">
+        <div class="brand-title">True Inflation</div>
+        <div class="nav-date" id="asof">Syncing...</div>
+      </div>
+      <button id="theme-toggle" class="theme-toggle">
+        <span class="icon-sun">☀️</span>
+        <span class="icon-moon">🌙</span>
+      </button>
+    </nav>
 
-  <section class="hero-section">
-    <div class="hero-title">Nowcast YoY</div>
-    <div id="hero-nowcast" class="hero-metric">—</div>
-    <div class="hero-subtitle">Official CPI is <span id="hero-yoy">—</span> <span id="hero-release"></span></div>
-    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.8rem;" id="hero-context">Analyzing daily pricing signals...</div>
+    <!-- IMPORTANT: Hidden divs required by existing process.js logic to not throw null pointer errors -->
     <div class="hidden-for-v2">
-      <!-- Kept for JS binding -->
-      <span id="hero-divergence"></span>
-      <span id="hero-nowcast-status"></span>
-      <span id="hero-confidence"></span>
-      <span id="hero-summary"></span>
+      <div id="release-banner"></div>
+      <div id="chart-maturity"></div>
+      <div id="live-history-progress"></div>
+      <div id="category-placeholder"></div>
+      <div id="category-readiness"></div>
+      <div id="category-readiness-body"></div>
+      <div id="methodology-list"></div>
+      <div id="community-section"></div>
+      <div id="community-stats-grid"></div>
+      <div id="explain-grid"></div>
+      <div id="project-guide-grid"></div>
+      <div id="performance-list"></div>
+      <div id="notes-list"></div>
+      <div id="sticky-disclaimer"><span></span></div>
+      <!-- Power Title Body expects text assignment -->
+      <div id="card-power-title"></div>
+      <div id="card-power-body"></div>
+      <!-- Hidden chart target -->
+      <canvas id="categoryChart"></canvas>
+      <!-- Hidden Release grid expected by JS -->
+      <div id="release-grid"></div>
     </div>
-  </section>
 
-  <div class="chart-module">
-    <div class="chart-header">
-      <div class="chart-title">Trend</div>
-      <div class="chart-legend">
-        <div class="legend-item"><span class="legend-dot nowcast"></span> Nowcast</div>
-        <div class="legend-item"><span class="legend-dot official"></span> Official</div>
+    <section class="hero-section">
+      <div class="hero-title">Nowcast YoY</div>
+      <div id="hero-nowcast" class="hero-metric">—</div>
+      <div class="hero-subtitle">Official CPI is <span id="hero-yoy">—</span> <span id="hero-release"></span></div>
+      <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.8rem;" id="hero-context">Analyzing
+        daily pricing signals...</div>
+      <div class="hidden-for-v2">
+        <!-- Kept for JS binding -->
+        <span id="hero-divergence"></span>
+        <span id="hero-nowcast-status"></span>
+        <span id="hero-confidence"></span>
+        <span id="hero-summary"></span>
+      </div>
+    </section>
+
+    <div class="chart-module">
+      <div class="chart-header">
+        <div class="chart-title">Trend</div>
+        <div class="chart-legend">
+          <div class="legend-item"><span class="legend-dot nowcast"></span> Nowcast</div>
+          <div class="legend-item"><span class="legend-dot official"></span> Official</div>
+        </div>
+      </div>
+      <div class="chart-container-inner">
+        <canvas id="divergenceChart"></canvas>
       </div>
     </div>
-    <div class="chart-container-inner">
-      <canvas id="divergenceChart"></canvas>
+
+    <div class="list-group">
+      <div class="list-group-header" style="margin-top: 1rem;">Primary Insights</div>
+      <div class="list-row">
+        <div>
+          <div class="row-label">Signal Trust</div>
+        </div>
+        <div class="row-value tone-good" id="v2-quality-score">—</div>
+      </div>
+      <div class="list-row">
+        <div>
+          <div class="row-label">Data Freshness</div>
+        </div>
+        <div class="row-value tone-good" id="v2-freshness">—</div>
+      </div>
+    </div>
+
+    <!-- Technical Details via Progressive Disclosure -->
+    <div class="disclosure-section">
+      <div class="list-group-header">Diagnostics</div>
+      <details>
+        <summary>Data Source Health</summary>
+        <div class="details-body" style="padding: 0;">
+          <table
+            style="width: 100%; border-collapse: collapse; margin-top: 0.5rem; display: block; overflow-x: auto; white-space: nowrap;">
+            <thead>
+              <tr>
+                <th style="padding-left:1.2rem;">Source</th>
+                <th>Status</th>
+                <th>Category</th>
+                <th>Age</th>
+              </tr>
+            </thead>
+            <tbody id="source-health-body"></tbody>
+          </table>
+        </div>
+      </details>
+
+      <div style="text-align: center; margin-top: 2rem; font-size: 0.75rem; color: var(--text-tertiary);">
+        Experimental open-source inflation nowcast.<br>Not official StatCan CPI.<br>
+        <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank"
+          style="color: var(--text-secondary); text-decoration: underline;">View on GitHub</a>
+      </div>
     </div>
   </div>
-
-  <div class="list-group">
-    <div class="list-group-header" style="margin-top: 1rem;">Primary Insights</div>
-    <div class="list-row">
-      <div>
-        <div class="row-label">Signal Trust</div>
-      </div>
-      <div class="row-value tone-good" id="v2-quality-score">—</div>
-    </div>
-    <div class="list-row">
-      <div>
-        <div class="row-label">Data Freshness</div>
-      </div>
-      <div class="row-value tone-good" id="v2-freshness">—</div>
-    </div>
-  </div>
-
-  <!-- Technical Details via Progressive Disclosure -->
-  <div class="disclosure-section">
-    <div class="list-group-header">Diagnostics</div>
-    <details>
-      <summary>Data Source Health</summary>
-      <div class="details-body" style="padding: 0;">
-        <table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem; display: block; overflow-x: auto; white-space: nowrap;">
-          <thead>
-            <tr>
-              <th style="padding-left:1.2rem;">Source</th>
-              <th>Status</th>
-              <th>Category</th>
-              <th>Age</th>
-            </tr>
-          </thead>
-          <tbody id="source-health-body"></tbody>
-        </table>
-      </div>
-    </details>
-    
-    <div style="text-align: center; margin-top: 2rem; font-size: 0.75rem; color: var(--text-tertiary);">
-      Experimental open-source inflation nowcast.<br>Not official StatCan CPI.<br>
-      <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank" style="color: var(--text-secondary); text-decoration: underline;">View on GitHub</a>
-    </div>
-  </div>
-</div>
 
   <script>
     const UI_MODE_V2 = new URLSearchParams(window.location.search).get("ui_v2") !== "0";
@@ -1499,23 +1599,23 @@
         setDataLoadError(err);
       });
     }
-  
+
     // V2 Binding override
     const origRender = window.renderDivergence;
     if (dashboardState) {
-       setInterval(() => {
-           if(dashboardState && dashboardState.latest) {
-               const l = dashboardState.latest;
-               document.getElementById("v2-quality-score").textContent = (l.headline.signal_quality_score || "--") + " / 100";
-               document.getElementById("v2-quality-score").className = l.headline.signal_quality_score > 80 ? "row-value tone-good" : "row-value tone-warn";
-               
-               const fresh = l.meta && l.meta.freshness_composition ? Math.round(l.meta.freshness_composition.fresh_0_1d_weight_ratio * 100) : "--";
-               document.getElementById("v2-freshness").textContent = fresh + "%";
-               document.getElementById("v2-freshness").className = fresh > 90 ? "row-value tone-good" : (fresh > 70 ? "row-value tone-warn" : "row-value tone-bad");
-           }
-       }, 500); // Polling for state existence
+      setInterval(() => {
+        if (dashboardState && dashboardState.latest) {
+          const l = dashboardState.latest;
+          document.getElementById("v2-quality-score").textContent = (l.headline.signal_quality_score || "--") + " / 100";
+          document.getElementById("v2-quality-score").className = l.headline.signal_quality_score > 80 ? "row-value tone-good" : "row-value tone-warn";
+
+          const fresh = l.meta && l.meta.freshness_composition ? Math.round(l.meta.freshness_composition.fresh_0_1d_weight_ratio * 100) : "--";
+          document.getElementById("v2-freshness").textContent = fresh + "%";
+          document.getElementById("v2-freshness").className = fresh > 90 ? "row-value tone-good" : (fresh > 70 ? "row-value tone-warn" : "row-value tone-bad");
+        }
+      }, 500); // Polling for state existence
     }
-    
+
   </script>
 </body>
 
