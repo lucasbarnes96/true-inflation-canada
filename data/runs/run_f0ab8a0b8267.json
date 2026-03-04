@@ -1368,7 +1368,35 @@
         15,
         60,
         360
-      ]
+      ],
+      "failure_fingerprint": {
+        "total_source_checks": 18,
+        "failed_source_checks": 12,
+        "failed_check_events": 12,
+        "by_check": {
+          "median_jump": 12
+        },
+        "by_source": {
+          "healthcanada_dpd": 1,
+          "ised_mobile_plan_tracker": 1,
+          "oeb_scrape": 1,
+          "parkscanada_fees": 1,
+          "pmprb_reports": 1,
+          "rentals_ca_scrape": 1,
+          "statcan_cpi_csv": 3,
+          "statcan_education_portal": 1,
+          "statcan_energy_cpi_csv": 1,
+          "statcan_food_prices": 1
+        },
+        "by_category": {
+          "unknown": 12
+        },
+        "top_failed_check": "median_jump"
+      },
+      "this_run_source_contract_pass_rate": 0.7267,
+      "this_run_source_freshness_pass_rate": 0.9867,
+      "trailing_30d_source_contract_pass_rate": 0.6639,
+      "trailing_30d_source_freshness_pass_rate": 0.9889
     },
     "province_overlays": [],
     "release_intelligence": {
@@ -1694,6 +1722,30 @@
         "trigger_reason": "low_source_diversity,anomaly_penalty",
         "cap_applied": false
       }
+    },
+    "qa_failure_fingerprint": {
+      "total_source_checks": 18,
+      "failed_source_checks": 12,
+      "failed_check_events": 12,
+      "by_check": {
+        "median_jump": 12
+      },
+      "by_source": {
+        "healthcanada_dpd": 1,
+        "ised_mobile_plan_tracker": 1,
+        "oeb_scrape": 1,
+        "parkscanada_fees": 1,
+        "pmprb_reports": 1,
+        "rentals_ca_scrape": 1,
+        "statcan_cpi_csv": 3,
+        "statcan_education_portal": 1,
+        "statcan_energy_cpi_csv": 1,
+        "statcan_food_prices": 1
+      },
+      "by_category": {
+        "unknown": 12
+      },
+      "top_failed_check": "median_jump"
     }
   },
   "performance_ref": {
@@ -1720,6 +1772,8 @@
       "Gate G failed: trailing source contract pass rate below minimum."
     ],
     "created_at": "2026-02-24T17:06:13+00:00",
-    "published_at": null
+    "published_at": null,
+    "execution_outcome": "success",
+    "publication_outcome": "failed_gate"
   }
 }
