@@ -47,14 +47,14 @@
 
       --accent: var(--copper);
 
-      --radius-sm: 8px;
-      --radius-md: 14px;
-      --radius-lg: 20px;
-      --radius-xl: 28px;
+      --radius-sm: 12px;
+      --radius-md: 18px;
+      --radius-lg: 24px;
+      --radius-xl: 32px;
 
       --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
-      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.10), 0 2px 8px rgba(0, 0, 0, 0.06);
+      --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04);
+      --shadow-lg: 0 12px 42px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
 
       --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
       --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Fira Code", monospace;
@@ -237,11 +237,11 @@
     .page {
       max-width: 1100px;
       margin: 0 auto;
-      padding: 1.5rem max(1.25rem, env(safe-area-inset-right)) 3rem;
-      padding-left: max(1.25rem, env(safe-area-inset-left));
+      padding: 2.5rem max(1.5rem, env(safe-area-inset-right)) 5rem;
+      padding-left: max(1.5rem, env(safe-area-inset-left));
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 1.8rem;
     }
 
     /* =========================================================
@@ -252,11 +252,11 @@
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow-md);
-      padding: 1.5rem;
+      padding: 2.5rem 2.8rem;
     }
 
     .card-sm {
-      padding: 1.1rem 1.25rem;
+      padding: 1.5rem 1.8rem;
     }
 
     /* =========================================================
@@ -388,27 +388,28 @@
        HERO SECTION
     ========================================================= */
     .hero-grid {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 1rem;
-      align-items: start;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 2.5rem;
     }
 
     .hero-eyebrow {
-      font-size: 0.72rem;
+      font-size: 0.9rem;
       font-weight: 600;
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--text-secondary);
-      margin-bottom: 0.4rem;
+      margin-bottom: 0.75rem;
     }
 
     .hero-number {
-      font-size: clamp(4rem, 12vw, 7rem);
-      font-weight: 700;
-      letter-spacing: -0.04em;
-      line-height: 1;
-      margin-bottom: 0.6rem;
+      font-size: clamp(5.5rem, 16vw, 9.5rem);
+      font-weight: 800;
+      letter-spacing: -0.05em;
+      line-height: 0.95;
+      margin-bottom: 1rem;
     }
 
     .hero-number.tone-good {
@@ -436,9 +437,10 @@
 
     .hero-stats {
       display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      min-width: 180px;
+      flex-direction: row;
+      justify-content: center;
+      gap: 1.5rem;
+      width: 100%;
     }
 
     @media (max-width: 640px) {
@@ -455,11 +457,12 @@
 
     .stat-chip {
       background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 0.85rem 1rem;
+      border: none;
+      border-radius: var(--radius-lg);
+      padding: 1.2rem 1.5rem;
       flex: 1;
-      min-width: 130px;
+      min-width: 160px;
+      max-width: 260px;
     }
 
     .stat-chip .eyebrow {
@@ -509,10 +512,10 @@
 
     .intel-chip {
       background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 1rem 1.1rem;
-      transition: box-shadow 0.15s ease;
+      border: none;
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.4rem;
+      transition: box-shadow 0.2s ease;
     }
 
     .intel-chip:hover {
@@ -1026,9 +1029,7 @@
 
     <!-- RELEASE BANNER -->
     <div id="release-banner" class="release-banner"></div>
-    <div class="top-utility-row">
-      <a class="utility-link" href="#source-diagnostics">View Full Source Diagnostics</a>
-    </div>
+    
 
     <!-- HERO -->
     <section class="card">
@@ -1064,13 +1065,13 @@
 
     <!-- RELEASE INTELLIGENCE -->
     <section class="card">
-      <div class="panel-title">Release Intelligence</div>
+      <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">Release Intelligence</div>
       <div class="chip-grid" id="release-grid"></div>
     </section>
 
     <!-- NOWCAST CHART -->
     <section class="card">
-      <div class="panel-title">Nowcast vs Official CPI (Year-over-Year)</div>
+      <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">Nowcast vs Official CPI (Year-over-Year)</div>
       <div id="chart-maturity" class="maturity-note">Live nowcast days: -- (target 30 for stable interpretation).</div>
       <div class="freshness-legend" aria-label="Freshness color legend">
         <span class="freshness-legend-item"><span class="freshness-legend-dot blue"></span>Blue: 0–1d >= 99.5%</span>
@@ -1083,10 +1084,14 @@
       </div>
     </section>
 
-    <!-- CATEGORY + METHODOLOGY -->
+        <!-- EXPERT & TECHNICAL DETAILS -->
+    <details class="accordion card">
+      <summary style="font-size: 1.15rem; font-weight: 700; padding: 0.5rem 0.5rem; border: none;">Technical & Expert Diagnostics</summary>
+      <div class="accordion-body" style="padding: 2.5rem 1rem 1rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 2rem; margin-top: 1.5rem;">
+<!-- CATEGORY + METHODOLOGY -->
     <div class="expert-grid">
       <section class="card">
-        <div class="panel-title">Category Contribution Ranking</div>
+        <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">Category Contribution Ranking</div>
         <div id="live-history-progress" class="live-progress">Live history progress: -- / 30 days</div>
         <p id="category-placeholder" class="chart-placeholder" style="display:none;"></p>
         <div id="category-readiness" class="readiness-wrap" style="display:none;">
@@ -1109,26 +1114,26 @@
         </div>
       </section>
       <section class="card">
-        <div class="panel-title">Run Method Snapshot</div>
+        <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">Run Method Snapshot</div>
         <ul id="methodology-list" class="meta-list"></ul>
       </section>
     </div>
 
     <!-- COMMUNITY -->
     <section id="community-section" class="card">
-      <div class="panel-title">Community Reports</div>
+      <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">Community Reports</div>
       <div class="community-grid" id="community-stats-grid"></div>
     </section>
 
     <!-- HOW TO READ -->
     <section class="card card-sm">
-      <div class="panel-title">Dashboard Guide</div>
+      <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">Dashboard Guide</div>
       <div class="explainer-grid" id="explain-grid"></div>
     </section>
 
     <!-- ABOUT -->
     <section class="card card-sm">
-      <div class="panel-title">Project & Transparency</div>
+      <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">Project & Transparency</div>
       <div class="about-grid" id="project-guide-grid"></div>
     </section>
 
@@ -1142,7 +1147,7 @@
 
     <!-- DATA SOURCE DIAGNOSTICS -->
     <section id="source-diagnostics" class="card" style="padding: 1.5rem 1.5rem 1rem;">
-      <div class="panel-title">Data Source Diagnostics</div>
+      <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">Data Source Diagnostics</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -1169,7 +1174,10 @@
       </div>
     </details>
 
-    <!-- FOOTER -->
+          </div>
+    </details>
+
+<!-- FOOTER -->
     <footer class="footer">
       Experimental open-source nowcast using public Statistics Canada data.<br />
       Not official StatCan CPI. <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank" rel="noopener noreferrer">View on
