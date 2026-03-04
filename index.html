@@ -1318,6 +1318,12 @@
       return null;
     }
 
+    function maxIsoDay(a, b) {
+      if (!a) return b || null;
+      if (!b) return a || null;
+      return String(a) >= String(b) ? String(a) : String(b);
+    }
+
     function freshnessTier(composition) {
       const ratio = Number(composition?.fresh_0_1d_weight_ratio);
       if (!Number.isFinite(ratio)) return { key: "unknown", label: "unknown", color: "#9a9aa0" };
@@ -1355,7 +1361,8 @@
     }
 
     function renderDivergence(items, latest, liveDays, chartStartDate = "2026-02-17") {
-      const lastDate = latest?.as_of_date || (items.length ? items[items.length - 1]?.date : null);
+      const historyLastDate = items.length ? items[items.length - 1]?.date : null;
+      const lastDate = maxIsoDay(latest?.as_of_date || null, historyLastDate || null);
       const timelineDays = enumerateDays(chartStartDate, lastDate);
       const byDate = new Map((Array.isArray(items) ? items : []).map((row) => [row.date, row]));
       const chartItems = timelineDays.map((day) => {
