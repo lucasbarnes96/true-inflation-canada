@@ -1,24 +1,24 @@
 {
-  "as_of_date": "2026-03-05",
+  "as_of_date": "2026-03-06",
   "method_version": "v1.3.3",
   "north_star": "lead_time_vs_statcan",
   "performance": {
     "method_version": "v1.3.3",
     "window_days": 120,
-    "evaluated_points": 13,
-    "evaluated_live_points": 12,
-    "mae_yoy_pct": 0.701,
+    "evaluated_points": 14,
+    "evaluated_live_points": 13,
+    "mae_yoy_pct": 0.7013,
     "median_abs_error_yoy_pct": 0.705,
     "directional_accuracy_yoy_pct": 100.0,
-    "bias_yoy_pct": -0.701,
-    "mae_mom_pct": 0.0655,
-    "directional_accuracy_pct": 83.33,
-    "lead_time_score_pct": 83.33,
+    "bias_yoy_pct": -0.7013,
+    "mae_mom_pct": 0.0605,
+    "directional_accuracy_pct": 84.62,
+    "lead_time_score_pct": 84.62,
     "compatibility_notes": [
       "YoY metrics are primary in v1.3.1.",
       "MoM metrics are retained for backward compatibility and should be treated as secondary."
     ],
-    "generated_at": "2026-03-05T06:36:13+00:00"
+    "generated_at": "2026-03-06T06:33:09+00:00"
   },
   "notes": [
     "Experimental nowcast model card.",
