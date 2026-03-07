@@ -5,6 +5,7 @@ Fallback: deterministic seeded upcoming CPI event used when network parsing fail
 """
 from __future__ import annotations
 
+import calendar
 import re
 from datetime import datetime, timedelta, timezone
 
@@ -21,17 +22,27 @@ def _to_utc_iso_from_et(date_str: str, hour: int = 8, minute: int = 30) -> str:
 
 
 def _fallback_next_release_day(now_utc: datetime) -> str:
-    # Heuristic fallback: CPI release tends to occur mid-month around the 17th.
+    # Heuristic fallback: CPI release usually lands in the third business week near mid-month.
     year = now_utc.year
     month = now_utc.month
-    candidate = datetime(year, month, 17, 13, 30, tzinfo=timezone.utc)
+    candidate_day = None
+    for day in range(13, 20):
+        if calendar.weekday(year, month, day) == 0:
+            candidate_day = day
+            break
+    candidate = datetime(year, month, candidate_day or 16, 13, 30, tzinfo=timezone.utc)
     if candidate <= now_utc:
         if month == 12:
             year += 1
             month = 1
         else:
             month += 1
-    return f"{year:04d}-{month:02d}-17"
+        candidate_day = None
+        for day in range(13, 20):
+            if calendar.weekday(year, month, day) == 0:
+                candidate_day = day
+                break
+    return f"{year:04d}-{month:02d}-{(candidate_day or 16):02d}"
 
 
 def fetch_release_events() -> dict:

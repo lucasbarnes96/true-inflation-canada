@@ -1,6 +1,6 @@
 # True Inflation Canada
 
-Real-time Canadian inflation nowcast with strict publish gates, explicit source run timestamps, release intelligence, and published performance metrics.
+Anchored Canadian inflation nowcast with strict publish gates, explicit source run timestamps, release intelligence, and published performance metrics.
 Experimental open-source nowcast using public data. Not official StatCan CPI.
 
 ## Live links
@@ -11,7 +11,7 @@ Experimental open-source nowcast using public data. Not official StatCan CPI.
 
 ## What changed
 - API-first architecture (`FastAPI + Pydantic`).
-- Daily nowcast publication with gate diagnostics retained for transparency.
+- Daily headline publication with a monthly anchor and a high-frequency pulse retained in diagnostics for transparency.
 - Food publishability uses resilience rules (fresh + usable source diversity), not APIFY-only dependence.
 - APIFY retries are attempted automatically before final gate evaluation.
 - Source health includes explicit age text (`updated X days ago`).
@@ -67,7 +67,7 @@ This preserves an authentic live nowcast track record while keeping official CPI
 Output artifacts:
 - `data/latest.json` (latest run, includes failed gates)
 - `data/published_latest.json` (last gate-passing run)
-- `data/historical.json` (daily live history: published + failed_gate runs with nowcast values)
+- `data/historical.json` (daily live history: published + failed_gate runs with anchor/pulse-aware nowcast values)
 - `data/runs/*.json` (versioned run snapshots)
 - `data/releases.db` (run metadata table)
 - `data/qa_runs.db` (source QA checks + 30-day reliability rollups)
@@ -131,14 +131,15 @@ A run is blocked (`failed_gate`) if any condition fails:
 Additional headline and metadata fields:
 - `headline.signal_quality_score` (0-100)
 - `headline.lead_signal` (`up`, `down`, `flat`, `insufficient_data`)
-- `headline.nowcast_yoy_pct` (primary nowcast metric)
+- `headline.nowcast_yoy_pct` (primary anchored headline metric)
+- `headline.anchor_yoy_pct` / `headline.raw_pulse_yoy_delta_pct` / `headline.calibrated_pulse_yoy_delta_pct` (explicit anchor/pulse fields)
 - `headline.next_release_at_utc`
 - `headline.consensus_yoy`
 - `headline.deviation_yoy_pct`
 - Compatibility fields (deprecated): `headline.nowcast_mom_pct`, `headline.consensus_spread_yoy`
 - `meta.method_version` (`v1.3.0`)
 - `meta.gate_diagnostics` (machine-readable gate checks)
-- `meta.category_signal_inputs` (category source provenance with tier/freshness)
+- `meta.category_signal_inputs` (category source provenance with cadence, observation age, and motion eligibility)
 - `meta.forecast` (next-release forecast with confidence bounds, if eligible)
 - `meta.calibration` (maturity tier and live calibration status)
 - `meta.weights` (auditable StatCan-sourced weight provenance)
@@ -152,7 +153,7 @@ Additional headline and metadata fields:
 
 ## Glossary
 - `YoY`: change versus the same month 12 months ago; typically less volatile than MoM.
-- `Nowcast`: real-time estimate from scraped public signals before official release.
+- `Nowcast`: anchored daily estimate that combines monthly context with a live pulse from motion-eligible sources before official release.
 - `Deviation from Expectations`: `nowcast_yoy_pct - consensus_yoy` when consensus is available.
 - `MAE`: Mean Absolute Error versus official values on the tracked evaluation window.
 

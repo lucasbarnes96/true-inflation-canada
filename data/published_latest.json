@@ -14,7 +14,10 @@
     "consensus_yoy": null,
     "consensus_spread_yoy": null,
     "deviation_yoy_pct": null,
-    "method_label": "YoY nowcast from public category proxies with month-to-date prorating"
+    "method_label": "YoY nowcast from public category proxies with month-to-date prorating",
+    "anchor_yoy_pct": 1.717,
+    "raw_pulse_yoy_delta_pct": 0.0,
+    "calibrated_pulse_yoy_delta_pct": 0.0
   },
   "categories": {
     "food": {
@@ -22,49 +25,70 @@
       "daily_change_pct": 1.0389,
       "weight": 0.1691,
       "points": 10,
-      "status": "fresh"
+      "status": "fresh",
+      "anchor_change_pct": 0.0,
+      "pulse_change_pct": 1.0389,
+      "cadence_class": "pulse_active"
     },
     "housing": {
       "proxy_level": 183.7667,
       "daily_change_pct": 0.0,
       "weight": 0.2941,
       "points": 3,
-      "status": "fresh"
+      "status": "fresh",
+      "anchor_change_pct": 0.0,
+      "pulse_change_pct": null,
+      "cadence_class": "anchor_only"
     },
     "transport": {
       "proxy_level": 130.4,
       "daily_change_pct": 0.0,
       "weight": 0.169,
       "points": 1,
-      "status": "fresh"
+      "status": "fresh",
+      "anchor_change_pct": 0.0,
+      "pulse_change_pct": 0.0,
+      "cadence_class": "pulse_active"
     },
     "energy": {
       "proxy_level": 101.1014,
       "daily_change_pct": 0.0,
       "weight": 0.08,
       "points": 13,
-      "status": "fresh"
+      "status": "fresh",
+      "anchor_change_pct": 0.0,
+      "pulse_change_pct": 0.0,
+      "cadence_class": "pulse_active"
     },
     "communication": {
       "proxy_level": 94.5878,
       "daily_change_pct": 0.0,
       "weight": 0.035,
       "points": 0,
-      "status": "stale"
+      "status": "stale",
+      "anchor_change_pct": 0.0,
+      "pulse_change_pct": null,
+      "cadence_class": "anchor_only"
     },
     "health_personal": {
       "proxy_level": 62.459,
       "daily_change_pct": 0.0,
       "weight": 0.0505,
       "points": 27,
-      "status": "fresh"
+      "status": "fresh",
+      "anchor_change_pct": 0.0,
+      "pulse_change_pct": 0.0,
+      "cadence_class": "pulse_active"
     },
     "recreation_education": {
       "proxy_level": 61.4568,
       "daily_change_pct": 0.0,
       "weight": 0.1012,
       "points": 39,
-      "status": "fresh"
+      "status": "fresh",
+      "anchor_change_pct": 0.0,
+      "pulse_change_pct": 0.0,
+      "cadence_class": "pulse_active"
     }
   },
   "official_cpi": {
@@ -99,7 +123,10 @@
       "ingestion_state": "live_collected",
       "age_days": 0,
       "run_age_hours": 0.0,
-      "updated_days_ago": "updated today"
+      "updated_days_ago": "updated today",
+      "cadence_class": "high_frequency",
+      "observation_age_days": 0,
+      "motion_eligible": true
     },
     {
       "source": "statcan_food_prices",
@@ -117,7 +144,10 @@
       "ingestion_state": "live_collected",
       "age_days": 0,
       "run_age_hours": 0.0,
-      "updated_days_ago": "updated today"
+      "updated_days_ago": "updated today",
+      "cadence_class": "monthly_anchor",
+      "observation_age_days": 32,
+      "motion_eligible": false
     },
     {
       "source": "apify_loblaws",
@@ -135,7 +165,10 @@
       "ingestion_state": "live_collected",
       "age_days": 18,
       "run_age_hours": 434.6,
-      "updated_days_ago": "updated 18 days ago"
+      "updated_days_ago": "updated 18 days ago",
+      "cadence_class": "high_frequency",
+      "observation_age_days": 18,
+      "motion_eligible": false
     },
     {
       "source": "statcan_gas_csv",
@@ -153,7 +186,10 @@
       "ingestion_state": "live_collected",
       "age_days": 0,
       "run_age_hours": 0.0,
-      "updated_days_ago": "updated today"
+      "updated_days_ago": "updated today",
+      "cadence_class": "monthly_anchor",
+      "observation_age_days": 32,
+      "motion_eligible": false
     },
     {
       "source": "nrcan_fuel_scrape",
@@ -171,7 +207,10 @@
       "ingestion_state": "live_collected",
       "age_days": 0,
       "run_age_hours": 0.0,
-      "updated_days_ago": "updated today"
+      "updated_days_ago": "updated today",
+      "cadence_class": "high_frequency",
+      "observation_age_days": 0,
+      "motion_eligible": true
     },
     {
       "source": "statcan_cpi_csv",
@@ -189,7 +228,10 @@
       "ingestion_state": "live_collected",
       "age_days": 0,
       "run_age_hours": 0.0,
-      "updated_days_ago": "updated today"
+      "updated_days_ago": "updated today",
+      "cadence_class": "monthly_anchor",
+      "observation_age_days": 32,
+      "motion_eligible": false
     },
     {
       "source": "rentals_ca_scrape",
@@ -207,7 +249,10 @@
       "ingestion_state": "live_collected",
       "age_days": 0,
       "run_age_hours": 0.0,
-      "updated_days_ago": "updated today"
+      "updated_days_ago": "updated today",
+      "cadence_class": "monthly_anchor",
+      "observation_age_days": 0,
+      "motion_eligible": false
     },
     {
       "source": "oeb_scrape",
@@ -225,7 +270,10 @@
       "ingestion_state": "live_collected",
       "age_days": 0,
       "run_age_hours": 0.0,
-      "updated_days_ago": "updated today"
+      "updated_days_ago": "updated today",
+      "cadence_class": "high_frequency",
+      "observation_age_days": 0,
+      "motion_eligible": true
     },
     {
       "source": "statcan_energy_cpi_csv",
@@ -243,7 +291,10 @@
       "ingestion_state": "live_collected",
       "age_days": 0,
       "run_age_hours": 0.0,
-      "updated_days_ago": "updated today"
+      "updated_days_ago": "updated today",
+      "cadence_class": "monthly_anchor",
+      "observation_age_days": 32,
+      "motion_eligible": false
     },
     {
       "source": "statcan_cpi_csv",
@@ -261,7 +312,10 @@
       "ingestion_state": "live_collected",
       "age_days": 0,
       "run_age_hours": 0.0,
-      "updated_days_ago": "updated today"
+      "updated_days_ago": "updated today",
+      "cadence_class": "monthly_anchor",
+      "observation_age_days": 32,
+      "motion_eligible": false
     },
     {
       "source": "ised_mobile_plan_tracker",
@@ -279,7 +333,10 @@
       "ingestion_state": "live_collected",
       "age_days": 0,
       "run_age_hours": 0.0,
-      "updated_days_ago": "updated today"
+      "updated_days_ago": "updated today",
+      "cadence_class": "monthly_anchor",
+      "observation_age_days": 0,
+      "motion_eligible": false
     },
     {
       "source": "crtc_cmr_report",
@@ -297,7 +354,10 @@
       "ingestion_state": "reused_last_success",
       "age_days": 9,
       "run_age_hours": 203.61,
-      "updated_days_ago": "updated 9 days ago"
+      "updated_days_ago": "updated 9 days ago",
+      "cadence_class": "monthly_anchor",
+      "observation_age_days": 9,
+      "motion_eligible": false
     },
     {
       "source": "statcan_cpi_csv",
@@ -315,7 +375,10 @@
       "ingestion_state": "live_collected",
       "age_days": 0,
       "run_age_hours": 0.0,
-      "updated_days_ago": "updated today"
+      "updated_days_ago": "updated today",
+      "cadence_class": "monthly_anchor",
+      "observation_age_days": 32,
+      "motion_eligible": false
     },
     {
       "source": "healthcanada_dpd",
@@ -333,7 +396,10 @@
       "ingestion_state": "live_collected",
       "age_days": 0,
       "run_age_hours": 0.0,
-      "updated_days_ago": "updated today"
+      "updated_days_ago": "updated today",
+      "cadence_class": "high_frequency",
+      "observation_age_days": 0,
+      "motion_eligible": true
     },
     {
       "source": "pmprb_reports",
@@ -351,7 +417,10 @@
       "ingestion_state": "live_collected",
       "age_days": 0,
       "run_age_hours": 0.0,
-      "updated_days_ago": "updated today"
+      "updated_days_ago": "updated today",
+      "cadence_class": "monthly_anchor",
+      "observation_age_days": 0,
+      "motion_eligible": false
     },
     {
       "source": "statcan_cpi_csv",
@@ -369,7 +438,10 @@
       "ingestion_state": "live_collected",
       "age_days": 0,
       "run_age_hours": 0.0,
-      "updated_days_ago": "updated today"
+      "updated_days_ago": "updated today",
+      "cadence_class": "monthly_anchor",
+      "observation_age_days": 32,
+      "motion_eligible": false
     },
     {
       "source": "parkscanada_fees",
@@ -387,7 +459,10 @@
       "ingestion_state": "live_collected",
       "age_days": 0,
       "run_age_hours": 0.0,
-      "updated_days_ago": "updated today"
+      "updated_days_ago": "updated today",
+      "cadence_class": "high_frequency",
+      "observation_age_days": 0,
+      "motion_eligible": true
     },
     {
       "source": "statcan_education_portal",
@@ -405,7 +480,10 @@
       "ingestion_state": "live_collected",
       "age_days": 0,
       "run_age_hours": 0.0,
-      "updated_days_ago": "updated today"
+      "updated_days_ago": "updated today",
+      "cadence_class": "high_frequency",
+      "observation_age_days": 0,
+      "motion_eligible": true
     }
   ],
   "notes": [
@@ -632,10 +710,13 @@
       ]
     },
     "freshness_composition": {
-      "fresh_0_1d_weight_ratio": 0.9611,
+      "fresh_0_1d_weight_ratio": 0.2412,
       "fresh_2_7d_weight_ratio": 0.0,
       "fresh_8_30d_weight_ratio": 0.0,
-      "stale_gt_30d_or_missing_weight_ratio": 0.0389
+      "stale_gt_30d_or_missing_weight_ratio": 0.7588,
+      "motion_fresh_0_1d_weight_ratio": 0.2235,
+      "motion_fresh_2_7d_weight_ratio": 0.0,
+      "motion_stale_gt_7d_or_missing_weight_ratio": 0.7375
     },
     "category_contributions": {
       "food": 0.1757,
@@ -1627,7 +1708,12 @@
       "shrink_factor": 0.35,
       "anchor_yoy": 2.263,
       "trigger_reason": "low_source_diversity,anomaly_penalty",
-      "cap_applied": false
+      "cap_applied": false,
+      "anchor_yoy_pct": 1.717,
+      "raw_combined_yoy_pct": 1.717,
+      "raw_pulse_yoy_delta_pct": 0.0,
+      "calibrated_pulse_yoy_delta_pct": 0.0,
+      "pulse_shrink_factor": 0.35
     },
     "gate_diagnostics": {
       "apify_recency": {
@@ -1805,7 +1891,10 @@
         "trigger_reason": "low_source_diversity,anomaly_penalty",
         "cap_applied": false
       }
-    }
+    },
+    "anchor_nowcast_mom_pct": 0.195,
+    "pulse_nowcast_mom_pct": 0.0,
+    "pulse_categories": {}
   },
   "performance_ref": {
     "summary_path": "data/performance_summary.json",

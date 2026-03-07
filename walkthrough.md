@@ -1,7 +1,7 @@
 # True Inflation Canada Walkthrough (Economist-Focused)
 
 ## Purpose
-True Inflation Canada is an experimental, open-source nowcast that estimates Canadian inflation in near real time using public data sources.
+True Inflation Canada is an experimental, open-source nowcast that estimates Canadian inflation using a monthly anchor plus a live pulse from public high-frequency sources.
 It is not an official Statistics Canada CPI release.
 
 ## Core Definitions
@@ -26,7 +26,7 @@ Projection steps:
 
 ## Startup Phase (First Weeks)
 - Live tracking begins February 16, 2026.
-- The green nowcast line appears short initially by design.
+- The green nowcast line appears short initially by design, and day-to-day movement only appears when motion-eligible sources actually update.
 - The gold official YoY line remains full history.
 - Category Contribution Ranking requires at least two consecutive live runs to show stable deltas.
 - MAE and directional metrics are low-confidence until roughly 30 to 60 live days accumulate.
@@ -46,7 +46,7 @@ Projection steps:
 ## Reliability QA Runbook
 ### Source outage triage
 1. Check `/v1/qa/status` and inspect `blocked_conditions`, `qa_summary.quarantine_sources`, and source pass rates.
-2. Confirm whether failure is contract-level (`record_count`, `freshness`, `value_range`) or reconciliation-level (`cross_source_disagreement`).
+2. Confirm whether failure is contract-level (`record_count`, `freshness`, `value_range`) or reconciliation-level (`cross_source_disagreement`), and whether the affected source was motion-eligible or anchor-only.
 3. Re-run ingestion within the 24-hour QA window; publish remains held until QA passes.
 
 ### Quarantine override process

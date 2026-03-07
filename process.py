@@ -150,6 +150,22 @@ SOURCE_SLA_DAYS = {
     "statcan_education_portal": 180,
 }
 
+SOURCE_CATALOG_BY_NAME = {
+    item.get("source"): item
+    for item in SOURCE_CATALOG
+    if isinstance(item, dict) and isinstance(item.get("source"), str)
+}
+MONTHLY_CADENCES = {"monthly", "annual"}
+HIGH_FREQUENCY_CADENCES = {"daily", "weekly", "as_posted", "varies"}
+SOURCE_CADENCE_CLASS = {
+    source: (
+        "monthly_anchor"
+        if str(item.get("cadence") or "").lower() in MONTHLY_CADENCES
+        else "high_frequency"
+    )
+    for source, item in SOURCE_CATALOG_BY_NAME.items()
+}
+
 OFFICIAL_INDEX_SOURCES = {
     "statcan_cpi_csv",
     "statcan_food_prices",
@@ -355,6 +371,58 @@ def source_age_hours(last_success_timestamp: str | None, now: datetime | None = 
     return round(max(0.0, delta.total_seconds() / 3600.0), 2)
 
 
+def parse_observation_date(value: str | None) -> date | None:
+    if not value or not isinstance(value, str):
+        return None
+    try:
+        if len(value) == 7:
+            year = int(value[:4])
+            month = int(value[5:7])
+            last_day = calendar.monthrange(year, month)[1]
+            return date(year, month, last_day)
+        return datetime.fromisoformat(value[:10]).date()
+    except ValueError:
+        return None
+
+
+def source_cadence_class(source: str | None) -> str:
+    if not isinstance(source, str):
+        return "high_frequency"
+    return SOURCE_CADENCE_CLASS.get(source, "high_frequency")
+
+
+def observation_age_days(
+    source: str | None,
+    last_observation_period: str | None,
+    last_success_timestamp: str | None,
+    now: datetime | None = None,
+) -> int | None:
+    if now is None:
+        now = utc_now()
+    observed = parse_observation_date(last_observation_period)
+    if observed is not None:
+        return max(0, (now.date() - observed).days)
+    return source_age_days(last_success_timestamp, now=now)
+
+
+def source_is_motion_eligible(
+    source: str | None,
+    status: str | None,
+    last_observation_period: str | None,
+    last_success_timestamp: str | None,
+    now: datetime | None = None,
+) -> bool:
+    cadence = source_cadence_class(source)
+    if cadence == "monthly_anchor":
+        return False
+    if status not in {"fresh", "stale"}:
+        return False
+    age = observation_age_days(source, last_observation_period, last_success_timestamp, now=now)
+    if age is None:
+        return False
+    return age <= 7
+
+
 def human_age(age_days: int | None) -> str:
     if age_days is None:
         return "unknown"
@@ -388,10 +456,26 @@ def refresh_snapshot_source_health(source_health: list[dict], now: datetime) -> 
             ingestion_state = "live_collected"
 
         error_class = payload.get("error_class") or classify_source_error(payload.get("detail"))
+        cadence_class = source_cadence_class(source)
+        observation_days = observation_age_days(
+            source=source,
+            last_observation_period=payload.get("last_observation_period"),
+            last_success_timestamp=ts,
+            now=now,
+        )
         payload["status"] = status
         payload["ingestion_state"] = ingestion_state
         payload["error_class"] = error_class
         payload["age_days"] = age_days
+        payload["observation_age_days"] = observation_days
+        payload["cadence_class"] = cadence_class
+        payload["motion_eligible"] = source_is_motion_eligible(
+            source=source,
+            status=status,
+            last_observation_period=payload.get("last_observation_period"),
+            last_success_timestamp=ts,
+            now=now,
+        )
         payload["run_age_hours"] = source_age_hours(ts, now=now)
         payload["updated_days_ago"] = human_age(age_days)
         status_reason = payload.get("status_reason") or derive_status_reason(
@@ -607,6 +691,122 @@ def previous_source_category_median(
         return None
 
 
+def compute_source_pulse_change(
+    source_row: dict,
+    category: str,
+    source_category_baselines: dict[tuple[str, str], float],
+    threshold: float,
+) -> tuple[float | None, str | None]:
+    source = source_row.get("source")
+    if not isinstance(source, str):
+        return None, "missing_source"
+    if source_row.get("cadence_class") == "monthly_anchor":
+        return None, "monthly_anchor"
+    if not bool(source_row.get("motion_eligible")):
+        return None, "not_motion_eligible"
+    source_mean = source_row.get("source_mean")
+    if not isinstance(source_mean, (int, float)):
+        return None, "missing_source_mean"
+    prev = previous_source_category_median(
+        historical={},
+        source=source,
+        category=category,
+        as_of_day="",
+        source_category_baselines=source_category_baselines,
+    )
+    if prev in (None, 0):
+        return None, "missing_baseline"
+    raw_change = ((float(source_mean) / float(prev)) - 1) * 100
+    bounded = max(-threshold, min(threshold, raw_change))
+    return round_or_none(bounded, 4), None
+
+
+def compute_category_pulse_changes(
+    category_signal_inputs: dict[str, list[dict]],
+    as_of_day: str,
+    indicators: dict[str, float | None],
+) -> tuple[dict[str, float | None], dict]:
+    source_category_baselines = source_category_baselines_from_snapshot(latest_run_snapshot_before(as_of_day))
+    changes: dict[str, float | None] = {}
+    diagnostics: dict[str, dict] = {}
+
+    for category, rows in category_signal_inputs.items():
+        if not isinstance(rows, list):
+            changes[category] = None
+            diagnostics[category] = {"active_sources": [], "excluded_sources": []}
+            continue
+        threshold = float(OUTLIER_THRESHOLD_PCT.get(category, 50.0))
+        weighted_sum = 0.0
+        effective_weight = 0.0
+        active_sources: list[dict] = []
+        excluded_sources: list[dict] = []
+
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            change, reason = compute_source_pulse_change(
+                source_row=row,
+                category=category,
+                source_category_baselines=source_category_baselines,
+                threshold=threshold,
+            )
+            if change is None:
+                excluded_sources.append(
+                    {
+                        "source": row.get("source"),
+                        "reason": reason,
+                        "cadence_class": row.get("cadence_class"),
+                    }
+                )
+                continue
+            weight = float(row.get("effective_weight") or 0.0)
+            if weight <= 0:
+                continue
+            weighted_sum += float(change) * weight
+            effective_weight += weight
+            active_sources.append(
+                {
+                    "source": row.get("source"),
+                    "change_pct": change,
+                    "effective_weight": round_or_none(weight, 3),
+                    "cadence_class": row.get("cadence_class"),
+                }
+            )
+
+        category_change = round_or_none(weighted_sum / effective_weight, 4) if effective_weight > 0 else None
+
+        if category == "housing":
+            current_rent = indicators.get("average_asking_rent")
+            previous_rent = previous_indicator_value("average_asking_rent")
+            if isinstance(current_rent, (int, float)) and isinstance(previous_rent, (int, float)) and previous_rent > 0:
+                rent_delta = ((float(current_rent) / float(previous_rent)) - 1) * 100
+                rent_delta = max(min(rent_delta, 5.0), -5.0)
+                if category_change is None:
+                    category_change = round_or_none(rent_delta, 4)
+                else:
+                    category_change = round_or_none(
+                        (float(category_change) * (1.0 - HOUSING_RENT_BLEND_WEIGHT)) + (rent_delta * HOUSING_RENT_BLEND_WEIGHT),
+                        4,
+                    )
+                active_sources.append(
+                    {
+                        "source": "housing_rent_overlay",
+                        "change_pct": round_or_none(rent_delta, 4),
+                        "effective_weight": HOUSING_RENT_BLEND_WEIGHT,
+                        "cadence_class": "derived_overlay",
+                    }
+                )
+
+        changes[category] = category_change
+        diagnostics[category] = {
+            "active_sources": active_sources,
+            "excluded_sources": excluded_sources,
+            "cadence_class": "pulse_active" if category_change is not None else "anchor_only",
+        }
+
+    return changes, diagnostics
+
+
 def apply_outlier_filter(quotes: list[Quote], historical: dict, as_of_day: str) -> tuple[list[Quote], int]:
     by_category: dict[str, list[Quote]] = defaultdict(list)
     for quote in quotes:
@@ -660,6 +860,12 @@ def recompute_source_health(raw_health: list[SourceHealth], now: datetime) -> li
 
         error_class = payload.get("error_class") or classify_source_error(payload.get("detail"))
         age_days = source_age_days(ts, now=now)
+        observation_days = observation_age_days(
+            source=entry.source,
+            last_observation_period=payload.get("last_observation_period"),
+            last_success_timestamp=ts,
+            now=now,
+        )
         sla_days = SOURCE_SLA_DAYS.get(entry.source)
         if age_days is None:
             status = "missing"
@@ -672,6 +878,15 @@ def recompute_source_health(raw_health: list[SourceHealth], now: datetime) -> li
         payload["ingestion_state"] = ingestion_state if status != "missing" else "missing"
         payload["error_class"] = error_class
         payload["age_days"] = age_days
+        payload["observation_age_days"] = observation_days
+        payload["cadence_class"] = source_cadence_class(entry.source)
+        payload["motion_eligible"] = source_is_motion_eligible(
+            source=entry.source,
+            status=status,
+            last_observation_period=payload.get("last_observation_period"),
+            last_success_timestamp=ts,
+            now=now,
+        )
         payload["run_age_hours"] = source_age_hours(ts, now=now)
         payload["updated_days_ago"] = human_age(age_days)
         status_reason = payload.get("status_reason") or derive_status_reason(
@@ -1063,6 +1278,7 @@ def summarize_categories(quotes: list[Quote], source_health: list[dict]) -> tupl
             source_row = source_by_name.get(source, {})
             source_weight = source_effective_weight(source_row)
             source_mean = statistics.mean(values)
+            cadence_class = source_cadence_class(source)
             if source_weight > 0:
                 weighted_sum += source_mean * source_weight
                 effective_weight += source_weight
@@ -1074,6 +1290,10 @@ def summarize_categories(quotes: list[Quote], source_health: list[dict]) -> tupl
                     "points": len(values),
                     "source_mean": round_or_none(float(source_mean), 4),
                     "effective_weight": round_or_none(float(source_weight), 3),
+                    "cadence_class": cadence_class,
+                    "last_observation_period": source_row.get("last_observation_period"),
+                    "observation_age_days": source_row.get("observation_age_days"),
+                    "motion_eligible": bool(source_row.get("motion_eligible")),
                 }
             )
         level = round_or_none(weighted_sum / effective_weight, 4) if effective_weight > 0 else None
@@ -1096,8 +1316,8 @@ def summarize_categories(quotes: list[Quote], source_health: list[dict]) -> tupl
 
 
 def compute_freshness_composition(category_signal_inputs: dict, source_health: list[dict]) -> dict[str, float]:
-    source_age_days = {
-        str(row.get("source")): row.get("age_days")
+    source_meta = {
+        str(row.get("source")): row
         for row in source_health
         if isinstance(row, dict) and isinstance(row.get("source"), str)
     }
@@ -1105,6 +1325,9 @@ def compute_freshness_composition(category_signal_inputs: dict, source_health: l
     bucket_2_7d_weight = 0.0
     bucket_8_30d_weight = 0.0
     bucket_gt_30d_or_missing = 0.0
+    motion_0_1d_weight = 0.0
+    motion_2_7d_weight = 0.0
+    motion_gt_7d_or_missing = 0.0
 
     total_weight = float(sum(CATEGORY_WEIGHTS.values()) or 0.0)
     if total_weight <= 0:
@@ -1113,6 +1336,9 @@ def compute_freshness_composition(category_signal_inputs: dict, source_health: l
             "fresh_2_7d_weight_ratio": 0.0,
             "fresh_8_30d_weight_ratio": 0.0,
             "stale_gt_30d_or_missing_weight_ratio": 1.0,
+            "motion_fresh_0_1d_weight_ratio": 0.0,
+            "motion_fresh_2_7d_weight_ratio": 0.0,
+            "motion_stale_gt_7d_or_missing_weight_ratio": 1.0,
         }
 
     for category, category_weight in CATEGORY_WEIGHTS.items():
@@ -1136,10 +1362,13 @@ def compute_freshness_composition(category_signal_inputs: dict, source_health: l
             source = row.get("source")
             if not isinstance(source, str):
                 bucket_gt_30d_or_missing += normalized_weight
+                motion_gt_7d_or_missing += normalized_weight
                 continue
-            age_days = source_age_days.get(source)
+            meta_row = source_meta.get(source, {})
+            age_days = meta_row.get("observation_age_days", meta_row.get("age_days"))
             if not isinstance(age_days, int):
                 bucket_gt_30d_or_missing += normalized_weight
+                motion_gt_7d_or_missing += normalized_weight
                 continue
             if age_days <= 1:
                 bucket_0_1d_weight += normalized_weight
@@ -1149,6 +1378,15 @@ def compute_freshness_composition(category_signal_inputs: dict, source_health: l
                 bucket_8_30d_weight += normalized_weight
             else:
                 bucket_gt_30d_or_missing += normalized_weight
+            if bool(meta_row.get("motion_eligible")):
+                if age_days <= 1:
+                    motion_0_1d_weight += normalized_weight
+                elif age_days <= 7:
+                    motion_2_7d_weight += normalized_weight
+                else:
+                    motion_gt_7d_or_missing += normalized_weight
+            else:
+                motion_gt_7d_or_missing += normalized_weight
 
     total_bucket_weight = bucket_0_1d_weight + bucket_2_7d_weight + bucket_8_30d_weight + bucket_gt_30d_or_missing
     if total_bucket_weight <= 0:
@@ -1157,6 +1395,9 @@ def compute_freshness_composition(category_signal_inputs: dict, source_health: l
             "fresh_2_7d_weight_ratio": 0.0,
             "fresh_8_30d_weight_ratio": 0.0,
             "stale_gt_30d_or_missing_weight_ratio": 1.0,
+            "motion_fresh_0_1d_weight_ratio": 0.0,
+            "motion_fresh_2_7d_weight_ratio": 0.0,
+            "motion_stale_gt_7d_or_missing_weight_ratio": 1.0,
         }
 
     return {
@@ -1164,6 +1405,9 @@ def compute_freshness_composition(category_signal_inputs: dict, source_health: l
         "fresh_2_7d_weight_ratio": round(bucket_2_7d_weight / total_bucket_weight, 4),
         "fresh_8_30d_weight_ratio": round(bucket_8_30d_weight / total_bucket_weight, 4),
         "stale_gt_30d_or_missing_weight_ratio": round(bucket_gt_30d_or_missing / total_bucket_weight, 4),
+        "motion_fresh_0_1d_weight_ratio": round(motion_0_1d_weight / total_bucket_weight, 4),
+        "motion_fresh_2_7d_weight_ratio": round(motion_2_7d_weight / total_bucket_weight, 4),
+        "motion_stale_gt_7d_or_missing_weight_ratio": round(motion_gt_7d_or_missing / total_bucket_weight, 4),
     }
 
 
@@ -1555,6 +1799,52 @@ def compute_forecast(
     return forecast
 
 
+def calibrate_pulse_yoy_delta(
+    raw_pulse_yoy_delta: float | None,
+    diversity_by_category: dict[str, int],
+    pulse_changes: dict[str, float | None],
+    anomalies: int,
+) -> tuple[float | None, dict]:
+    diagnostics = {
+        "raw_pulse_yoy_delta_pct": raw_pulse_yoy_delta,
+        "calibrated_pulse_yoy_delta_pct": raw_pulse_yoy_delta,
+        "pulse_shrink_factor": 0.0,
+        "trigger_reason": None,
+        "cap_applied": False,
+    }
+    if raw_pulse_yoy_delta is None:
+        diagnostics["trigger_reason"] = "missing_raw_pulse_yoy_delta"
+        return None, diagnostics
+
+    active_categories = [
+        category for category, change in pulse_changes.items() if isinstance(change, (int, float))
+    ]
+    weak_categories = [
+        category for category in active_categories if diversity_by_category.get(category, 0) < 2
+    ]
+    weak_ratio = (len(weak_categories) / len(active_categories)) if active_categories else 1.0
+    shrink = 0.0
+    reasons: list[str] = []
+    if weak_ratio >= 0.4:
+        shrink += 0.12
+        reasons.append("low_source_diversity")
+    if anomalies > 0:
+        shrink += min(0.1, anomalies / 120.0)
+        reasons.append("anomaly_penalty")
+    shrink = min(0.2, shrink)
+    diagnostics["pulse_shrink_factor"] = round_or_none(shrink, 3)
+    diagnostics["trigger_reason"] = ",".join(reasons) if reasons else "none"
+
+    calibrated = float(raw_pulse_yoy_delta) * (1 - shrink)
+    max_abs_delta = 0.8
+    if abs(calibrated) > max_abs_delta:
+        calibrated = max_abs_delta if calibrated > 0 else -max_abs_delta
+        diagnostics["cap_applied"] = True
+
+    diagnostics["calibrated_pulse_yoy_delta_pct"] = round_or_none(calibrated, 3)
+    return round_or_none(calibrated, 3), diagnostics
+
+
 def calibrate_nowcast_yoy(
     raw_nowcast_yoy: float | None,
     official_series: list[dict],
@@ -1748,10 +2038,10 @@ def build_notes(
 ) -> list[str]:
     notes: list[str] = [
         "This is an experimental nowcast estimate and not an official CPI release.",
-        f"Methodology {METHOD_VERSION}: weighted category proxies with month-to-date YoY projection.",
+        f"Methodology {METHOD_VERSION}: monthly anchor plus high-frequency pulse with month-to-date YoY projection.",
         "Confidence rubric: gate status + weighted coverage + anomaly rate + source diversity.",
-        "Model applies minimal smoothing with calibration guardrails to reduce tail errors while preserving real-time signal responsiveness.",
-        "Housing includes an asking-rent momentum overlay from Rentals.ca and is not survey-equivalent to transacted-rent CPI methods.",
+        "Calibration dampens the live pulse contribution without rewriting the monthly anchor.",
+        "Housing includes an asking-rent pulse overlay from Rentals.ca and is not survey-equivalent to transacted-rent CPI methods.",
         f"Representativeness (fresh-weight share): {round(representativeness_ratio * 100, 1)}%.",
         "Coverage ratio is the share of the CPI basket with usable source data in this run.",
     ]
@@ -1773,7 +2063,7 @@ def build_notes(
     if rejected_points:
         notes.append(f"Dropped {rejected_points} points via range checks.")
     if anomalies:
-        notes.append(f"Dropped {anomalies} points via day-over-day anomaly filter.")
+        notes.append(f"Bounded or dropped {anomalies} points via pulse anomaly controls.")
     if blocked_conditions:
         notes.append("Release gate failed: " + "; ".join(blocked_conditions))
     signature = (collection_diagnostics or {}).get("failure_signature", {})
@@ -2474,6 +2764,9 @@ def historical_row_from_snapshot(snapshot: dict) -> dict:
         "headline": {
             "nowcast_mom_pct": nowcast_mom,
             "nowcast_yoy_pct": nowcast_yoy,
+            "anchor_yoy_pct": snapshot.get("headline", {}).get("anchor_yoy_pct"),
+            "raw_pulse_yoy_delta_pct": snapshot.get("headline", {}).get("raw_pulse_yoy_delta_pct"),
+            "calibrated_pulse_yoy_delta_pct": snapshot.get("headline", {}).get("calibrated_pulse_yoy_delta_pct"),
             "confidence": snapshot["headline"]["confidence"],
             "coverage_ratio": snapshot["headline"]["coverage_ratio"],
             "signal_quality_score": snapshot["headline"]["signal_quality_score"],
@@ -2494,6 +2787,9 @@ def historical_row_from_snapshot(snapshot: dict) -> dict:
             k: {
                 "proxy_level": v["proxy_level"],
                 "daily_change_pct": v["daily_change_pct"],
+                "anchor_change_pct": v.get("anchor_change_pct"),
+                "pulse_change_pct": v.get("pulse_change_pct"),
+                "cadence_class": v.get("cadence_class"),
                 "status": v["status"],
             }
             for k, v in snapshot["categories"].items()
@@ -2501,6 +2797,9 @@ def historical_row_from_snapshot(snapshot: dict) -> dict:
         "category_contributions": snapshot.get("meta", {}).get("category_contributions", {}),
         "meta": {
             "freshness_composition": freshness_composition,
+            "anchor_nowcast_mom_pct": meta_payload.get("anchor_nowcast_mom_pct") if isinstance(meta_payload, dict) else None,
+            "pulse_nowcast_mom_pct": meta_payload.get("pulse_nowcast_mom_pct") if isinstance(meta_payload, dict) else None,
+            "pulse_categories": meta_payload.get("pulse_categories") if isinstance(meta_payload, dict) else {},
             "carry_forward": bool(snapshot.get("release", {}).get("carry_forward")),
             "quality_tier": snapshot.get("release", {}).get("quality_tier"),
         },
@@ -2516,6 +2815,9 @@ def historical_row_from_snapshot(snapshot: dict) -> dict:
                 "category": s["category"],
                 "tier": s["tier"],
                 "age_days": s.get("age_days"),
+                "observation_age_days": s.get("observation_age_days"),
+                "cadence_class": s.get("cadence_class"),
+                "motion_eligible": s.get("motion_eligible"),
                 "last_success_timestamp": s.get("last_success_timestamp"),
                 "last_observation_period": s.get("last_observation_period"),
             }
@@ -2609,12 +2911,43 @@ def build_snapshot() -> dict:
 
     categories, category_signal_inputs = summarize_categories(filtered, computed_health)
     imputation = impute_missing_categories(categories, historical, as_of_day=as_of_day)
-    compute_daily_changes(categories, historical, as_of_day=as_of_day)
-    housing_overlay = apply_housing_signal_overlay(categories, indicators)
+    anchor_categories = deepcopy(categories)
+    compute_daily_changes(anchor_categories, historical, as_of_day=as_of_day)
+    pulse_changes, pulse_diagnostics = compute_category_pulse_changes(
+        category_signal_inputs=category_signal_inputs,
+        as_of_day=as_of_day,
+        indicators=indicators,
+    )
+    for category, payload in categories.items():
+        payload["anchor_change_pct"] = anchor_categories.get(category, {}).get("daily_change_pct")
+        payload["pulse_change_pct"] = pulse_changes.get(category)
+        payload["daily_change_pct"] = pulse_changes.get(category)
+        payload["cadence_class"] = pulse_diagnostics.get(category, {}).get("cadence_class", "anchor_only")
+
+    housing_overlay = {
+        "applied": any(
+            row.get("source") == "housing_rent_overlay"
+            for row in pulse_diagnostics.get("housing", {}).get("active_sources", [])
+        ),
+        "blend_weight": HOUSING_RENT_BLEND_WEIGHT,
+        "rent_delta_pct": next(
+            (
+                row.get("change_pct")
+                for row in pulse_diagnostics.get("housing", {}).get("active_sources", [])
+                if row.get("source") == "housing_rent_overlay"
+            ),
+            None,
+        ),
+        "reason": "pulse_overlay",
+    }
 
     coverage_ratio = compute_coverage(categories)
     representativeness_ratio = compute_representativeness(categories)
-    nowcast_mom = compute_nowcast_mom(categories, historical)
+    anchor_nowcast_mom = compute_nowcast_mom(anchor_categories, historical)
+    pulse_nowcast_mom = compute_nowcast_mom(categories, historical)
+    nowcast_mom = None
+    if anchor_nowcast_mom is not None or pulse_nowcast_mom is not None:
+        nowcast_mom = round_or_none(float(anchor_nowcast_mom or 0.0) + float(pulse_nowcast_mom or 0.0), 3)
     diversity_by_category = category_source_diversity(filtered)
     category_contributions = compute_category_contributions(categories)
     for category, rows in category_signal_inputs.items():
@@ -2634,20 +2967,28 @@ def build_snapshot() -> dict:
     official_mom = official_cpi.get("mom_pct")
     official_yoy_display = round_or_none(float(official_yoy), 1) if official_yoy is not None else None
     fallback_used = False
-    if nowcast_mom is None and official_mom is not None:
+    if anchor_nowcast_mom is None and official_mom is not None:
         # Bootstrap fallback: keep headline populated when category baseline is not yet established.
-        nowcast_mom = round_or_none(float(official_mom), 3)
+        anchor_nowcast_mom = round_or_none(float(official_mom), 3)
         fallback_used = True
+    if nowcast_mom is None and (anchor_nowcast_mom is not None or pulse_nowcast_mom is not None):
+        nowcast_mom = round_or_none(float(anchor_nowcast_mom or 0.0) + float(pulse_nowcast_mom or 0.0), 3)
     lead_signal = derive_lead_signal(nowcast_mom)
     consensus_yoy, consensus_guardrails = apply_consensus_guardrails(consensus_latest if isinstance(consensus_latest, dict) else None)
+    anchor_nowcast_yoy, anchor_projection = compute_nowcast_yoy_prorated(report_day, anchor_nowcast_mom, official_series)
     raw_nowcast_yoy, yoy_projection = compute_nowcast_yoy_prorated(report_day, nowcast_mom, official_series)
-    nowcast_yoy, calibration_diagnostics = calibrate_nowcast_yoy(
-        raw_nowcast_yoy=raw_nowcast_yoy,
-        official_series=official_series,
+    raw_pulse_yoy_delta = None
+    if raw_nowcast_yoy is not None and anchor_nowcast_yoy is not None:
+        raw_pulse_yoy_delta = round_or_none(float(raw_nowcast_yoy) - float(anchor_nowcast_yoy), 3)
+    calibrated_pulse_yoy_delta, calibration_diagnostics = calibrate_pulse_yoy_delta(
+        raw_pulse_yoy_delta=raw_pulse_yoy_delta,
         diversity_by_category=diversity_by_category,
-        categories=categories,
+        pulse_changes=pulse_changes,
         anomalies=anomalies,
     )
+    nowcast_yoy = None
+    if anchor_nowcast_yoy is not None:
+        nowcast_yoy = round_or_none(float(anchor_nowcast_yoy) + float(calibrated_pulse_yoy_delta or 0.0), 3)
     forecast = compute_forecast(
         nowcast_yoy=nowcast_yoy,
         official_series=official_series,
@@ -2685,6 +3026,9 @@ def build_snapshot() -> dict:
         "headline": {
             "nowcast_mom_pct": nowcast_mom,
             "nowcast_yoy_pct": nowcast_yoy,
+            "anchor_yoy_pct": anchor_nowcast_yoy,
+            "raw_pulse_yoy_delta_pct": raw_pulse_yoy_delta,
+            "calibrated_pulse_yoy_delta_pct": calibrated_pulse_yoy_delta,
             "pending_reason": None,
             "publish_warning": None,
             "confidence": "low",
@@ -2716,6 +3060,9 @@ def build_snapshot() -> dict:
             "freshness_composition": freshness_composition,
             "category_contributions": category_contributions,
             "top_driver": compute_top_driver(category_contributions),
+            "anchor_nowcast_mom_pct": anchor_nowcast_mom,
+            "pulse_nowcast_mom_pct": pulse_nowcast_mom,
+            "pulse_categories": pulse_diagnostics,
             "qa_summary": qa_summary,
             "qa_failure_fingerprint": qa_failure_fingerprint,
             "province_overlays": [],
@@ -2725,6 +3072,7 @@ def build_snapshot() -> dict:
             "collection_diagnostics": collection_diagnostics,
             "housing_signal_overlay": housing_overlay,
             "projection": {
+                "anchor_yoy_prorated": anchor_projection,
                 "nowcast_yoy_prorated": yoy_projection,
             },
             "consensus": {
@@ -2743,7 +3091,11 @@ def build_snapshot() -> dict:
             },
             "indicators": indicators,
             "forecast": forecast,
-            "calibration_diagnostics": calibration_diagnostics,
+            "calibration_diagnostics": {
+                **calibration_diagnostics,
+                "anchor_yoy_pct": anchor_nowcast_yoy,
+                "raw_combined_yoy_pct": raw_nowcast_yoy,
+            },
         },
         "performance_ref": {
             "summary_path": str(PERFORMANCE_SUMMARY_PATH),
@@ -2814,16 +3166,16 @@ def build_snapshot() -> dict:
         collection_diagnostics=collection_diagnostics,
     )
     if fallback_used:
-        snapshot["notes"].append("Nowcast MoM uses official MoM fallback until sufficient category history is available.")
+        snapshot["notes"].append("Monthly anchor uses official MoM fallback until sufficient category history is available.")
     snapshot["notes"].append(
         "Deprecated fields retained for compatibility: headline.nowcast_mom_pct and headline.consensus_spread_yoy."
     )
     if nowcast_yoy is None:
         reason = yoy_projection.get("reason") if isinstance(yoy_projection, dict) else "unknown"
         snapshot["notes"].append(f"Nowcast YoY unavailable: {reason}.")
-    elif raw_nowcast_yoy is not None and nowcast_yoy != raw_nowcast_yoy:
+    elif calibrated_pulse_yoy_delta is not None and calibrated_pulse_yoy_delta != raw_pulse_yoy_delta:
         snapshot["notes"].append(
-            f"Calibrated YoY nowcast from raw {raw_nowcast_yoy}% to {nowcast_yoy}% using transparent shrinkage diagnostics."
+            f"Calibrated pulse contribution from raw {raw_pulse_yoy_delta}% to {calibrated_pulse_yoy_delta}% around anchor {anchor_nowcast_yoy}%."
         )
     if official_yoy_display is not None:
         snapshot["official_cpi"]["yoy_display_pct"] = official_yoy_display
@@ -2840,7 +3192,7 @@ def build_snapshot() -> dict:
         historical=historical,
         performance_summary=perf_snapshot,
         forecast=forecast,
-        calibration_diagnostics=calibration_diagnostics,
+        calibration_diagnostics=snapshot["meta"]["calibration_diagnostics"],
     )
     return normalize_snapshot_run_state(
         snapshot,
@@ -2851,7 +3203,7 @@ def build_snapshot() -> dict:
 def build_methodology_payload(snapshot: dict) -> dict:
     weights = weights_payload()
     return {
-        "summary": "Weighted category nowcast using free/public daily and monthly sources with transparent calibration diagnostics.",
+        "summary": "Anchored Canadian inflation nowcast: monthly official-style anchor plus high-frequency pulse from motion-eligible public sources.",
         "method_version": METHOD_VERSION,
         "as_of_utc": snapshot.get("timestamp"),
         "weights_reference": {
@@ -2873,9 +3225,10 @@ def build_methodology_payload(snapshot: dict) -> dict:
         "limitations": [
             "Experimental nowcast, not an official CPI release.",
             "APIFY auto-retry is attempted when stale/missing before gate evaluation.",
-            "Monthly sources may remain fresh for up to 45 days.",
+            "Monthly sources anchor the level but do not imply new daily motion when their observation period has not changed.",
+            "Freshness metrics distinguish scrape recency from motion-eligible observation recency.",
             "Communication is represented as a proxy mapped within broader official CPI components.",
-            "Housing asking-rent overlay is a momentum proxy and differs from survey-based transacted-rent methods.",
+            "Housing asking-rent overlay contributes to the pulse and differs from survey-based transacted-rent methods.",
             "Deprecated compatibility fields remain available: headline.nowcast_mom_pct and headline.consensus_spread_yoy.",
         ],
     }

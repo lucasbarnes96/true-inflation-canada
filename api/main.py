@@ -191,7 +191,7 @@ def methodology() -> dict:
     latest_payload = _load_json(PUBLISHED_LATEST_PATH, {})
     as_of_utc = latest_payload.get("timestamp") if isinstance(latest_payload, dict) else None
     return {
-        "summary": "Weighted category nowcast using free/public daily and monthly sources with transparent calibration diagnostics.",
+        "summary": "Anchored Canadian inflation nowcast: monthly anchor plus high-frequency pulse from motion-eligible public sources.",
         "method_version": METHOD_VERSION,
         "as_of_utc": as_of_utc,
         "weights_reference": {
@@ -213,9 +213,10 @@ def methodology() -> dict:
         "limitations": [
             "Experimental nowcast, not an official CPI release.",
             "APIFY auto-retry is attempted when stale/missing before gate evaluation.",
-            "Monthly sources may remain fresh for up to 45 days.",
+            "Monthly sources anchor the level but do not imply new daily motion when their observation period has not changed.",
+            "Freshness metrics distinguish scrape recency from motion-eligible observation recency.",
             "Communication is represented as a proxy mapped within broader official CPI components.",
-            "Housing asking-rent overlay is a momentum proxy and differs from survey-based transacted-rent methods.",
+            "Housing asking-rent overlay contributes to the pulse and differs from survey-based transacted-rent methods.",
             "Deprecated compatibility fields remain available: headline.nowcast_mom_pct and headline.consensus_spread_yoy.",
         ],
     }

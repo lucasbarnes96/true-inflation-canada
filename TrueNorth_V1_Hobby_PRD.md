@@ -1,7 +1,7 @@
 # TrueNorth Index V1
 ## One-Day Build PRD — Hobby Open Source Project
 
-**Goal:** Build a live Canadian inflation tracker in one day that scrapes real-time data and displays it on a simple dashboard. Free forever. Open source. Deploy and ship fast.
+**Goal:** Build a live Canadian inflation tracker that combines a monthly anchor with motion-eligible public signals on a simple dashboard. Free forever. Open source. Deploy and ship fast.
 
 ---
 
@@ -603,7 +603,7 @@ Let me know and I'll refine the PRD further!
 ## V1 Methodology Spec (Refined)
 
 ### Headline Definition
-- The homepage headline is **"Daily CPI Nowcast (Estimate)"**, not official CPI.
+- The homepage headline is **"Daily CPI Nowcast (Estimate)"**, not official CPI, and it should be explained as an anchored headline plus live pulse.
 - It represents a weighted nowcast of category proxy movement versus a prior-period baseline.
 - It is published even when some categories are unavailable, with confidence downgraded and missing sources shown.
 
@@ -611,7 +611,7 @@ Let me know and I'll refine the PRD further!
 - Baseline period: previous available period in historical snapshots.
 - Each category computes a proxy level from cleaned source observations.
 - Category change: `((today_proxy / baseline_proxy) - 1) * 100`.
-- Headline nowcast is the weighted average of available category changes.
+- Headline nowcast is an anchored level plus a weighted live pulse from motion-eligible category changes.
 - Coverage ratio is weighted coverage of categories with usable data (`fresh` or `stale`).
 
 ### Confidence Rubric
@@ -628,7 +628,7 @@ Let me know and I'll refine the PRD further!
 ### Source Hierarchy (Official/API First)
 - Food: OpenFoodFacts API (tier 1).
 - Transport: CAA gas page scrape fallback (tier 2).
-- Housing: Statistics Canada CPI table (tier 1, stale monthly proxy).
+- Housing: Statistics Canada CPI table (tier 1, monthly anchor proxy) plus rent pulse overlay when available.
 - Energy: Ontario Energy Board rates scrape (tier 2).
 - Official benchmark: Statistics Canada CPI table for monthly MoM and YoY comparison.
 

@@ -15,6 +15,7 @@ from process import (
     build_gate_diagnostics,
     build_carry_forward_snapshot,
     classify_source_error,
+    compute_category_pulse_changes,
     compute_freshness_composition,
     compute_nowcast_yoy_prorated,
     compute_category_contributions,
@@ -29,6 +30,7 @@ from process import (
     historical_row_from_snapshot,
     recompute_source_health,
     reconcile_historical_from_runs,
+    source_is_motion_eligible,
     retry_with_contracts,
     validate_source_contract,
     write_outputs,
@@ -108,6 +110,80 @@ class ProcessTests(unittest.TestCase):
         }
         compute_daily_changes(categories, historical, as_of_day="2026-03-03")
         self.assertEqual(0.0, categories["communication"]["daily_change_pct"])
+
+    def test_source_is_motion_eligible_excludes_monthly_anchor(self) -> None:
+        self.assertFalse(
+            source_is_motion_eligible(
+                source="statcan_cpi_csv",
+                status="fresh",
+                last_observation_period="2026-01",
+                last_success_timestamp="2026-03-04T00:00:00+00:00",
+                now=datetime(2026, 3, 4, 12, 0, 0, tzinfo=timezone.utc),
+            )
+        )
+        self.assertTrue(
+            source_is_motion_eligible(
+                source="openfoodfacts_api",
+                status="fresh",
+                last_observation_period=None,
+                last_success_timestamp="2026-03-04T00:00:00+00:00",
+                now=datetime(2026, 3, 4, 12, 0, 0, tzinfo=timezone.utc),
+            )
+        )
+
+    def test_compute_category_pulse_changes_ignores_monthly_anchor_but_keeps_live_signal(self) -> None:
+        rows = {
+            "food": [
+                {
+                    "source": "openfoodfacts_api",
+                    "source_mean": 105.0,
+                    "effective_weight": 1.0,
+                    "cadence_class": "high_frequency",
+                    "motion_eligible": True,
+                },
+                {
+                    "source": "statcan_food_prices",
+                    "source_mean": 200.0,
+                    "effective_weight": 1.0,
+                    "cadence_class": "monthly_anchor",
+                    "motion_eligible": False,
+                },
+            ]
+        }
+        run_payload = {
+            "as_of_date": "2026-03-03",
+            "release": {"status": "published", "created_at": "2026-03-03T00:00:00+00:00"},
+            "meta": {
+                "category_signal_inputs": {
+                    "food": [
+                        {"source": "openfoodfacts_api", "source_mean": 100.0},
+                        {"source": "statcan_food_prices", "source_mean": 200.0},
+                    ]
+                }
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            runs_dir = Path(tmp) / "runs"
+            runs_dir.mkdir(parents=True, exist_ok=True)
+            (runs_dir / "run_prev.json").write_text(json.dumps(run_payload))
+            with patch.object(process_module, "RUNS_DIR", runs_dir):
+                changes, diagnostics = compute_category_pulse_changes(rows, "2026-03-04", {})
+        self.assertEqual(5.0, changes["food"])
+        self.assertEqual("monthly_anchor", diagnostics["food"]["excluded_sources"][0]["reason"])
+
+    def test_compute_freshness_composition_uses_motion_eligible_weights(self) -> None:
+        composition = compute_freshness_composition(
+            {
+                "food": [{"source": "openfoodfacts_api", "effective_weight": 1.0}],
+                "housing": [{"source": "statcan_cpi_csv", "effective_weight": 1.0}],
+            },
+            [
+                {"source": "openfoodfacts_api", "age_days": 0, "observation_age_days": 0, "motion_eligible": True},
+                {"source": "statcan_cpi_csv", "age_days": 0, "observation_age_days": 33, "motion_eligible": False},
+            ],
+        )
+        self.assertGreater(composition["motion_fresh_0_1d_weight_ratio"], 0)
+        self.assertGreater(composition["motion_stale_gt_7d_or_missing_weight_ratio"], 0)
 
     def test_compute_next_release(self) -> None:
         payload = {

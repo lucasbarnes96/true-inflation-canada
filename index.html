@@ -574,7 +574,7 @@
       </div>
       <div class="list-row">
         <div>
-          <div class="row-label">Data Freshness</div>
+          <div class="row-label">Pulse Freshness</div>
         </div>
         <div class="row-value tone-good" id="v2-freshness">—</div>
       </div>
@@ -651,11 +651,10 @@
     }
 
     function freshnessSummary(composition) {
-      if (!composition || typeof composition !== "object") return "Freshness mix unavailable";
-      const d01 = pctFromRatio(composition.fresh_0_1d_weight_ratio, 1);
-      const d27 = pctFromRatio(composition.fresh_2_7d_weight_ratio, 1);
-      const d830 = pctFromRatio(composition.fresh_8_30d_weight_ratio, 1);
-      return `Freshness mix (weight): 0–1d ${d01} | 2–7d ${d27} | 8–30d ${d830}`;
+      if (!composition || typeof composition !== "object") return "Motion freshness unavailable";
+      const d01 = pctFromRatio(composition.motion_fresh_0_1d_weight_ratio, 1);
+      const d27 = pctFromRatio(composition.motion_fresh_2_7d_weight_ratio, 1);
+      return `Motion-eligible freshness: 0–1d ${d01} | 2–7d ${d27}`;
     }
 
     function formatPctTick(value) {
@@ -881,13 +880,13 @@
     }
 
     function freshnessTier(composition) {
-      const ratio = Number(composition?.fresh_0_1d_weight_ratio);
+      const ratio = Number(composition?.motion_fresh_0_1d_weight_ratio);
       if (!Number.isFinite(ratio)) return { key: "unknown", label: "unknown", color: "#9a9aa0" };
       const pct01 = Math.round(ratio * 1000) / 10;
-      if (pct01 >= 99.5) return { key: "blue", label: "Perfect freshness", color: "#0071e3" };
-      if (pct01 >= 85.5) return { key: "green", label: "Good freshness", color: "#34c759" };
-      if (pct01 >= 70.0) return { key: "yellow", label: "Action needed", color: "#ffcc00" };
-      return { key: "red", label: "Severe staleness", color: "#ff3b30" };
+      if (pct01 >= 99.5) return { key: "blue", label: "Perfect pulse freshness", color: "#0071e3" };
+      if (pct01 >= 85.5) return { key: "green", label: "Good pulse freshness", color: "#34c759" };
+      if (pct01 >= 70.0) return { key: "yellow", label: "Pulse needs support", color: "#ffcc00" };
+      return { key: "red", label: "Pulse mostly anchored", color: "#ff3b30" };
     }
 
     function formatUiDate(day) {
@@ -899,10 +898,10 @@
     function renderChartMaturity(liveDays, chartStartDate = "2026-02-17", liveStartDate = null, latest = null) {
       const maturity = document.getElementById("chart-maturity");
       const phase = liveDays < 30 ? "calibration phase" : (liveDays < 60 ? "developing phase" : "stable phase");
-      const fresh01 = pctFromRatio(latest?.meta?.freshness_composition?.fresh_0_1d_weight_ratio, 1);
+      const fresh01 = pctFromRatio(latest?.meta?.freshness_composition?.motion_fresh_0_1d_weight_ratio, 1);
       const liveStartText = liveStartDate ? `Live series: ${formatUiDate(liveStartDate)}` : "Live series: pending";
-      maturity.textContent = `Window ${formatUiDate(chartStartDate)} · Live ${liveDays}/30 (${phase}) · 0–1d freshness ${fresh01} · ${liveStartText}`;
-      maturity.title = "Nowcast points are always published daily. Point color shows freshness quality: blue=perfect, green=good, yellow=action-needed, red=severe.";
+      maturity.textContent = `Window ${formatUiDate(chartStartDate)} · Live ${liveDays}/30 (${phase}) · 0–1d pulse freshness ${fresh01} · ${liveStartText}`;
+      maturity.title = "Headline stays anchored to monthly context while point color reflects motion-eligible signal freshness.";
     }
 
     function renderLiveHistoryProgress(liveDays) {
@@ -1397,7 +1396,7 @@
       }
       const nowcastStatusEl = document.getElementById("hero-nowcast-status");
       nowcastStatusEl.textContent = freshnessSummary(latest?.meta?.freshness_composition);
-      nowcastStatusEl.title = `Freshness tier: ${freshnessTier(latest?.meta?.freshness_composition).label}`;
+      nowcastStatusEl.title = `Pulse freshness tier: ${freshnessTier(latest?.meta?.freshness_composition).label}`;
 
       const releaseEl = document.getElementById("hero-release");
       if (latest.official_cpi?.latest_release_month) {
@@ -1471,11 +1470,13 @@
         `Method version: ${latest.meta?.method_version || methodology?.method_version || "--"}`,
         `Coverage ratio: ${(100 * (latest.headline?.coverage_ratio || 0)).toFixed(1)}% of basket had usable data today.`,
         `Tracked basket share: ${trackedSharePct}% (source: ${weightsRef.source_table || "StatCan"}).`,
+        `Anchor YoY: ${pct(latest.headline?.anchor_yoy_pct, 3)}. Pulse delta: ${pct(latest.headline?.calibrated_pulse_yoy_delta_pct, 3)}.`,
         `Lead signal: ${(latest.headline?.lead_signal || "--").toUpperCase()} — prices moving ${latest.headline?.lead_signal || "--"}.`,
         `Top driver: ${topDriver.category || "--"} (${pct(topDriver.contribution_pct, 3)} contribution).`,
         `Food gate: ≥${minFreshSources} fresh / ${minUsableSources} usable sources.`,
         `Representativeness threshold: ${repThresholdPct}% fresh basket coverage.`,
-        "Housing blends live asking-rent momentum with broader proxies; differs from survey-based CPI.",
+        "Monthly sources anchor the level; only motion-eligible sources move the daily pulse.",
+        "Housing pulse includes live asking-rent momentum and differs from survey-based CPI rent methods.",
         "Communication is mapped within broader CPI structures, not a standalone major component.",
       ];
       rows.forEach(text => {
@@ -1530,10 +1531,10 @@
       grid.innerHTML = "";
       const rows = [
         "Official CPI (YoY): year-over-year inflation from Statistics Canada.",
-        "Nowcast Signal: headline value always uses the latest daily run; gate outcomes remain visible in release diagnostics.",
+        "Nowcast Signal: the headline is a monthly anchor plus a live pulse from motion-eligible sources.",
         `Chart window starts ${formatUiDate(chartStartDate)} (official context). Live series starts ${liveStartDate ? formatUiDate(liveStartDate) : "when first nowcast point arrives"}.`,
         `Live nowcast history: ${liveDays}/30 days.`,
-        `${freshnessSummary(latest?.meta?.freshness_composition)}. Point colors: blue=perfect, green=good, yellow=action-needed, red=severe.`,
+        `${freshnessSummary(latest?.meta?.freshness_composition)}. Point colors describe pulse freshness, not scrape recency alone.`,
         "Deviation from Expectations is nowcast YoY minus available consensus YoY and is withheld when guardrails fail.",
       ];
       rows.forEach((text) => {
@@ -1566,7 +1567,7 @@
       const purpose = el("article", "about-item");
       purpose.appendChild(el("h4", null, "Purpose"));
       purpose.appendChild(el("p", null, "This dashboard is the daily operations view: current signal, chart trajectory, release status, and source diagnostics."));
-      purpose.appendChild(el("p", null, "Headline nowcast is published daily and always shows the latest run; gate status remains visible in release diagnostics."));
+      purpose.appendChild(el("p", null, "Headline nowcast is published daily, but daily movement comes from the live pulse while monthly sources anchor the level; gate status remains visible in release diagnostics."));
       panel.appendChild(purpose);
 
       const transparency = el("article", "about-item");
@@ -1584,7 +1585,7 @@
       maturity.appendChild(el("h4", null, "Calibration Reality"));
       const maturityList = el("ul");
       maturityList.appendChild(el("li", null, `Live history is ${liveDays}/30 days for initial stability.`));
-      maturityList.appendChild(el("li", null, "Point color encodes freshness quality (blue/green/yellow/red) while the series remains continuous."));
+      maturityList.appendChild(el("li", null, "Point color encodes motion-eligible freshness (blue/green/yellow/red) while the anchored series remains continuous."));
       maturityList.appendChild(el("li", null, "Consensus/deviation/forecast outputs remain guardrail-controlled and may be withheld."));
       maturity.appendChild(maturityList);
       panel.appendChild(maturity);
@@ -1690,7 +1691,7 @@
       if (!Number.isFinite(quality)) qualityNode.className = "row-value tone-neutral";
       else qualityNode.className = quality > 80 ? "row-value tone-good" : (quality >= 60 ? "row-value tone-warn" : "row-value tone-bad");
 
-      const freshnessRatio = Number(l?.meta?.freshness_composition?.fresh_0_1d_weight_ratio);
+      const freshnessRatio = Number(l?.meta?.freshness_composition?.motion_fresh_0_1d_weight_ratio);
       if (!Number.isFinite(freshnessRatio)) {
         freshnessNode.textContent = "--";
         freshnessNode.className = "row-value tone-neutral";

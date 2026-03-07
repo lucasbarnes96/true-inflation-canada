@@ -250,6 +250,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertIn("signal_quality_score", body["headline"])
         self.assertIn("lead_signal", body["headline"])
         self.assertIn("nowcast_yoy_pct", body["headline"])
+        self.assertIn("anchor_yoy_pct", body["headline"])
         self.assertEqual("v1.5.0", body["meta"]["method_version"])
 
     def test_methodology_endpoint(self) -> None:

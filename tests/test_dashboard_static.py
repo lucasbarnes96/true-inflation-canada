@@ -17,7 +17,6 @@ class DashboardStaticTests(unittest.TestCase):
         self.assertIn("Live nowcast days", html)
         self.assertIn("0–1d", html)
         self.assertIn("2–7d", html)
-        self.assertIn("8–30d", html)
         self.assertIn("Deviation from Expectations", html)
         self.assertIn("Calculation ID", html)
         self.assertIn("Experimental open-source nowcast using public data. Not official StatCan CPI.", html)
@@ -29,7 +28,7 @@ class DashboardStaticTests(unittest.TestCase):
         self.assertIn('id="project-guide-grid"', html)
         self.assertIn('id="category-readiness"', html)
         self.assertIn('id="live-history-progress"', html)
-        self.assertIn("Headline nowcast is published daily and always shows the latest run", html)
+        self.assertIn("Headline nowcast is published daily, but daily movement comes from the live pulse while monthly sources anchor the level", html)
         self.assertIn('href="/about"', html)
         self.assertIn('href="#source-diagnostics"', html)
         self.assertIn('id="sticky-disclaimer"', html)
@@ -41,7 +40,7 @@ class DashboardStaticTests(unittest.TestCase):
     def test_chart_js_is_pinned(self) -> None:
         html = Path("index.html").read_text()
         self.assertIn("cdn.jsdelivr.net/npm/chart.js@4.4.3", html)
-        self.assertIn("Point color shows freshness quality", html)
+        self.assertIn("motion-eligible signal freshness", html)
         self.assertIn("formatPctTick", html)
 
 
