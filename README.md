@@ -4,12 +4,6 @@ A reliable, open-source macroeconomic dashboard tracking the true value of the C
 
 Experimental open-source project using public data. Not an official StatCan CPI release.
 
-## Live Links
-- Production dashboard: `https://www.trueinflation.ca/`
-- Rates: `https://www.trueinflation.ca/rates`
-- About page: `https://www.trueinflation.ca/about`
-- Changelog: `https://www.trueinflation.ca/changelog`
-
 ## Architecture
 - **No Backend**: The app is served as a fully static HTML/JS site, utilizing GitHub Pages or Vercel. 
 - **Auto-Pilot Updates**: A daily GitHub Action runs a Python ingestion script (`scripts/generate_chart_data.py`) at 02:00 UTC. It fetches current macro data from the Bank of Canada, Yahoo Finance, and Statistics Canada, compiles it into a static JSON payload, and commits it directly back to the repository.

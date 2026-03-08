@@ -44,30 +44,9 @@
           "value": "public, max-age=60, s-maxage=60"
         }
       ]
-    },
-    {
-      "source": "/about.html",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=60, s-maxage=60"
-        }
-      ]
     }
   ],
   "rewrites": [
-    {
-      "source": "/about",
-      "destination": "/about.html"
-    },
-    {
-      "source": "/changelog",
-      "destination": "/changelog.html"
-    },
-    {
-      "source": "/rates",
-      "destination": "/rates.html"
-    },
     {
       "source": "/((?!data/).*)",
       "destination": "/index.html"

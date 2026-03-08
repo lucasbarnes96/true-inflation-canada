@@ -187,22 +187,6 @@ def generate_chart_data():
     except Exception as e:
          print(f"  Error fetching Labour Productivity: {e}")
 
-    # 3. Median Income
-    try:
-        def filter_inc(df):
-            return df[(df['GEO'] == 'Canada') & (df['Income concept'] == 'Median market income') & (df['Economic family type'] == 'Economic families and persons not in an economic family')]
-        df_inc = fetch_statcan_csv("https://www150.statcan.gc.ca/n1/en/tbl/csv/11100190-eng.zip", filter_inc)
-        if not df_inc.empty:
-            # Income is annual, forward fill to months
-            df_monthly = df_inc.resample('ME').ffill()
-            output['assets']['Median Household Income'] = {
-                'dates': df_monthly.index.strftime('%Y-%m').tolist(),
-                'values': df_monthly['Value'].round(2).tolist()
-            }
-    except Exception as e:
-         print(f"  Error fetching Median Income: {e}")
-
-
     print("Saving to data/chart_data.json...")
     os.makedirs('data', exist_ok=True)
     with open('data/chart_data.json', 'w') as f:
