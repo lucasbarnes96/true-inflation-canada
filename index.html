@@ -2,73 +2,50 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
-  <title>True Inflation</title>
-  <meta name="description" content="Finance-first Canadian inflation nowcast." />
-  <link rel="icon" type="image/png" href="logo.png" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>True Inflation (Proxy)</title>
+  <meta name="description"
+    content="A reliable, simplified macroeconomic dashboard tracking the true value of the Canadian Dollar.">
+  <link rel="icon" type="image/png" href="logo.png">
+
+  <!-- Fonts: Space Grotesk / Inter for the indie dev vibe -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet">
   <style>
     /* =========================================================
-       DESIGN TOKENS — iOS / Apple Native V2
+       DESIGN TOKENS — Indie / Open Source Cool
     ========================================================= */
     :root {
-      /* Pure Light Mode Apple Native */
-      --bg: #F2F2F7;
-      --surface: #FFFFFF;
-      --surface-elevated: rgba(255, 255, 255, 0.7);
-      --text: #000000;
-      --text-secondary: #8E8E93;
-      --text-tertiary: #C7C7CC;
-      --separator: rgba(60, 60, 67, 0.29);
-      /* iOS Separator */
-      --accent: #007AFF;
-      --green: #34C759;
-      --orange: #FF9500;
-      --red: #FF3B30;
+      /* Dark mode by default for that terminal/hacker feel */
+      --bg: #09090b;
+      --surface: #18181b;
+      --surface-elevated: rgba(39, 39, 42, 0.7);
 
-      --radius-lg: 20px;
-      --radius-sm: 10px;
+      --text: #fafafa;
+      --text-secondary: #a1a1aa;
+      --text-tertiary: #52525b;
 
-      --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
-      --font-mono: ui-monospace, "SF Mono", monospace;
+      --border: #27272a;
+      --border-hover: #3f3f46;
 
-      --chart-nowcast: var(--accent);
-      --chart-nowcast-fill: rgba(0, 122, 255, 0.1);
-      --chart-official: var(--orange);
-      --chart-grid: var(--separator);
-      --chart-ticks: var(--text-secondary);
-      --chart-prelive-text: var(--text-secondary);
-      --chart-prelive: rgba(0, 0, 0, 0.03);
+      --accent: #3b82f6;
+      /* Blue tint */
+      --accent-glow: rgba(59, 130, 246, 0.2);
 
-      color-scheme: light;
-      -webkit-font-smoothing: antialiased;
-    }
+      --green: #22c55e;
+      --orange: #f59e0b;
+      --red: #ef4444;
 
-    html[data-theme="dark"] {
-      --bg: #000000;
-      --surface: #1C1C1E;
-      --surface-elevated: rgba(28, 28, 30, 0.7);
-      --text: #FFFFFF;
-      --text-secondary: #EBEBF5;
-      /* Adjust text secondary alpha for exact iOS feel */
-      --text-secondary: rgba(235, 235, 245, 0.6);
-      --text-tertiary: rgba(235, 235, 245, 0.3);
-      --separator: rgba(84, 84, 88, 0.65);
-      --accent: #0A84FF;
-      --green: #30D158;
-      --orange: #FF9F0A;
-      --red: #FF453A;
+      --radius-lg: 16px;
+      --radius-sm: 8px;
 
-      --chart-nowcast: var(--accent);
-      --chart-nowcast-fill: rgba(10, 132, 255, 0.15);
-      --chart-official: var(--orange);
-      --chart-grid: var(--separator);
-      --chart-ticks: var(--text-secondary);
-      --chart-prelive: rgba(255, 255, 255, 0.04);
+      --font-display: 'Space Grotesk', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
       color-scheme: dark;
     }
@@ -81,1630 +58,406 @@
     }
 
     body {
-      font-family: var(--font);
+      font-family: var(--font-body);
       background-color: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      overflow-x: hidden;
-    }
-
-    a {
-      color: var(--accent);
-      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-image:
+        radial-gradient(circle at 50% 0%, var(--accent-glow) 0%, transparent 60%);
+      background-repeat: no-repeat;
     }
 
     /* Layout */
     .app-container {
-      max-width: 600px;
-      margin: 0 auto;
-      padding: env(safe-area-inset-top) env(safe-area-inset-right) 6rem env(safe-area-inset-left);
+      width: 100%;
+      max-width: 640px;
+      padding: 2rem 1.5rem 6rem;
       display: flex;
       flex-direction: column;
+      gap: 2rem;
     }
 
-    /* Nav bar minimalist */
-    .top-nav {
+    /* Nav */
+    header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 1rem 1.2rem;
-      position: sticky;
-      top: 0;
-      background: var(--bg);
-      z-index: 100;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-    }
-
-    .top-nav-left {
-      display: flex;
-      flex-direction: column;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
     }
 
     .brand-title {
-      font-size: 1.2rem;
+      font-family: var(--font-display);
+      font-size: 1.25rem;
       font-weight: 700;
       letter-spacing: -0.02em;
-    }
-
-    .nav-date {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      font-weight: 500;
-    }
-
-    .theme-toggle {
-      background: none;
-      border: none;
-      padding: 0;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .theme-toggle-track {
-      width: 54px;
-      height: 32px;
-      border-radius: 16px;
-      background: #E9E9EB;
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 8px;
-      transition: background-color 0.3s ease;
-      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-
-    html[data-theme="dark"] .theme-toggle-track {
-      background: #2C2C2E;
-      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
-    }
-
-    .theme-toggle-track svg {
-      width: 14px;
-      height: 14px;
-      z-index: 1;
-      transition: opacity 0.3s ease, transform 0.3s ease;
-    }
-
-    .theme-toggle .icon-sun {
-      color: #FF9500;
-      opacity: 0;
-      transform: scale(0.5) rotate(-45deg);
-    }
-
-    .theme-toggle .icon-moon {
-      color: #007AFF;
-      opacity: 1;
-      transform: scale(1) rotate(0);
-    }
-
-    html[data-theme="dark"] .theme-toggle .icon-sun {
-      opacity: 1;
-      transform: scale(1) rotate(0);
-    }
-
-    html[data-theme="dark"] .theme-toggle .icon-moon {
-      opacity: 0;
-      transform: scale(0.5) rotate(45deg);
-    }
-
-    .theme-toggle-thumb {
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: #FFFFFF;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15), 0 0.5px 0.5px rgba(0, 0, 0, 0.05);
-      transition: transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
-      z-index: 2;
-    }
-
-    html[data-theme="dark"] .theme-toggle-thumb {
-      transform: translateX(22px);
-      background: #FFFFFF;
-    }
-
-    /* Hero Massive Metric */
-    .hero-section {
-      text-align: center;
-      padding: 2.5rem 1rem 1.5rem;
-    }
-
-    .hero-title {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 0.2rem;
-    }
-
-    .hero-metric {
-      font-size: clamp(5rem, 20vw, 7.5rem);
-      font-weight: 700;
-      letter-spacing: -0.04em;
-      line-height: 1;
-      margin-bottom: 0.5rem;
-    }
-
-    .hero-subtitle {
-      font-size: 1.1rem;
-      font-weight: 500;
-      color: var(--text-secondary);
-      margin-bottom: 0.5rem;
-    }
-
-    @media (max-width: 400px) {
-      .hero-metric {
-        font-size: clamp(4rem, 18vw, 5.5rem);
-      }
-
-      .app-container {
-        padding: env(safe-area-inset-top) 0 4rem 0;
-        /* Full bleed on small mobile */
-      }
-
-      .list-group {
-        border-radius: 0;
-        /* Flush edges on small mobile */
-        margin: 1.5rem 0;
-      }
-
-      .details-body {
-        padding-left: 0.5rem;
-        padding-right: 0.5rem;
-      }
-    }
-
-    /* Chart Module */
-    .chart-module {
-      margin: 0;
-      padding: 1.5rem 1rem;
-      background: var(--surface);
-      border-top: 1px solid var(--separator);
-      border-bottom: 1px solid var(--separator);
-    }
-
-    .chart-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      margin-bottom: 1rem;
-    }
-
-    .chart-title {
-      font-size: 1.2rem;
-      font-weight: 600;
-      letter-spacing: -0.01em;
-    }
-
-    .chart-legend {
-      display: flex;
-      gap: 1rem;
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      font-weight: 500;
-    }
-
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 0.3rem;
-    }
-
-    .legend-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-    }
-
-    .legend-dot.nowcast {
-      background: var(--accent);
-    }
-
-    .legend-dot.official {
-      background: var(--orange);
-    }
-
-    .chart-container-inner {
-      position: relative;
-      width: 100%;
-      height: 240px;
-    }
-
-    /* iOS Native List View (Settings Style) */
-    .list-group {
-      margin: 1.5rem 1rem;
-      background: var(--surface);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-    }
-
-    .list-group-header {
-      padding: 0 1rem 0.5rem 1.2rem;
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      color: var(--text-secondary);
-      font-weight: 600;
-      letter-spacing: 0.02em;
-    }
-
-    .list-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem 1.2rem;
-      border-bottom: 0.5px solid var(--separator);
-    }
-
-    .list-row:last-child {
-      border-bottom: none;
-    }
-
-    .row-label {
-      font-size: 1.05rem;
-      font-weight: 500;
-    }
-
-    .row-value {
-      font-size: 1.05rem;
-      color: var(--text-secondary);
       display: flex;
       align-items: center;
       gap: 0.5rem;
     }
 
-    .row-sub {
-      font-size: 0.8rem;
+    .brand-title::before {
+      content: '';
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      background-color: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--accent);
+    }
+
+    .timestamp {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
       color: var(--text-secondary);
-      margin-top: 0.2rem;
-    }
-
-    /* Utilities */
-    .tone-good {
-      color: var(--green) !important;
-    }
-
-    .tone-warn {
-      color: var(--orange) !important;
-    }
-
-    .tone-bad {
-      color: var(--red) !important;
-    }
-
-    .tone-neutral {
-      color: var(--text) !important;
-    }
-
-    /* Progressive Disclosure Details */
-    .disclosure-section {
-      margin: 2rem 1rem;
-      background: transparent;
-    }
-
-    details {
       background: var(--surface);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    /* Hero Debasement */
+    .hero {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .section-title {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      letter-spacing: 0.05em;
+    }
+
+    .debasement-grid {
+      display: grid;
+      grid-template-columns: repeat(1, 1fr);
+      gap: 1rem;
+    }
+
+    @media (min-width: 480px) {
+      .debasement-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      margin-bottom: 1rem;
+      padding: 1.5rem;
+      transition: border-color 0.2s, transform 0.2s;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+    }
+
+    .card-label {
+      font-family: var(--font-display);
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .card-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--text);
+    }
+
+    .card-subtext {
+      font-size: 0.75rem;
+      color: var(--text-tertiary);
+    }
+
+    /* Proxy Nowcast Widget */
+    .nowcast-box {
+      background: linear-gradient(145deg, var(--surface) 0%, var(--bg) 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      text-align: center;
+      position: relative;
       overflow: hidden;
     }
 
-    details summary {
-      padding: 1.2rem;
-      font-weight: 600;
-      font-size: 1rem;
-      cursor: pointer;
-      list-style-type: none;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      outline: none;
+    .nowcast-box::before {
+      content: '';
+      position: absolute;
+      top: -50px;
+      right: -50px;
+      width: 100px;
+      height: 100px;
+      background: var(--accent);
+      filter: blur(80px);
+      opacity: 0.3;
+      border-radius: 50%;
     }
 
-    details summary::-webkit-details-marker {
-      display: none;
+    .nowcast-value {
+      font-family: var(--font-display);
+      font-size: 3.5rem;
+      font-weight: 700;
+      letter-spacing: -0.05em;
+      margin: 1rem 0;
+      color: var(--text);
     }
 
-    details summary::after {
-      content: "›";
-      /* iOS Chevron */
-      color: var(--text-tertiary);
-      font-size: 1.6rem;
-      font-weight: 400;
-      transition: transform 0.2s;
-    }
-
-    details[open] summary::after {
-      transform: rotate(90deg);
-    }
-
-    .details-body {
-      padding: 0 1.2rem 1.2rem;
-      border-top: 0.5px solid var(--separator);
+    .nowcast-description {
       font-size: 0.9rem;
       color: var(--text-secondary);
       line-height: 1.5;
+      max-width: 80%;
+      margin: 0 auto;
     }
 
-    /* Minimal Table for Analytics */
+    /* Diagnostics Table */
+    .table-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow-x: auto;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 0.5rem;
+      text-align: left;
     }
 
     th,
     td {
-      text-align: left;
-      padding: 0.6rem 0;
-      border-bottom: 0.5px solid var(--separator);
-      vertical-align: top;
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
     }
 
     th {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
       font-weight: 500;
-      font-size: 0.8rem;
-      color: var(--text-secondary);
     }
 
     td {
-      font-size: 0.85rem;
-      color: var(--text);
+      font-size: 0.9rem;
+      font-weight: 500;
+      font-family: var(--font-mono);
     }
 
     tr:last-child td {
       border-bottom: none;
     }
 
-    /* Hide unneeded modules visually but leave in DOM for JS binding if required */
-    .hidden-for-v2 {
-      display: none !important;
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--green);
+      font-size: 0.7rem;
+      border-radius: 9999px;
+      font-family: var(--font-mono);
+    }
+
+    footer {
+      text-align: center;
+      padding-top: 2rem;
+      font-size: 0.8rem;
+      color: var(--text-tertiary);
+      font-family: var(--font-mono);
+      border-top: 1px solid var(--border);
+    }
+
+    footer a {
+      color: var(--text-secondary);
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+
+    /* Loading state */
+    .skeleton {
+      background: var(--border);
+      height: 24px;
+      border-radius: 4px;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 0.5;
+      }
+
+      50% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 0.5;
+      }
     }
   </style>
 </head>
 
 <body>
 
-  <div class="app-container" id="app">
+  <div class="app-container">
+    <header>
+      <div class="brand-title">True Inflation</div>
+      <div class="timestamp" id="last-updated">Fetching latest...</div>
+    </header>
 
-    <nav class="top-nav">
-      <div class="top-nav-left">
-        <div class="brand-title">True Inflation</div>
-        <div class="nav-date" id="asof">Syncing...</div>
-      </div>
-      <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
-        <div class="theme-toggle-track">
-          <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="5"></circle>
-            <line x1="12" y1="1" x2="12" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="23"></line>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-            <line x1="1" y1="12" x2="3" y2="12"></line>
-            <line x1="21" y1="12" x2="23" y2="12"></line>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-          </svg>
-          <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-          </svg>
-          <div class="theme-toggle-thumb"></div>
+    <!-- The Debasement Problem -->
+    <section class="hero">
+      <div class="section-title">Purchasing Power (CAD)</div>
+      <div class="debasement-grid">
+        <div class="card">
+          <div class="card-label">Bitcoin</div>
+          <div class="card-value" id="val-btc">
+            <div class="skeleton"></div>
+          </div>
+          <div class="card-subtext">BTC per $1000 CAD</div>
         </div>
-      </button>
-    </nav>
-
-    <!-- IMPORTANT: Hidden divs required by existing process.js logic to not throw null pointer errors -->
-    <div class="hidden-for-v2">
-      <div id="release-banner"></div>
-      <div id="chart-maturity"></div>
-      <div id="live-history-progress"></div>
-      <div id="category-placeholder"></div>
-      <div id="category-readiness"></div>
-      <div id="category-readiness-body"></div>
-      <div id="methodology-list"></div>
-      <div id="community-section"></div>
-      <div id="community-stats-grid"></div>
-      <div id="explain-grid"></div>
-      <div id="project-guide-grid"></div>
-      <div id="performance-list"></div>
-      <div id="notes-list"></div>
-      <div id="sticky-disclaimer"><span></span></div>
-      <!-- Power Title Body expects text assignment -->
-      <div id="card-power-title"></div>
-      <div id="card-power-body"></div>
-      <!-- Hidden chart target -->
-      <canvas id="categoryChart"></canvas>
-      <!-- Hidden Release grid expected by JS -->
-      <div id="release-grid"></div>
-      <!-- Compatibility copy anchors for static tests and legacy docs -->
-      <div>
-        <span>Nowcast vs Official CPI (Year-over-Year)</span>
-        <span>Signal Quality &amp; Maturity</span>
-        <span>Live nowcast days</span>
-        <span>Deviation from Expectations</span>
-        <span>Calculation ID</span>
-        <span>Project & Transparency</span>
-        <span>Experimental open-source nowcast using public data. Not official StatCan CPI.</span>
-        <a href="/about">About</a>
-        <a href="#source-diagnostics">Source diagnostics</a>
-      </div>
-    </div>
-
-    <section class="hero-section">
-      <div class="hero-title">Nowcast YoY</div>
-      <div id="hero-nowcast" class="hero-metric">—</div>
-      <div class="hero-subtitle">Official CPI is <span id="hero-yoy">—</span> <span id="hero-release"></span></div>
-      <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.8rem;" id="hero-context">Analyzing
-        daily pricing signals...</div>
-      <div class="hidden-for-v2">
-        <!-- Kept for JS binding -->
-        <span id="hero-divergence"></span>
-        <span id="hero-nowcast-status"></span>
-        <span id="hero-confidence"></span>
-        <span id="hero-summary"></span>
+        <div class="card">
+          <div class="card-label">Gold</div>
+          <div class="card-value" id="val-gold">
+            <div class="skeleton"></div>
+          </div>
+          <div class="card-subtext">Ounces per $1000 CAD</div>
+        </div>
+        <div class="card">
+          <div class="card-label">S&P 500</div>
+          <div class="card-value" id="val-sp500">
+            <div class="skeleton"></div>
+          </div>
+          <div class="card-subtext">Shares per $1000 CAD</div>
+        </div>
       </div>
     </section>
 
-    <div class="chart-module">
-      <div class="chart-header">
-        <div class="chart-title">Trend</div>
-        <div class="chart-legend">
-          <div class="legend-item"><span class="legend-dot nowcast"></span> Nowcast</div>
-          <div class="legend-item"><span class="legend-dot official"></span> Official</div>
+    <!-- The Proxy Nowcast -->
+    <section class="hero">
+      <div class="section-title">Cost of Living Proxy</div>
+      <div class="nowcast-box">
+        <div class="card-label" style="text-transform: uppercase; font-family: var(--font-mono); color: var(--accent);">
+          Composite Index</div>
+        <div class="nowcast-value" id="val-proxy">
+          <div class="skeleton" style="height: 60px; width: 50%; margin: 1rem auto; border-radius: 8px;"></div>
+        </div>
+        <div class="nowcast-description">
+          A zero-maintenance indicator blending Crude Oil, Wheat, and Real Estate proxies (priced in CAD). Higher means
+          raw living costs are inflating.
         </div>
       </div>
-      <div class="chart-container-inner">
-        <canvas id="divergenceChart"></canvas>
-      </div>
-    </div>
+    </section>
 
-    <div class="list-group">
-      <div class="list-group-header" style="margin-top: 1rem;">Primary Insights</div>
-      <div class="list-row">
-        <div>
-          <div class="row-label">Signal Trust</div>
-        </div>
-        <div class="row-value tone-good" id="v2-quality-score">—</div>
+    <!-- Diagnostics -->
+    <section class="hero">
+      <div class="section-title">Raw Data Feed</div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Asset</th>
+              <th>Ticker</th>
+              <th>Spot Price</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="raw-data-body">
+            <!-- Populated via JS -->
+          </tbody>
+        </table>
       </div>
-      <div class="list-row">
-        <div>
-          <div class="row-label">Pulse Freshness</div>
-        </div>
-        <div class="row-value tone-good" id="v2-freshness">—</div>
-      </div>
-    </div>
+    </section>
 
-    <!-- Technical Details via Progressive Disclosure -->
-    <div class="disclosure-section">
-      <div class="list-group-header">Diagnostics</div>
-      <details id="source-diagnostics">
-        <summary>Data Source Health</summary>
-        <div class="details-body" style="padding: 0;">
-          <table
-            style="width: 100%; border-collapse: collapse; margin-top: 0.5rem; display: block; overflow-x: auto; white-space: nowrap;">
-            <thead>
-              <tr>
-                <th style="padding-left:1.2rem;">Source</th>
-                <th>Status</th>
-                <th>Category</th>
-                <th>Age</th>
-              </tr>
-            </thead>
-            <tbody id="source-health-body"></tbody>
-          </table>
-        </div>
-      </details>
+    <footer>
+      True Inflation CA <span>—</span> A temporary proxy dashboard.<br>
+      Market data via Yahoo Finance. Not official CPI.<br><br>
+      <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank">View Source</a>
+    </footer>
 
-      <div style="text-align: center; margin-top: 2rem; font-size: 0.75rem; color: var(--text-tertiary);">
-        Experimental open-source inflation nowcast.<br>Not official StatCan CPI.<br>
-        <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank" rel="noopener noreferrer"
-          style="color: var(--text-secondary); text-decoration: underline;">View on GitHub</a>
-      </div>
-    </div>
   </div>
 
   <script>
-    const UI_MODE_V2 = new URLSearchParams(window.location.search).get("ui_v2") !== "0";
-    const THEME_KEY = "tic_theme";
-    let divergenceChart = null;
-    let categoryChart = null;
-    let dashboardState = null;
-
-    function el(tag, className, text) {
-      const node = document.createElement(tag);
-      if (className) node.className = className;
-      if (text !== undefined) node.textContent = text;
-      return node;
-    }
-
-    function setDataLoadError(err) {
-      const body = document.body;
-      body.innerHTML = "";
-      const main = el("main", "page");
-      const section = el("section", "card");
-      const heading = el("h2");
-      heading.style.marginBottom = ".5rem";
-      heading.textContent = "Data load error";
-      const detail = el("p");
-      detail.style.color = "var(--text-secondary)";
-      detail.textContent = String(err);
-      section.appendChild(heading);
-      section.appendChild(detail);
-      main.appendChild(section);
-      body.appendChild(main);
-    }
-
-    function pct(v, digits = 2) {
-      if (v === null || v === undefined || Number.isNaN(v)) return "--";
-      return `${Number(v).toFixed(digits)}%`;
-    }
-
-    function pctFromRatio(v, digits = 1) {
-      if (v === null || v === undefined || Number.isNaN(Number(v))) return "--";
-      return `${(Number(v) * 100).toFixed(digits)}%`;
-    }
-
-    function freshnessSummary(composition) {
-      if (!composition || typeof composition !== "object") return "Motion freshness unavailable";
-      const d01 = pctFromRatio(composition.motion_fresh_0_1d_weight_ratio, 1);
-      const d27 = pctFromRatio(composition.motion_fresh_2_7d_weight_ratio, 1);
-      return `Motion-eligible freshness: 0–1d ${d01} | 2–7d ${d27}`;
-    }
-
-    function formatPctTick(value) {
-      const n = Number(value);
-      if (Number.isNaN(n)) return "";
-      return `${n.toFixed(1).replace(/\.0$/, "")}%`;
-    }
-
-    function toUtcDate(day) {
-      if (!day || typeof day !== "string") return null;
-      const d = new Date(`${day}T00:00:00Z`);
-      if (Number.isNaN(d.getTime())) return null;
-      return d;
-    }
-
-    function toIsoDay(dateObj) {
-      if (!(dateObj instanceof Date) || Number.isNaN(dateObj.getTime())) return null;
-      return dateObj.toISOString().slice(0, 10);
-    }
-
-    function enumerateDays(startDay, endDay) {
-      const start = toUtcDate(startDay);
-      const end = toUtcDate(endDay);
-      if (!start || !end || start > end) return [];
-      const out = [];
-      const d = new Date(start.getTime());
-      while (d <= end) {
-        const iso = toIsoDay(d);
-        if (iso) out.push(iso);
-        d.setUTCDate(d.getUTCDate() + 1);
-      }
-      return out;
-    }
-
-    function maybe(v) {
-      return v ?? "--";
-    }
-
-    function uiToken(name, fallback) {
-      const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-      return raw || fallback;
-    }
-
-    function hasNumber(value) {
-      return value !== null && value !== undefined && !Number.isNaN(Number(value));
-    }
-
-    function pendingText(kind) {
-      if (kind === "withheld") return "Withheld by guardrail";
-      if (kind === "awaiting") return "Awaiting fresh scrape";
-      return "Data pending";
-    }
-
-    function setPending(node, kind, reason) {
-      const label = pendingText(kind);
-      node.textContent = label;
-      node.title = reason ? `${label}: ${reason}` : label;
-    }
-
-    function inferPendingReason(latest) {
-      const consensusReason = latest?.meta?.consensus?.guardrails?.reason;
-      if (consensusReason) return `consensus_guardrail=${consensusReason}`;
-      const projectionReason = latest?.meta?.projection?.nowcast_yoy_prorated?.reason;
-      if (projectionReason) return `projection_guardrail=${projectionReason}`;
-      const pendingReason = latest?.headline?.pending_reason;
-      if (pendingReason) return String(pendingReason);
-      return null;
-    }
-
-    function toneClass(yoy) {
-      if (yoy === null || yoy === undefined || Number.isNaN(yoy)) return "tone-neutral";
-      if (yoy < 2) return "tone-good";
-      if (yoy <= 4) return "tone-warn";
-      return "tone-bad";
-    }
-
-    function fetchJsonWithFallback(primary, fallback) {
-      const toJsonOrThrow = (r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.text().then((text) => {
-          try {
-            return JSON.parse(text);
-          } catch {
-            throw new Error(`Invalid JSON from ${r.url}`);
-          }
-        });
-      };
-      return fetch(primary)
-        .then(toJsonOrThrow)
-        .catch(() =>
-          fetch(fallback)
-            .then(toJsonOrThrow)
-            .catch(() => ({}))
-        );
-    }
-
-    function fetchFirstJson(urls) {
-      const list = (Array.isArray(urls) ? urls : []).filter(Boolean);
-      let chain = Promise.reject(new Error("no_urls"));
-      for (const url of list) {
-        chain = chain.catch(() =>
-          fetch(url).then((r) => {
-            if (!r.ok) throw new Error(`HTTP ${r.status} from ${url}`);
-            return r.text().then((text) => {
-              try {
-                return JSON.parse(text);
-              } catch {
-                throw new Error(`Invalid JSON from ${url}`);
-              }
-            });
-          })
-        );
-      }
-      return chain.catch(() => ({}));
-    }
-
-    function fetchLatestSnapshot() {
-      return fetchFirstJson([
-        "data/latest.json",
-        "data/published_latest.json",
-        "/v1/nowcast/latest",
-      ]);
-    }
-
-    function safeHistoryItems(historical) {
-      if (Array.isArray(historical.items)) return historical.items;
-      return Object.keys(historical || {}).sort().map(day => ({ date: day, ...(historical[day] || {}) }));
-    }
-
-    function appendLatestPoint(items, latest) {
-      const base = Array.isArray(items) ? [...items] : [];
-      const latestDate = latest?.as_of_date;
-      const latestNowcast = latest?.headline?.nowcast_yoy_pct;
-      if (!latestDate || !hasNumber(latestNowcast)) return base;
-      const latestRow = {
-        date: latestDate,
-        headline: { nowcast_yoy_pct: Number(latestNowcast) },
-        official_cpi: latest?.official_cpi || {},
-        meta: {
-          seeded: false,
-          freshness_composition: latest?.meta?.freshness_composition || null,
-          carry_forward: Boolean(latest?.release?.carry_forward),
-          quality_tier: latest?.release?.quality_tier || null,
-        },
-        release: latest?.release || {},
-      };
-      const idx = base.findIndex((row) => row && row.date === latestDate);
-      if (idx >= 0) base[idx] = { ...(base[idx] || {}), ...latestRow };
-      else base.push(latestRow);
-      base.sort((a, b) => String(a?.date || "").localeCompare(String(b?.date || "")));
-      return base;
-    }
-
-    function countLiveNowcastDays(items) {
-      return items.filter((d) => {
-        const seeded = Boolean(d.meta && d.meta.seeded);
-        const yoy = d.headline?.nowcast_yoy_pct;
-        return !seeded && yoy !== null && yoy !== undefined;
-      }).length;
-    }
-
-    function deriveChartStartDate(latest) {
-      const fallback = "2026-02-17";
-      const asOf = latest?.as_of_date;
-      const events = latest?.meta?.release_events?.events;
-      if (!asOf || !Array.isArray(events)) return fallback;
-      const pastDates = events
-        .map((row) => row?.event_date)
-        .filter((day) => typeof day === "string" && day <= asOf)
-        .sort();
-      if (!pastDates.length) return fallback;
-      return pastDates[pastDates.length - 1];
-    }
-
-    function firstLiveDate(items) {
-      for (const row of items) {
-        if (!row) continue;
-        const seeded = Boolean(row.meta && row.meta.seeded);
-        const yoy = row.headline?.nowcast_yoy_pct;
-        if (!seeded && hasNumber(yoy) && row.date) return String(row.date);
-      }
-      return null;
-    }
-
-    function maxIsoDay(a, b) {
-      if (!a) return b || null;
-      if (!b) return a || null;
-      return String(a) >= String(b) ? String(a) : String(b);
-    }
-
-    function applyTheme(theme) {
-      const mode = theme === "dark" ? "dark" : "light";
-      document.documentElement.setAttribute("data-theme", mode);
-      const btn = document.getElementById("theme-toggle");
-      if (btn) {
-        const next = mode === "dark" ? "light" : "dark";
-        btn.setAttribute("aria-label", `Enable ${next} mode`);
-        btn.title = `Switch to ${next} mode`;
-      }
-    }
-
-    function initThemeToggle() {
-      const saved = localStorage.getItem(THEME_KEY);
-      const preferred = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      applyTheme(saved || preferred);
-      const btn = document.getElementById("theme-toggle");
-      if (!btn) return;
-      btn.addEventListener("click", () => {
-        const current = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
-        const next = current === "dark" ? "light" : "dark";
-        localStorage.setItem(THEME_KEY, next);
-        applyTheme(next);
-        if (dashboardState) {
-          renderDivergence(
-            dashboardState.items.slice(-120),
-            dashboardState.latest,
-            dashboardState.liveDays,
-            dashboardState.chartStartDate,
-          );
-          renderCategoryChart(dashboardState.latest);
-        }
-      });
-    }
-
-    function freshnessTier(composition) {
-      const ratio = Number(composition?.motion_fresh_0_1d_weight_ratio);
-      if (!Number.isFinite(ratio)) return { key: "unknown", label: "unknown", color: "#9a9aa0" };
-      const pct01 = Math.round(ratio * 1000) / 10;
-      if (pct01 >= 99.5) return { key: "blue", label: "Perfect pulse freshness", color: "#0071e3" };
-      if (pct01 >= 85.5) return { key: "green", label: "Good pulse freshness", color: "#34c759" };
-      if (pct01 >= 70.0) return { key: "yellow", label: "Pulse needs support", color: "#ffcc00" };
-      return { key: "red", label: "Pulse mostly anchored", color: "#ff3b30" };
-    }
-
-    function formatUiDate(day) {
-      const d = toUtcDate(day);
-      if (!d) return "--";
-      return d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
-    }
-
-    function renderChartMaturity(liveDays, chartStartDate = "2026-02-17", liveStartDate = null, latest = null) {
-      const maturity = document.getElementById("chart-maturity");
-      const phase = liveDays < 30 ? "calibration phase" : (liveDays < 60 ? "developing phase" : "stable phase");
-      const fresh01 = pctFromRatio(latest?.meta?.freshness_composition?.motion_fresh_0_1d_weight_ratio, 1);
-      const liveStartText = liveStartDate ? `Live series: ${formatUiDate(liveStartDate)}` : "Live series: pending";
-      maturity.textContent = `Window ${formatUiDate(chartStartDate)} · Live ${liveDays}/30 (${phase}) · 0–1d pulse freshness ${fresh01} · ${liveStartText}`;
-      maturity.title = "Headline stays anchored to monthly context while point color reflects motion-eligible signal freshness.";
-    }
-
-    function renderLiveHistoryProgress(liveDays) {
-      const node = document.getElementById("live-history-progress");
-      if (!node) return;
-      const safeDays = Number.isFinite(Number(liveDays)) ? Number(liveDays) : 0;
-      const ratio = Math.max(0, Math.min(100, Math.round((safeDays / 30) * 100)));
-      node.textContent = `Live history progress: ${safeDays} / 30 days (${ratio}%)`;
-      node.title = "Category movement ranking stabilizes as live non-seeded history accumulates.";
-    }
-
-    function renderDivergence(items, latest, liveDays, chartStartDate = "2026-02-17") {
-      const historyLastDate = items.length ? items[items.length - 1]?.date : null;
-      const lastDate = maxIsoDay(latest?.as_of_date || null, historyLastDate || null);
-      const timelineDays = enumerateDays(chartStartDate, lastDate);
-      const byDate = new Map((Array.isArray(items) ? items : []).map((row) => [row.date, row]));
-      const chartItems = timelineDays.map((day) => {
-        const row = byDate.get(day);
-        if (row) return row;
-        return {
-          date: day,
-          headline: { nowcast_yoy_pct: null },
-          official_cpi: {},
-          meta: { seeded: false, gap: true },
-          release: {},
-        };
-      });
-      const days = chartItems.map((d) => d.date);
-
-      const nowcastSeries = chartItems.map((d) => {
-        const seeded = Boolean(d.meta && d.meta.seeded);
-        if (seeded) return null;
-        const value = d.headline?.nowcast_yoy_pct;
-        return value === null || value === undefined ? null : Number(value);
-      });
-      const pointColors = chartItems.map((d) => freshnessTier(d?.meta?.freshness_composition).color);
-
-      const officialFlatValue = hasNumber(latest?.official_cpi?.yoy_pct)
-        ? Number(latest.official_cpi.yoy_pct)
-        : null;
-      const official = chartItems.map(() => officialFlatValue);
-      const firstLiveIndex = nowcastSeries.findIndex(v => v !== null && v !== undefined);
-
-      const decorPlugin = {
-        id: "liveNowcastDecor",
-        beforeDatasetsDraw(chart) {
-          if (firstLiveIndex <= 0) return;
-          const xScale = chart.scales.x;
-          const area = chart.chartArea;
-          if (!xScale || !area) return;
-          const liveX = xScale.getPixelForValue(firstLiveIndex);
-          const ctx = chart.ctx;
-          ctx.save();
-          ctx.fillStyle = uiToken("--chart-prelive", "rgba(110,110,115,0.06)");
-          ctx.fillRect(area.left, area.top, Math.max(0, liveX - area.left), area.bottom - area.top);
-          ctx.fillStyle = uiToken("--chart-prelive-text", "#98989d");
-          ctx.font = "11px 'SF Mono', ui-monospace, monospace";
-          ctx.fillText("Pre-live (official only)", area.left + 8, area.top + 16);
-          ctx.restore();
-        },
-      };
-
-      const datasets = [
-        {
-          type: "line",
-          label: "Nowcast YoY (daily published)",
-          data: nowcastSeries,
-          borderColor: uiToken("--chart-nowcast", "#0A84FF"),
-          backgroundColor: uiToken("--chart-nowcast-fill", "rgba(10, 132, 255, 0.15)"),
-          tension: 0,
-          spanGaps: false,
-          yAxisID: "y",
-          pointRadius: 4,
-          pointHoverRadius: 5,
-          pointBackgroundColor: pointColors,
-          pointBorderColor: pointColors,
-          pointHoverBackgroundColor: pointColors,
-          pointHoverBorderColor: pointColors,
-          borderWidth: 2,
-        },
-        {
-          type: "line",
-          label: "Official CPI YoY",
-          data: official,
-          borderColor: uiToken("--chart-official", "#FF9F0A"),
-          borderDash: [6, 4],
-          backgroundColor: "rgba(0,0,0,0)",
-          tension: 0,
-          yAxisID: "y",
-          pointRadius: 0,
-          borderWidth: 2,
-        },
-      ];
-      if (divergenceChart) divergenceChart.destroy();
-      const canvas = document.getElementById("divergenceChart");
-      divergenceChart = new Chart(canvas, {
-        data: {
-          labels: days,
-          datasets,
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          interaction: { mode: "index", intersect: false },
-          plugins: {
-            legend: {
-              labels: {
-                color: uiToken("--text-secondary", "#6e6e73"),
-                font: { size: 12, family: "-apple-system, sans-serif" },
-                boxWidth: 16,
-                padding: 16,
-              },
-            },
-            tooltip: {
-              callbacks: {
-                footer(tooltipItems) {
-                  if (!Array.isArray(tooltipItems) || tooltipItems.length === 0) return "";
-                  const idx = tooltipItems[0].dataIndex;
-                  const row = chartItems[idx] || {};
-                  const lines = [];
-                  if (row?.release?.carry_forward) {
-                    lines.push(`Carry-forward: yes (${row?.release?.carry_forward_source_as_of || "prior snapshot"})`);
-                  }
-                  const freshness = row?.meta?.freshness_composition;
-                  if (freshness && typeof freshness === "object") {
-                    lines.push(freshnessSummary(freshness));
-                    lines.push(`Freshness tier: ${freshnessTier(freshness).label}`);
-                  }
-                  return lines;
-                },
-              },
-            },
-          },
-          scales: {
-            y: {
-              position: "left",
-              ticks: { color: uiToken("--chart-ticks", "#98989d"), font: { size: 11 }, callback: (v) => formatPctTick(v) },
-              grid: { color: uiToken("--chart-grid", "rgba(0,0,0,0.05)") },
-              border: { display: false },
-            },
-            x: {
-              ticks: { color: uiToken("--chart-ticks", "#98989d"), font: { size: 11 }, maxTicksLimit: 8 },
-              grid: { color: uiToken("--chart-grid-soft", "rgba(0,0,0,0.04)") },
-              border: { display: false },
-            },
-          },
-        },
-        plugins: [decorPlugin],
-      });
-    }
-
-    function renderCategoryChart(latest) {
-      const names = Object.keys(latest.categories || {});
-      const sorted = names
-        .map(k => {
-          const c = latest.categories[k] || {};
-          const contribution = c.proxy_level === null || c.daily_change_pct === null ? null : Number(c.weight) * Number(c.daily_change_pct);
-          return {
-            key: k,
-            contribution,
-            points: c.points || 0,
-            status: c.status || "missing",
-            deltaReady: c.daily_change_pct !== null && c.daily_change_pct !== undefined,
-            diversity: latest.meta?.source_diversity_by_category?.[k] ?? 0,
-          };
-        })
-        .sort((a, b) => Math.abs(b.contribution || 0) - Math.abs(a.contribution || 0));
-
-      const placeholder = document.getElementById("category-placeholder");
-      const readiness = document.getElementById("category-readiness");
-      const readinessBody = document.getElementById("category-readiness-body");
-      const hasSignal = sorted.some(s => s.contribution !== null && Math.abs(Number(s.contribution)) > 0);
-      const canvas = document.getElementById("categoryChart");
-      if (!hasSignal) {
-        if (categoryChart) {
-          categoryChart.destroy();
-          categoryChart = null;
-        }
-        placeholder.style.display = "block";
-        placeholder.textContent = "Insufficient day-over-day history for category contribution ranking.";
-        readiness.style.display = "block";
-        readinessBody.innerHTML = "";
-        const readinessRows = [...sorted].sort((a, b) => {
-          if (b.points !== a.points) return b.points - a.points;
-          return b.diversity - a.diversity;
-        });
-        readinessRows.forEach((row) => {
-          const tr = document.createElement("tr");
-          tr.appendChild(el("td", null, row.key.replace(/_/g, " ")));
-          tr.appendChild(el("td", null, row.status.toUpperCase()));
-          tr.appendChild(el("td", null, String(row.points)));
-          tr.appendChild(el("td", null, String(row.diversity)));
-          tr.appendChild(el("td", null, row.deltaReady ? "Yes" : "No"));
-          readinessBody.appendChild(tr);
-        });
-        canvas.style.display = "none";
-        return;
-      }
-      placeholder.style.display = "none";
-      readiness.style.display = "none";
-      canvas.style.display = "block";
-
-      if (categoryChart) categoryChart.destroy();
-      categoryChart = new Chart(canvas, {
-        type: "bar",
-        data: {
-          labels: sorted.map(s => `${s.key} (${s.points})`),
-          datasets: [{
-            label: "Weighted contribution (pp)",
-            data: sorted.map(s => (s.contribution === null ? 0 : s.contribution)),
-            backgroundColor: sorted.map(s => ((s.contribution || 0) >= 0
-              ? "rgba(0,113,227,0.55)"
-              : "rgba(255,59,48,0.55)")),
-            borderRadius: 6,
-          }],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              labels: {
-                color: "#6e6e73",
-                font: { size: 11, family: "-apple-system, sans-serif" },
-              },
-            },
-            tooltip: {
-              callbacks: {
-                label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.parsed.y || 0).toFixed(3)} pp`,
-              },
-            },
-          },
-          scales: {
-            y: {
-              ticks: { color: "#98989d", font: { size: 11 } },
-              grid: { color: "rgba(0,0,0,0.05)" },
-              border: { display: false },
-            },
-            x: {
-              ticks: { color: "#98989d", font: { size: 10 } },
-              grid: { display: false },
-              border: { display: false },
-            },
-          },
-        },
-      });
-    }
-
-    function renderSourceTable(sourceHealth) {
-      const tbody = document.getElementById("source-health-body");
-      tbody.innerHTML = "";
-      const sourceName = {
-        openfoodfacts_api: "OpenFoodFacts (crowd prices)",
-        statcan_food_prices: "StatCan food prices",
-        apify_loblaws: "Loblaws (Apify)",
-        statcan_gas_csv: "StatCan fuel prices",
-        statcan_cpi_csv: "StatCan CPI table",
-        oeb_scrape: "Ontario Energy Board",
-        statcan_energy_cpi_csv: "StatCan energy CPI",
-      };
-      const categoryName = {
-        food: "Food",
-        housing: "Housing / shelter",
-        transport: "Transport / fuel",
-        energy: "Energy / utilities",
-        communication: "Phone / internet",
-        health_personal: "Health / personal",
-        recreation_education: "Recreation / edu",
-      };
-      if (!Array.isArray(sourceHealth) || sourceHealth.length === 0) {
-        const tr = document.createElement("tr");
-        const td = document.createElement("td");
-        td.colSpan = 7;
-        td.textContent = "No source diagnostics available for this snapshot.";
-        tr.appendChild(td);
-        tbody.appendChild(tr);
-        return;
-      }
-      sourceHealth.forEach(row => {
-        const tr = document.createElement("tr");
-        const status = String(row.status || "missing").toLowerCase();
-        const statusClass = status === "fresh" ? "status-ok" : status === "stale" ? "status-warn" : "status-err";
-
-        tr.appendChild(el("td", null, sourceName[row.source] || row.source || "--"));
-        tr.appendChild(el("td", null, categoryName[row.category] || row.category || "--"));
-
-        const statusTd = el("td", statusClass, status.toUpperCase());
-        tr.appendChild(statusTd);
-
-        const runTd = el("td", null, row.last_success_timestamp || "No successful run");
-        runTd.style.fontFamily = "var(--font-mono)";
-        runTd.style.fontSize = "0.78rem";
-        tr.appendChild(runTd);
-
-        const periodTd = el("td", null, row.last_observation_period || "--");
-        periodTd.style.fontFamily = "var(--font-mono)";
-        periodTd.style.fontSize = "0.78rem";
-        tr.appendChild(periodTd);
-
-        const ageTd = el("td", null, row.run_age_hours === null || row.run_age_hours === undefined ? "--" : String(row.run_age_hours));
-        ageTd.style.fontFamily = "var(--font-mono)";
-        tr.appendChild(ageTd);
-
-        const notesTd = el("td", "source-notes-cell", row.detail || "--");
-        const reasonBits = [row.status_reason, row.pending_reason].filter(Boolean).join(" | ");
-        notesTd.title = reasonBits ? `${row.detail || "--"} (${reasonBits})` : (row.detail || "--");
-        if (row.ingestion_state === "reused_last_success" || String(row.detail || "").includes("Using last successful timestamp from prior run.")) {
-          notesTd.appendChild(el("div", "source-ingestion-badge", "Reused prior successful timestamp"));
-        }
-        tr.appendChild(notesTd);
-
-        tbody.appendChild(tr);
-      });
-    }
-
-    function formatCountdown(seconds) {
-      if (seconds === null || seconds === undefined) return "--";
-      const s = Math.max(0, Number(seconds));
-      const d = Math.floor(s / 86400);
-      const h = Math.floor((s % 86400) / 3600);
-      const m = Math.floor((s % 3600) / 60);
-      return `${d}d ${h}h ${m}m`;
-    }
-
-    function renderReleaseIntel(latest, upcomingRelease, consensus, forecast, liveDays) {
-      const grid = document.getElementById("release-grid");
-      const official = latest.official_cpi || {};
-      const officialYoy = official.yoy_display_pct ?? official.yoy_pct;
-      const consensusYoy = consensus?.headline_yoy ?? latest.headline?.consensus_yoy;
-      const consensusMom = consensus?.headline_mom ?? null;
-      const consensusPayload = consensus || latest.meta?.consensus || {};
-      const consensusSources = (consensusPayload.sources || []).map((s) => s.source).filter(Boolean);
-      const consensusSourceLabel = consensusSources.length ? `Sources: ${consensusSources.join(", ")}` : "Sources unavailable";
-      const consensusGuardrailReason = consensusPayload.pending_reason || consensusPayload.guardrails?.reason;
-      const deviation = latest.headline?.deviation_yoy_pct ?? latest.headline?.consensus_spread_yoy;
-      const nextRelease = upcomingRelease?.next_release || latest.meta?.release_intelligence || {};
-      const nextForecast = forecast || latest.meta?.forecast || {};
-      const consensusMissing = !hasNumber(consensusYoy);
-      const consensusMomMissing = !hasNumber(consensusMom);
-      const officialMissing = !hasNumber(officialYoy) || !hasNumber(official.mom_pct);
-      const nextReleaseMissing = !nextRelease.release_at_et;
-      const countdownMissing = !hasNumber(nextRelease.countdown_seconds);
-      const deviationMissing = !hasNumber(deviation);
-      const forecastPublished = nextForecast.status === "published" && hasNumber(nextForecast.point_yoy);
-      const cards = [
-        {
-          title: "Next CPI Release (ET)",
-          value: nextReleaseMissing ? pendingText("data") : nextRelease.release_at_et,
-          note: nextReleaseMissing ? "StatCan release metadata is pending." : "StatCan calendar",
-          pendingKind: nextReleaseMissing ? "data" : null,
-          pendingReason: nextReleaseMissing ? (nextRelease.pending_reason || "release_schedule_not_available") : null,
-        },
-        {
-          title: "Countdown",
-          value: countdownMissing ? pendingText("data") : formatCountdown(nextRelease.countdown_seconds),
-          note: countdownMissing ? "Countdown populates when next release metadata is available." : "Until next publication",
-          pendingKind: countdownMissing ? "data" : null,
-          pendingReason: countdownMissing ? (nextRelease.pending_reason || "countdown_not_available") : null,
-        },
-        {
-          title: "Consensus YoY",
-          value: consensusMissing ? pendingText("withheld") : `${Number(consensusYoy).toFixed(2)}%`,
-          note: consensusMissing
-            ? `Consensus withheld (${consensusGuardrailReason || "insufficient_high_conf_sources"}). ${consensusSourceLabel}.`
-            : `${consensusSourceLabel}.`,
-          pendingKind: consensusMissing ? "withheld" : null,
-          pendingReason: consensusMissing ? (consensusGuardrailReason || "consensus_withheld") : null,
-        },
-        {
-          title: "Consensus MoM",
-          value: consensusMomMissing ? (consensusGuardrailReason ? pendingText("withheld") : pendingText("awaiting")) : `${Number(consensusMom).toFixed(2)}%`,
-          note: consensusMomMissing
-            ? (consensusGuardrailReason
-              ? `Consensus MoM withheld (${consensusGuardrailReason}). ${consensusSourceLabel}.`
-              : `Consensus MoM pending. ${consensusSourceLabel}.`)
-            : `${consensusSourceLabel}.`,
-          pendingKind: consensusMomMissing ? (consensusGuardrailReason ? "withheld" : "awaiting") : null,
-          pendingReason: consensusMomMissing ? (consensusGuardrailReason || "consensus_mom_pending") : null,
-        },
-        {
-          title: "Last Actual CPI",
-          value: officialMissing ? pendingText("data") : `${Number(officialYoy).toFixed(1)}% YoY / ${Number(official.mom_pct).toFixed(2)}% MoM`,
-          note: official.latest_release_month
-            ? `Release: ${official.latest_release_month}`
-            : "Official release month metadata pending.",
-          pendingKind: officialMissing ? "data" : null,
-          pendingReason: officialMissing ? "official_cpi_fields_missing" : null,
-        },
-        {
-          title: "Deviation",
-          value: consensusMissing
-            ? pendingText("withheld")
-            : liveDays < 30
-              ? pendingText("data")
-              : deviationMissing
-                ? pendingText("data")
-                : `${Number(deviation).toFixed(2)} pp`,
-          note: consensusMissing
-            ? `Consensus unavailable (${consensusGuardrailReason || "insufficient_high_conf_sources"}). ${consensusSourceLabel}.`
-            : liveDays < 30
-              ? "Deviation unlocks after 30 live nowcast days."
-              : deviationMissing
-                ? "Deviation pending until both nowcast and consensus values are available."
-                : "Nowcast YoY − consensus YoY",
-          pendingKind: consensusMissing
-            ? "withheld"
-            : (liveDays < 30 || deviationMissing ? "data" : null),
-          pendingReason: consensusMissing
-            ? (consensusGuardrailReason || "consensus_withheld")
-            : liveDays < 30
-              ? "needs_30_live_days"
-              : (deviationMissing ? "deviation_inputs_missing" : null),
-        },
-        {
-          title: "Forecast: Next YoY",
-          value: forecastPublished
-            ? `${Number(nextForecast.point_yoy).toFixed(2)}%`
-            : pendingText("withheld"),
-          note: forecastPublished
-            ? `Range ${pct(nextForecast.lower_yoy, 2)} – ${pct(nextForecast.upper_yoy, 2)} | ${String(nextForecast.confidence || "low").toUpperCase()}`
-            : `Withheld by guardrail (${nextForecast.pending_reason || nextForecast.status || "insufficient_history"}).`,
-          pendingKind: forecastPublished ? null : "withheld",
-          pendingReason: forecastPublished ? null : (nextForecast.pending_reason || nextForecast.status || "forecast_withheld"),
-        },
-      ];
-      grid.innerHTML = "";
-      cards.forEach((card) => {
-        const cardEl = document.createElement("article");
-        cardEl.className = "intel-chip";
-        cardEl.title = card.pendingReason ? `${card.note} Reason: ${card.pendingReason}.` : card.note;
-        cardEl.appendChild(el("div", "eyebrow", card.title));
-        const valueEl = el("div", "chip-value");
-        if (card.pendingKind) {
-          setPending(valueEl, card.pendingKind, card.pendingReason);
-        } else {
-          valueEl.textContent = String(card.value);
-        }
-        cardEl.appendChild(valueEl);
-        cardEl.appendChild(el("div", "chip-note", card.note));
-        grid.appendChild(cardEl);
-      });
-    }
-
-    function renderHero(latest, liveDays, liveStartDate = null) {
-      const yoy = latest.official_cpi?.yoy_pct;
-      const yoyDisplay = latest.official_cpi?.yoy_display_pct;
-      const latestNowcast = latest.headline?.nowcast_yoy_pct;
-      const displayNowcast = hasNumber(latestNowcast) ? Number(latestNowcast) : null;
-      const consensus = latest.headline?.consensus_yoy;
-      const deviation = (hasNumber(displayNowcast) && hasNumber(consensus))
-        ? Number((displayNowcast - consensus).toFixed(3))
-        : null;
-
-      const hero = document.getElementById("hero-yoy");
-      const officialDisplay = yoyDisplay !== null && yoyDisplay !== undefined ? yoyDisplay : yoy;
-      if (hasNumber(officialDisplay)) {
-        hero.textContent = `${Number(officialDisplay).toFixed(1)}%`;
-        hero.title = "";
-        hero.className = `hero-number ${toneClass(yoy)}`;
-      } else {
-        setPending(hero, "data", "official_cpi_unavailable");
-        hero.className = "hero-number tone-neutral";
-      }
-
-      let summary = "Official CPI is unavailable right now.";
-      if (yoy !== null && yoy !== undefined) {
-        if (yoy < 2) summary = "Prices are rising slowly compared with last year. Day-to-day budget pressure is lighter.";
-        else if (yoy <= 4) summary = "Prices are rising at a moderate pace. Many households still feel pressure on essentials.";
-        else summary = "Prices are rising quickly. Most households are likely feeling broad budget strain.";
-      }
-      document.getElementById("hero-summary").textContent = summary;
-      document.getElementById("hero-summary").classList.remove("loading");
-      const nowcastEl = document.getElementById("hero-nowcast");
-      if (hasNumber(displayNowcast)) {
-        nowcastEl.textContent = `${Number(displayNowcast).toFixed(3)}%`;
-        nowcastEl.title = "";
-      } else {
-        setPending(nowcastEl, "awaiting", inferPendingReason(latest) || "nowcast_signal_not_ready");
-      }
-
-      const divergenceEl = document.getElementById("hero-divergence");
-      if (hasNumber(deviation)) {
-        divergenceEl.textContent = `YoY deviation: ${Number(deviation).toFixed(3)}%`;
-        divergenceEl.title = "";
-      } else if (!hasNumber(consensus)) {
-        const reason = latest?.meta?.consensus?.guardrails?.reason || "consensus_unavailable";
-        divergenceEl.textContent = `YoY deviation: ${pendingText("withheld")}`;
-        divergenceEl.title = `YoY deviation: ${pendingText("withheld")}: ${reason}`;
-      } else {
-        divergenceEl.textContent = `YoY deviation: ${pendingText("data")}`;
-        divergenceEl.title = `YoY deviation: ${pendingText("data")}: deviation_inputs_missing`;
-      }
-      const nowcastStatusEl = document.getElementById("hero-nowcast-status");
-      nowcastStatusEl.textContent = freshnessSummary(latest?.meta?.freshness_composition);
-      nowcastStatusEl.title = `Pulse freshness tier: ${freshnessTier(latest?.meta?.freshness_composition).label}`;
-
-      const releaseEl = document.getElementById("hero-release");
-      if (latest.official_cpi?.latest_release_month) {
-        releaseEl.textContent = String(latest.official_cpi.latest_release_month);
-        releaseEl.title = "";
-      } else {
-        setPending(releaseEl, "data", "official_release_month_missing");
-      }
-      const quality = latest.headline?.signal_quality_score;
-      const qualityTier = latest?.release?.quality_tier;
-      const confidenceEl = document.getElementById("hero-confidence");
-      const confidence = latest.headline?.confidence;
-      if (confidence || hasNumber(quality)) {
-        const tierText = qualityTier ? ` | ${String(qualityTier).toUpperCase()}` : "";
-        confidenceEl.textContent = `${String(confidence || "pending").toUpperCase()} | ${quality ?? "pending"}/100${tierText}`;
-        confidenceEl.title = "";
-      } else {
-        setPending(confidenceEl, "data", "quality_not_available");
-      }
-
-      const contextEl = document.getElementById("hero-context");
-      const phase = liveDays < 7
-        ? "Very early signal. Daily moves can be volatile."
-        : liveDays < 30
-          ? "Early calibration phase. Direction is more informative than precision."
-          : "Maturing signal with enough live history for stronger interpretation.";
-      contextEl.textContent = `${liveDays}/30 live days · ${phase}`;
-    }
-
-    function renderPurchasingPowerCard(latest) {
-      const topDriver = latest.meta?.top_driver || { category: null, contribution_pct: null };
-      const yoy = latest.official_cpi?.yoy_pct;
-      const purchasingPower = yoy === null || yoy === undefined ? null : (100 / (1 + (Number(yoy) / 100)));
-      document.getElementById("card-power-title").textContent = purchasingPower === null
-        ? "Purchasing power: unavailable"
-        : `$100 buys ~$${purchasingPower.toFixed(2)} of last year's basket`;
-      const topText = topDriver.category
-        ? `${topDriver.category} is currently the strongest driver (${pct(topDriver.contribution_pct, 3)} weighted impact this month).`
-        : "Top category driver will appear once enough daily history accumulates.";
-      document.getElementById("card-power-body").textContent = topText;
-    }
-
-    function renderNotes(latest) {
-      const ul = document.getElementById("notes-list");
-      ul.innerHTML = "";
-      (latest.notes || []).forEach(note => {
-        const li = document.createElement("li");
-        li.textContent = note;
-        ul.appendChild(li);
-      });
-    }
-
-    function renderMethodology(methodology, latest) {
-      const ul = document.getElementById("methodology-list");
-      ul.innerHTML = "";
-      const gate = methodology?.gate_policy || latest.meta?.gate_diagnostics || {};
-      const weightsRef = methodology?.weights_reference || latest.meta?.weights || {};
-      const trackedShare = weightsRef.tracked_share_total;
-      const repThreshold = gate.representativeness_min_fresh_ratio ?? gate.representativeness?.threshold;
-      const foodGate = gate.food_gate || gate.food_resilience?.threshold || {};
-      const topDriver = latest.meta?.top_driver || {};
-      const repThresholdPct = typeof repThreshold === "number" ? (100 * repThreshold).toFixed(0) : "85";
-      const minFreshSources = foodGate.min_fresh_sources ?? 1;
-      const minUsableSources = foodGate.min_usable_sources ?? 2;
-      const trackedSharePct = typeof trackedShare === "number"
-        ? (100 * trackedShare).toFixed(1)
-        : (typeof latest?.meta?.weights?.tracked_share_total === "number"
-          ? (100 * Number(latest.meta.weights.tracked_share_total)).toFixed(1)
-          : "policy-defined");
-      const rows = [
-        `Method version: ${latest.meta?.method_version || methodology?.method_version || "--"}`,
-        `Coverage ratio: ${(100 * (latest.headline?.coverage_ratio || 0)).toFixed(1)}% of basket had usable data today.`,
-        `Tracked basket share: ${trackedSharePct}% (source: ${weightsRef.source_table || "StatCan"}).`,
-        `Anchor YoY: ${pct(latest.headline?.anchor_yoy_pct, 3)}. Pulse delta: ${pct(latest.headline?.calibrated_pulse_yoy_delta_pct, 3)}.`,
-        `Lead signal: ${(latest.headline?.lead_signal || "--").toUpperCase()} — prices moving ${latest.headline?.lead_signal || "--"}.`,
-        `Top driver: ${topDriver.category || "--"} (${pct(topDriver.contribution_pct, 3)} contribution).`,
-        `Food gate: ≥${minFreshSources} fresh / ${minUsableSources} usable sources.`,
-        `Representativeness threshold: ${repThresholdPct}% fresh basket coverage.`,
-        "Monthly sources anchor the level; only motion-eligible sources move the daily pulse.",
-        "Housing pulse includes live asking-rent momentum and differs from survey-based CPI rent methods.",
-        "Communication is mapped within broader CPI structures, not a standalone major component.",
-      ];
-      rows.forEach(text => {
-        const li = document.createElement("li");
-        li.textContent = text;
-        ul.appendChild(li);
-      });
-    }
-
-    function applyReleaseBanner(latest, liveDays) {
-      const release = latest.release || {};
-      const banner = document.getElementById("release-banner");
-      banner.style.display = "block";
-      if ((release.qa_status && release.qa_status !== "passed") || liveDays < 30) {
-        banner.textContent = `Calibration mode: signal can be jumpy while QA stabilizes.`;
-        return;
-      }
-      if (release.status && release.status !== "published") {
-        banner.textContent = `Run status: ${release.status}. ${(release.blocked_conditions || []).join(" | ")}`;
-        return;
-      }
-      banner.textContent = `Run status: published. Calculation ID: ${release.run_id || "--"}.`;
-    }
-
-    function renderPerformance(performance, calibration, liveDays) {
-      const ul = document.getElementById("performance-list");
-      ul.innerHTML = "";
-      const current = calibration || {};
-      const metrics = current.current_error_metrics || {};
-      const eligibility = current.forecast_eligibility || {};
-      const rows = [
-        `Maturity tier: ${(current.maturity_tier || "bootstrapping").toUpperCase()}`,
-        `Live days: ${current.live_days ?? liveDays} (stable-eval target: ${current.minimum_days_for_stable_eval ?? 30} days)`,
-        `Forecast eligibility: ${eligibility.eligible ? "ELIGIBLE" : "NOT ELIGIBLE"}${eligibility.reason ? ` (${eligibility.reason})` : ""}`,
-        `Evaluation window: last ${performance?.window_days ?? "--"} days`,
-        `Evaluated live points: ${performance?.evaluated_live_points ?? "--"}`,
-        `YoY MAE: ${metrics.mae_yoy_pct ?? performance?.mae_yoy_pct ?? "--"} pp`,
-        `YoY median abs error: ${metrics.median_abs_error_yoy_pct ?? performance?.median_abs_error_yoy_pct ?? "--"} pp`,
-        `YoY directional accuracy: ${metrics.directional_accuracy_yoy_pct ?? performance?.directional_accuracy_yoy_pct ?? "--"}%`,
-        `YoY bias: ${metrics.bias_yoy_pct ?? performance?.bias_yoy_pct ?? "--"} pp`,
-        "Interpret these metrics cautiously until at least 30 live nowcast days.",
-      ];
-      rows.forEach(text => {
-        const li = document.createElement("li");
-        li.textContent = text;
-        ul.appendChild(li);
-      });
-    }
-
-    function renderExplainers(chartStartDate, liveStartDate, liveDays, latest = null) {
-      const grid = document.getElementById("explain-grid");
-      grid.innerHTML = "";
-      const rows = [
-        "Official CPI (YoY): year-over-year inflation from Statistics Canada.",
-        "Nowcast Signal: the headline is a monthly anchor plus a live pulse from motion-eligible sources.",
-        `Chart window starts ${formatUiDate(chartStartDate)} (official context). Live series starts ${liveStartDate ? formatUiDate(liveStartDate) : "when first nowcast point arrives"}.`,
-        `Live nowcast history: ${liveDays}/30 days.`,
-        `${freshnessSummary(latest?.meta?.freshness_composition)}. Point colors describe pulse freshness, not scrape recency alone.`,
-        "Deviation from Expectations is nowcast YoY minus available consensus YoY and is withheld when guardrails fail.",
-      ];
-      rows.forEach((text) => {
-        const item = document.createElement("div");
-        item.className = "explainer-item";
-        item.textContent = text;
-        grid.appendChild(item);
-      });
-    }
-
-    function initStickyDisclaimer() {
-      const node = document.getElementById("sticky-disclaimer");
-      if (!node) return;
-      const onScroll = () => {
-        if (window.scrollY > 120) node.classList.add("visible");
-        else node.classList.remove("visible");
-      };
-      onScroll();
-      window.addEventListener("scroll", onScroll, { passive: true });
-    }
-
-    function renderProjectGuide(latest, methodology, sourceCatalog, liveDays) {
-      const panel = document.getElementById("project-guide-grid");
-      panel.innerHTML = "";
-      const weights = methodology?.weights_reference || latest?.meta?.weights || {};
-      const trackedShare = weights.tracked_share_total;
-      const catalogItems = Array.isArray(sourceCatalog?.items) ? sourceCatalog.items : [];
-      const sourceCount = catalogItems.length || (latest?.source_health || []).length || 0;
-
-      const purpose = el("article", "about-item");
-      purpose.appendChild(el("h4", null, "Purpose"));
-      purpose.appendChild(el("p", null, "This dashboard is the daily operations view: current signal, chart trajectory, release status, and source diagnostics."));
-      purpose.appendChild(el("p", null, "Headline nowcast is published daily, but daily movement comes from the live pulse while monthly sources anchor the level; gate status remains visible in release diagnostics."));
-      panel.appendChild(purpose);
-
-      const transparency = el("article", "about-item");
-      transparency.appendChild(el("h4", null, "About Page"));
-      transparency.appendChild(el("p", null, `Full source catalog, formulas, strengths, and limitations are documented on the dedicated About page (${sourceCount} tracked sources; ${typeof trackedShare === "number" ? (100 * trackedShare).toFixed(1) : "--"}% tracked basket share).`));
-      const linkLine = el("p");
-      const link = document.createElement("a");
-      link.href = "/about";
-      link.textContent = "Open full methodology and source transparency.";
-      linkLine.appendChild(link);
-      transparency.appendChild(linkLine);
-      panel.appendChild(transparency);
-
-      const maturity = el("article", "about-item");
-      maturity.appendChild(el("h4", null, "Calibration Reality"));
-      const maturityList = el("ul");
-      maturityList.appendChild(el("li", null, `Live history is ${liveDays}/30 days for initial stability.`));
-      maturityList.appendChild(el("li", null, "Point color encodes motion-eligible freshness (blue/green/yellow/red) while the anchored series remains continuous."));
-      maturityList.appendChild(el("li", null, "Consensus/deviation/forecast outputs remain guardrail-controlled and may be withheld."));
-      maturity.appendChild(maturityList);
-      panel.appendChild(maturity);
-    }
-
-    async function fetchCommunityStats() {
+    async function loadData() {
       try {
-        const res = await fetch("/v1/community/stats");
-        if (!res.ok) return;
-        const stats = await res.json();
-        if (stats.length === 0) return;
-        const section = document.getElementById("community-section");
-        const grid = document.getElementById("community-stats-grid");
-        section.style.display = "block";
-        grid.innerHTML = "";
-        stats.forEach(s => {
-          const card = el("div", "intel-chip");
-          let icon = "";
-          let unit = "";
-          if (s.category === "gas") { icon = "⛽"; unit = "¢/L"; }
-          else if (s.category === "rent") { icon = "🏠"; unit = "$/mo"; }
-          else { icon = "🛒"; unit = "$"; }
+        const res = await fetch('data/latest.json');
+        if (!res.ok) throw new Error("Failed to load");
+        const data = await res.json();
 
-          card.appendChild(el("div", "eyebrow", `${icon} Community ${String(s.category || "").toUpperCase()}`));
-          const value = el("div", "chip-value", `${s.avg_price} ${unit}`);
-          value.style.color = "var(--blue)";
-          card.appendChild(value);
-          card.appendChild(el("div", "chip-note", `Based on ${s.count} report(s)`));
-          grid.appendChild(card);
-        });
-      } catch (e) {
-        console.error("Failed to fetch community stats:", e);
-      }
-    }
+        // 1. Update Timestamp
+        const d = new Date(data.timestamp);
+        const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+        document.getElementById('last-updated').innerText = d.toLocaleDateString('en-US', options) + ' EST';
 
-    initThemeToggle();
-    if (!UI_MODE_V2) {
-      const app = document.getElementById("app");
-      app.innerHTML = "";
-      const section = el("section", "card");
-      const heading = el("h2", null, "UI v2 is disabled");
-      heading.style.marginBottom = ".5rem";
-      const note = el("p", null, "Append ?ui_v2=1 to enable the dashboard.");
-      note.style.color = "var(--text-secondary)";
-      section.appendChild(heading);
-      section.appendChild(note);
-      app.appendChild(section);
-    } else {
-      initStickyDisclaimer();
-      fetchCommunityStats();
-      Promise.all([
-        fetchLatestSnapshot(),
-        fetchFirstJson(["data/historical.json", "/v1/nowcast/history"]),
-        fetchFirstJson(["data/methodology.json", "/v1/methodology", "data/latest.json"]),
-        fetchFirstJson(["data/source_catalog.json", "/v1/sources/catalog"]),
-        fetchFirstJson(["data/performance_summary.json", "/v1/performance/summary"]),
-        fetchFirstJson(["data/release_events.json", "/v1/releases/upcoming"]),
-        fetchFirstJson(["data/consensus_latest.json", "/v1/consensus/latest"]),
-        fetchFirstJson(["data/latest.json", "/v1/forecast/next_release"]),
-        fetchFirstJson(["data/latest.json", "/v1/calibration/status"]),
-      ]).then(([latestSnapshot, historical, methodology, sourceCatalog, performance, upcomingRelease, consensus, forecast, calibration]) => {
-        const latest = latestSnapshot;
-        if (!latest || !latest.headline) {
-          throw new Error("No nowcast snapshot available from data or API.");
+        // 2. Debasement (Scaled by 1000 CAD for readability)
+        const d_btc = data.debasement.btc_per_cad * 1000;
+        const d_gold = data.debasement.gold_oz_per_cad * 1000;
+        const d_sp = data.debasement.sp500_shares_per_cad * 1000;
+
+        document.getElementById('val-btc').innerText = `₿ ` + d_btc.toFixed(4);
+        document.getElementById('val-gold').innerText = d_gold.toFixed(3) + ' oz';
+        document.getElementById('val-sp500').innerText = d_sp.toFixed(2) + ' sh';
+
+        // 3. Proxy Nowcast
+        const proxy_val = data.proxy_nowcast.basket_value_cad;
+        document.getElementById('val-proxy').innerText = `$${Math.round(proxy_val).toLocaleString()}`;
+
+        // 4. Raw Data Table
+        const tbody = document.getElementById('raw-data-body');
+        tbody.innerHTML = '';
+        const tickers = {
+          "cad_usd": "CAD/USD",
+          "gold": "Gold (USD)",
+          "btc": "Bitcoin (USD)",
+          "sp500": "S&P 500",
+          "wheat": "Wheat",
+          "oil": "Crude Oil",
+          "reit": "Capped REIT (CAD)"
+        };
+
+        for (const [key, label] of Object.entries(tickers)) {
+          const val = data.raw_prices[key];
+          if (val === undefined) continue;
+
+          const tr = document.createElement('tr');
+
+          tr.innerHTML = `
+            <td>${label}</td>
+            <td style="color: var(--text-tertiary);">${key.toUpperCase()}</td>
+            <td>${val.toFixed(2)}</td>
+            <td><span class="badge">LIVE</span></td>
+          `;
+          tbody.appendChild(tr);
         }
-        document.getElementById("asof").textContent = `as of ${latest.as_of_date || "--"}`;
-        const itemsBase = safeHistoryItems(historical).slice(-365);
-        const items = appendLatestPoint(itemsBase, latest);
-        const liveDays = countLiveNowcastDays(items);
-        const chartStartDate = deriveChartStartDate(latest);
-        const liveStartDate = firstLiveDate(items);
-        dashboardState = { items, latest, liveDays, chartStartDate };
-        updateV2Insights();
-        const calibrationData = calibration?.meta?.calibration || calibration || latest.meta?.calibration || {};
-        renderChartMaturity(liveDays, chartStartDate, liveStartDate, latest);
-        renderLiveHistoryProgress(liveDays);
-        applyReleaseBanner(latest, liveDays);
-        renderHero(latest, liveDays, liveStartDate);
-        renderReleaseIntel(latest, upcomingRelease, consensus, forecast?.meta?.forecast || forecast, liveDays);
-        renderPurchasingPowerCard(latest);
-        renderNotes(latest);
-        renderSourceTable(latest.source_health || []);
-        renderMethodology(methodology, latest);
-        renderPerformance(performance, calibrationData, liveDays);
-        renderExplainers(chartStartDate, liveStartDate, liveDays, latest);
-        renderDivergence(items.slice(-120), latest, liveDays, chartStartDate);
-        renderCategoryChart(latest);
-        renderProjectGuide(latest, methodology, sourceCatalog, liveDays);
-      }).catch(err => {
-        setDataLoadError(err);
-      });
-    }
 
-    function updateV2Insights() {
-      if (!dashboardState || !dashboardState.latest) return;
-      const l = dashboardState.latest;
-      const qualityNode = document.getElementById("v2-quality-score");
-      const freshnessNode = document.getElementById("v2-freshness");
-      if (!qualityNode || !freshnessNode) return;
-
-      const quality = Number(l?.headline?.signal_quality_score);
-      qualityNode.textContent = Number.isFinite(quality) ? `${quality} / 100` : "-- / 100";
-      if (!Number.isFinite(quality)) qualityNode.className = "row-value tone-neutral";
-      else qualityNode.className = quality > 80 ? "row-value tone-good" : (quality >= 60 ? "row-value tone-warn" : "row-value tone-bad");
-
-      const freshnessRatio = Number(l?.meta?.freshness_composition?.motion_fresh_0_1d_weight_ratio);
-      if (!Number.isFinite(freshnessRatio)) {
-        freshnessNode.textContent = "--";
-        freshnessNode.className = "row-value tone-neutral";
-      } else {
-        const fresh = Math.round(freshnessRatio * 100);
-        freshnessNode.textContent = `${fresh}%`;
-        freshnessNode.className = fresh > 90 ? "row-value tone-good" : (fresh > 70 ? "row-value tone-warn" : "row-value tone-bad");
+      } catch (e) {
+        console.error("Error drawing dashboard:", e);
+        document.getElementById('last-updated').innerText = "Data Error";
       }
     }
 
-    // Keep KPI cards refreshed after async loads; harmless if state is not ready yet.
-    setInterval(updateV2Insights, 1000);
+    loadData();
 
+    // Theme Toggle Logic
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    themeToggleBtn.addEventListener('click', () => {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+    });
   </script>
 </body>
 
