@@ -4,15 +4,16 @@ import requests
 import json
 import os
 import urllib.request
+import urllib.error
 import zipfile
 import io
+import time
 from datetime import datetime
 
 # Bank of Canada Valet API Series IDs
 ADJUSTERS_CONFIG = {
     'M1+': 'V41552785',
     'M1++': 'V41552788',
-    'M2++': 'V41552792',
     'M3': 'V41552794',
     'CPI': 'V41690973' # CPI All-items
 }
@@ -33,38 +34,66 @@ ASSETS_YAHOO_CALC_CAD = {
     'Silver (CAD)': 'SI=F'
 }
 
-def fetch_valet_series(series_id):
+def fetch_valet_series(series_id, retries=3, delay=2):
     url = f"https://www.bankofcanada.ca/valet/observations/{series_id}/json"
-    res = requests.get(url)
-    res.raise_for_status()
-    data = res.json()
-    records = []
-    for obs in data['observations']:
-        if series_id in obs:
-            records.append({
-                'Date': pd.to_datetime(obs['d']),
-                'Value': float(obs[series_id]['v'])
-            })
-    df = pd.DataFrame(records).set_index('Date')
-    return df.resample('ME').last().ffill()
+    for attempt in range(retries):
+        try:
+            res = requests.get(url, timeout=15)
+            res.raise_for_status()
+            data = res.json()
+            records = []
+            for obs in data['observations']:
+                if series_id in obs:
+                    records.append({
+                        'Date': pd.to_datetime(obs['d']),
+                        'Value': float(obs[series_id]['v'])
+                    })
+            df = pd.DataFrame(records).set_index('Date')
+            return df.resample('ME').last().ffill()
+        except requests.exceptions.RequestException as e:
+            print(f"  Attempt {attempt + 1} failed for {url}: {e}")
+            if attempt < retries - 1:
+                time.sleep(delay)
+    raise Exception(f"Failed to fetch {url} after {retries} attempts")
 
-def fetch_statcan_csv(url, filter_func):
+def fetch_statcan_csv(url, filter_func, retries=3, delay=2):
     print(f"  Downloading StatCan {url}...")
     req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-    with urllib.request.urlopen(req) as response:
-        with zipfile.ZipFile(io.BytesIO(response.read())) as z:
-            csv_filename = z.namelist()[0]
-            with z.open(csv_filename) as f:
-                df = pd.read_csv(f)
-                filtered = filter_func(df)
-                
-                # Format index to Date
-                if 'REF_DATE' in filtered.columns:
-                    # some are YYYY, some are YYYY-MM
-                    filtered['Date'] = pd.to_datetime(filtered['REF_DATE'], format="mixed", errors='coerce')
-                    filtered = filtered.set_index('Date')
-                    filtered = filtered[['VALUE']].rename(columns={'VALUE': 'Value'})
-                    return filtered
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(req, timeout=30) as response:
+                with zipfile.ZipFile(io.BytesIO(response.read())) as z:
+                    csv_filename = z.namelist()[0]
+                    with z.open(csv_filename) as f:
+                        df = pd.read_csv(f)
+                        filtered = filter_func(df)
+                        
+                        # Format index to Date
+                        if 'REF_DATE' in filtered.columns:
+                            # some are YYYY, some are YYYY-MM
+                            filtered['Date'] = pd.to_datetime(filtered['REF_DATE'], format="mixed", errors='coerce')
+                            filtered = filtered.set_index('Date')
+                            filtered = filtered[['VALUE']].rename(columns={'VALUE': 'Value'})
+                            return filtered
+            return pd.DataFrame()
+        except Exception as e:
+            print(f"  Attempt {attempt + 1} failed for {url}: {e}")
+            if attempt < retries - 1:
+                time.sleep(delay)
+    print(f"  Final failure for StatCan {url}")
+    return pd.DataFrame()
+
+def fetch_yahoo_with_retry(ticker, retries=3, delay=2):
+    for attempt in range(retries):
+        try:
+            t_obj = yf.Ticker(ticker)
+            hist = t_obj.history(period="max")
+            if not hist.empty:
+                return hist
+        except Exception as e:
+            print(f"  Attempt {attempt + 1} failed for {ticker}: {e}")
+        if attempt < retries - 1:
+            time.sleep(delay)
     return pd.DataFrame()
 
 def generate_chart_data():
@@ -95,8 +124,7 @@ def generate_chart_data():
     for name, ticker in ASSETS_YAHOO_DIRECT.items():
         print(f"  Fetching {name}...")
         try:
-            t_obj = yf.Ticker(ticker)
-            hist = t_obj.history(period="max")
+            hist = fetch_yahoo_with_retry(ticker)
             if hist.empty:
                 continue
             hist_monthly = hist['Close'].resample('ME').last()
@@ -111,14 +139,12 @@ def generate_chart_data():
 
     print("Fetching CAD exchange rate for calculations...")
     try:
-        cad_ticker = yf.Ticker("CAD=X")
-        cad_hist = cad_ticker.history(period="max")['Close'].resample('ME').last()
+        cad_hist = fetch_yahoo_with_retry("CAD=X")['Close'].resample('ME').last()
         cad_hist.index = cad_hist.index.tz_localize(None)
         
         for name, ticker in ASSETS_YAHOO_CALC_CAD.items():
             print(f"  Fetching {name}...")
-            t_obj = yf.Ticker(ticker)
-            hist = t_obj.history(period="max")['Close'].resample('ME').last()
+            hist = fetch_yahoo_with_retry(ticker)['Close'].resample('ME').last()
             hist.index = hist.index.tz_localize(None)
             
             # Multiply by CAD=X

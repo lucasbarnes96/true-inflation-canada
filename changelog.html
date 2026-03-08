@@ -1,10 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Changelog - True Inflation Canada</title>
   <meta name="description" content="Public changelog for True Inflation Canada method, data, and contract changes." />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://trueinflation.ca/changelog">
+  <meta property="og:title" content="Changelog - True Inflation Canada">
+  <meta property="og:description"
+    content="Public changelog for True Inflation Canada method, data, and contract changes.">
+  <meta property="og:image" content="https://trueinflation.ca/logo.png">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://trueinflation.ca/changelog">
+  <meta property="twitter:title" content="Changelog - True Inflation Canada">
+  <meta property="twitter:description"
+    content="Public changelog for True Inflation Canada method, data, and contract changes.">
+  <meta property="twitter:image" content="https://trueinflation.ca/logo.png">
+
   <link rel="icon" type="image/png" href="logo.png" />
   <style>
     :root {
@@ -23,7 +41,11 @@
       --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Fira Code", monospace;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
     body {
       font-family: var(--font);
@@ -49,11 +71,30 @@
       gap: 0.8rem;
     }
 
-    .brand { display: flex; align-items: center; gap: 0.6rem; }
-    .logo { width: 30px; height: 30px; object-fit: contain; border-radius: 8px; }
-    .title { font-size: 0.92rem; font-weight: 700; letter-spacing: -0.01em; }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
 
-    .nav-links { display: flex; align-items: center; gap: 0.45rem; }
+    .logo {
+      width: 30px;
+      height: 30px;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+
+    .title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
 
     .nav-links a {
       font-size: 0.77rem;
@@ -81,7 +122,11 @@
       padding: 1.2rem;
     }
 
-    .section-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.65rem; }
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.65rem;
+    }
 
     .entry {
       border: 1px solid var(--border);
@@ -90,7 +135,9 @@
       padding: 0.85rem 0.95rem;
     }
 
-    .entry + .entry { margin-top: 0.55rem; }
+    .entry+.entry {
+      margin-top: 0.55rem;
+    }
 
     .entry h3 {
       font-size: 0.83rem;
@@ -101,9 +148,16 @@
     }
 
     .entry p,
-    .entry li { color: var(--text-secondary); font-size: 0.88rem; }
+    .entry li {
+      color: var(--text-secondary);
+      font-size: 0.88rem;
+    }
 
-    .entry ul { padding-left: 1rem; display: grid; gap: 0.32rem; }
+    .entry ul {
+      padding-left: 1rem;
+      display: grid;
+      gap: 0.32rem;
+    }
 
     .stamp {
       font-family: var(--font-mono);
@@ -121,6 +175,7 @@
     }
   </style>
 </head>
+
 <body>
   <nav class="nav">
     <div class="brand">
@@ -130,7 +185,8 @@
     <div class="nav-links">
       <a href="/">Dashboard</a>
       <a href="/about">About</a>
-      <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank"
+        rel="noopener noreferrer">GitHub</a>
     </div>
   </nav>
 
@@ -138,7 +194,8 @@
     <section class="card">
       <div class="section-title">Public Changelog</div>
       <p style="color:var(--text-secondary);font-size:0.9rem;max-width:72ch;">
-        This page tracks method updates, data-quality hardening, and interface contract changes that may affect interpretation.
+        This page tracks method updates, data-quality hardening, and interface contract changes that may affect
+        interpretation.
       </p>
     </section>
 
@@ -161,7 +218,8 @@
         <div class="stamp">2026-02-22 · v1.3.2</div>
         <h3>Pre-Promo Cleanup</h3>
         <ul>
-          <li>Pinned Chart.js version and replaced high-risk dynamic HTML rendering with safe DOM text rendering paths.</li>
+          <li>Pinned Chart.js version and replaced high-risk dynamic HTML rendering with safe DOM text rendering paths.
+          </li>
           <li>Made nowcast chart live-only for non-seeded history while preserving official pre-live context.</li>
           <li>Added category readiness fallback to avoid blank panels during short live history.</li>
           <li>Published static methodology and source catalog artifacts for static-first hosting compatibility.</li>
@@ -196,4 +254,5 @@
     Experimental open-source nowcast. Not official StatCan CPI.
   </footer>
 </body>
+
 </html>

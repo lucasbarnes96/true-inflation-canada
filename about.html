@@ -7,6 +7,23 @@
   <title>About - True Inflation Canada</title>
   <meta name="description"
     content="About True Inflation Canada: goals, methodology, source transparency, strengths, shortcomings, and long-term vision." />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://trueinflation.ca/about">
+  <meta property="og:title" content="About - True Inflation Canada">
+  <meta property="og:description"
+    content="About True Inflation Canada: goals, methodology, source transparency, strengths, shortcomings, and long-term vision.">
+  <meta property="og:image" content="https://trueinflation.ca/logo.png">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://trueinflation.ca/about">
+  <meta property="twitter:title" content="About - True Inflation Canada">
+  <meta property="twitter:description"
+    content="About True Inflation Canada: goals, methodology, source transparency, strengths, shortcomings, and long-term vision.">
+  <meta property="twitter:image" content="https://trueinflation.ca/logo.png">
+
   <link rel="icon" type="image/png" href="logo.png" />
   <style>
     :root {
@@ -325,7 +342,8 @@
     <div class="nav-links">
       <a href="/">Dashboard</a>
       <a href="/changelog">Changelog</a>
-      <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank"
+        rel="noopener noreferrer">GitHub</a>
     </div>
   </nav>
 
@@ -333,8 +351,10 @@
     <section class="card hero">
       <h1>Transparent Inflation Nowcast Built on Public Data</h1>
       <p>
-        True Inflation Canada is an experimental open-source project that estimates inflation pressure between official CPI releases.
-        The goal is to provide transparent, auditable signal tracking using a monthly anchor plus a live high-frequency pulse, while
+        True Inflation Canada is an experimental open-source project that estimates inflation pressure between official
+        CPI releases.
+        The goal is to provide transparent, auditable signal tracking using a monthly anchor plus a live high-frequency
+        pulse, while
         clearly documenting caveats and uncertainty.
       </p>
       <div class="kpi-grid">
@@ -363,7 +383,8 @@
         <article class="panel">
           <h3>Primary Goal</h3>
           <p>
-            Build a public, reproducible inflation nowcast that is useful before official release dates, without requiring paid data feeds.
+            Build a public, reproducible inflation nowcast that is useful before official release dates, without
+            requiring paid data feeds.
             The project prioritizes transparency, auditability, and explicit quality gates over cosmetic precision.
           </p>
         </article>
@@ -381,7 +402,8 @@
           <ul>
             <li>Early live-history period is volatile and less statistically stable.</li>
             <li>Some CPI components are omitted in v1 due to high-frequency data quality constraints.</li>
-            <li>Public source outages, anti-bot behavior, or certificate issues can temporarily degrade motion-eligible freshness.</li>
+            <li>Public source outages, anti-bot behavior, or certificate issues can temporarily degrade motion-eligible
+              freshness.</li>
             <li>This is not an official CPI publication and should not be treated as a replacement.</li>
           </ul>
         </article>
@@ -413,8 +435,10 @@
           <h3>Signal Lifecycle vs CPI</h3>
           <ul class="timeline">
             <li><strong>Stage 1:</strong> Official CPI history provides anchor context and denominator reference.</li>
-            <li><strong>Stage 2:</strong> Monthly public inputs anchor the level while daily/weekly inputs drive the live pulse.</li>
-            <li><strong>Stage 3:</strong> As live days accumulate, nowcast series lengthens and error metrics stabilize.</li>
+            <li><strong>Stage 2:</strong> Monthly public inputs anchor the level while daily/weekly inputs drive the
+              live pulse.</li>
+            <li><strong>Stage 3:</strong> As live days accumulate, nowcast series lengthens and error metrics stabilize.
+            </li>
             <li><strong>Stage 4:</strong> Deviation and forecast outputs are published only when guardrails pass.</li>
             <li><strong>Stage 5:</strong> Relative usefulness improves over time as non-seeded live history grows.</li>
           </ul>
@@ -453,14 +477,16 @@
           <h3>Why Reuse Happens</h3>
           <ul>
             <li>Some public endpoints are intermittent (TLS chain issues, anti-bot controls, or temporary outages).</li>
-            <li>When a source fails in a run but has a recent successful timestamp, that value can be reused with explicit disclosure.</li>
+            <li>When a source fails in a run but has a recent successful timestamp, that value can be reused with
+              explicit disclosure.</li>
             <li>Reused values are tagged in diagnostics and never hidden as motion-eligible fresh collection.</li>
           </ul>
         </article>
         <article class="panel">
           <h3>How Gate Policy Handles It</h3>
           <ul>
-            <li>Publish gates evaluate motion freshness, representativeness, and required-source availability before a run is published.</li>
+            <li>Publish gates evaluate motion freshness, representativeness, and required-source availability before a
+              run is published.</li>
             <li>Guardrails can withhold consensus/deviation/forecast outputs when quality criteria are not met.</li>
             <li>This reduces overclaim risk during source degradation and early live-history calibration.</li>
           </ul>

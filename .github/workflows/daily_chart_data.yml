@@ -1,9 +1,9 @@
-name: Update M3 Asset Data
+name: Daily Chart Data Autopilot
 
 on:
   schedule:
-    # Run at 00:00 every Sunday (M3 doesn't update daily, weekly is fine)
-    - cron: '0 0 * * 0'
+    # Run at 02:00 UTC every day
+    - cron: '0 2 * * *'
   workflow_dispatch:
 
 permissions:
@@ -26,12 +26,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run M3 Data Generation
-        run: python scripts/generate_m3_data.py
+      - name: Run Chart Data Generation
+        run: python scripts/generate_chart_data.py
 
       - name: Commit and Push Changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add data/history.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update True Inflation M3 data" && git push)
+          git add data/
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update True Inflation chart data (Autopilot)" && git push)

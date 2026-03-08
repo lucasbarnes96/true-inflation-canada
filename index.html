@@ -6,7 +6,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>True Inflation Canada</title>
   <meta name="description"
-    content="A reliable macroeconomic dashboard tracking the true value of the Canadian Dollar against M3 money supply.">
+    content="A reliable macroeconomic dashboard tracking the true value of the Canadian Dollar and assets adjusting for M3 money supply and official Consumer Price Index.">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://trueinflation.ca/">
+  <meta property="og:title" content="True Inflation Canada">
+  <meta property="og:description"
+    content="A reliable macroeconomic dashboard tracking the true value of the Canadian Dollar and assets adjusting for M3 money supply and official Consumer Price Index.">
+  <meta property="og:image" content="https://trueinflation.ca/logo.png">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://trueinflation.ca/">
+  <meta property="twitter:title" content="True Inflation Canada">
+  <meta property="twitter:description"
+    content="A reliable macroeconomic dashboard tracking the true value of the Canadian Dollar and assets adjusting for M3 money supply and official Consumer Price Index.">
+  <meta property="twitter:image" content="https://trueinflation.ca/logo.png">
+
   <link rel="icon" type="image/png" href="logo.png">
 
   <!-- Fonts: Space Grotesk / Inter for the indie dev vibe -->
@@ -714,7 +731,7 @@
 
         <!-- Static CPI Box -->
         <div class="meme-container">
-          <img src="tiff_optimized.jpg" alt="Tiff Macklem inflation is transitory" class="meme-image"
+          <img src="tiff_meme.png" alt="Tiff Macklem inflation is transitory" class="meme-image"
             onerror="this.style.display='none'">
         </div>
         <div class="dynamic-box" style="padding-bottom: 0;">
@@ -990,6 +1007,35 @@
 
         // Initialize display
         update();
+
+        // Update CPI display dynamically
+        if (chartData.adjusters && chartData.adjusters.CPI) {
+          const cpiData = chartData.adjusters.CPI;
+          const vals = cpiData.values;
+          if (vals.length >= 13) {
+            const currentCpi = vals[vals.length - 1];
+            const yearAgoCpi = vals[vals.length - 13];
+            const yoyPercent = ((currentCpi / yearAgoCpi) - 1) * 100;
+            const yoyFormatted = yoyPercent.toFixed(1) + '%';
+
+            const displayEl = document.getElementById('cpi-rate-display');
+            if (displayEl) displayEl.innerText = yoyFormatted;
+
+            const text1 = document.getElementById('cpi-rate-text1');
+            if (text1) text1.innerText = yoyFormatted;
+
+            const text2 = document.getElementById('cpi-rate-text2');
+            if (text2) text2.innerText = yoyFormatted;
+
+            const monthlyPercent = (yoyPercent / 12).toFixed(1) + '%';
+            const monthlyEl = document.getElementById('cpi-monthly');
+            if (monthlyEl) monthlyEl.innerText = monthlyPercent;
+
+            const halfLife = Math.abs(yoyPercent) > 0 ? Math.round(72 / Math.abs(yoyPercent)) : '∞';
+            const halfLifeEl = document.getElementById('cpi-years-half');
+            if (halfLifeEl) halfLifeEl.innerText = halfLife;
+          }
+        }
 
       } catch (e) {
         console.error("Failed to load data", e);
