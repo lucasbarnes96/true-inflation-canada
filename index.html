@@ -124,7 +124,7 @@
     .brand-logo-container {
       width: 40px;
       height: 40px;
-      border-radius: var(--radius-sm);
+      border-radius: 50%;
       overflow: hidden;
       display: flex;
       align-items: center;
@@ -132,6 +132,12 @@
       background: var(--surface);
       border: 1px solid var(--border);
       flex-shrink: 0;
+    }
+
+    .brand-logo-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
 
     .brand-info {
@@ -260,7 +266,7 @@
     @media (min-width: 900px) {
       .dashboard-grid {
         grid-template-columns: 2.5fr 1fr;
-        gap: 0;
+        gap: 1.5rem;
       }
     }
 
@@ -381,15 +387,14 @@
     .narrative-container {
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
     }
 
     .meme-container {
       width: 100%;
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-      border: 1px solid var(--border);
-      background: var(--surface);
     }
 
     .meme-image {
@@ -400,25 +405,22 @@
     }
 
     .dynamic-box {
-      background: linear-gradient(145deg, var(--surface) 0%, var(--bg) 100%);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 1.5rem;
+      padding: 1.5rem 1.5rem 0.5rem 1.5rem;
       position: relative;
-      overflow: hidden;
     }
 
     .dynamic-box::before {
       content: '';
       position: absolute;
-      top: -20px;
-      right: -20px;
-      width: 60px;
-      height: 60px;
+      top: 0;
+      right: 0;
+      width: 80px;
+      height: 80px;
       background: var(--line-red);
-      filter: blur(40px);
-      opacity: 0.2;
+      filter: blur(50px);
+      opacity: 0.15;
       border-radius: 50%;
+      pointer-events: none;
     }
 
     .dynamic-box h3 {
@@ -426,6 +428,8 @@
       font-size: 1.5rem;
       color: var(--text);
       margin-bottom: 0.5rem;
+      position: relative;
+      z-index: 1;
     }
 
     .dynamic-box h3 span {
@@ -436,6 +440,8 @@
       font-size: 0.9rem;
       color: var(--text-secondary);
       line-height: 1.5;
+      position: relative;
+      z-index: 1;
     }
 
     .dynamic-box p span {
@@ -444,10 +450,7 @@
     }
 
     .explainer-box {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 1.5rem;
+      padding: 0.5rem 1.5rem 1.5rem 1.5rem;
       font-size: 0.9rem;
       color: var(--text-secondary);
       line-height: 1.6;
@@ -527,7 +530,7 @@
           <img src="logo.png" alt="True Inflation Logo" onerror="this.style.display='none'">
         </div>
         <div class="brand-info">
-          <div class="brand-title">True Inflation (M3)</div>
+          <div class="brand-title">True Inflation Canada</div>
           <div class="brand-subtitle">Asset debasement vs Central Bank supply</div>
         </div>
       </div>
@@ -620,12 +623,6 @@
         </div>
       </div>
     </main>
-
-    <footer>
-      True Inflation CA <span>—</span> A macroeconomic dashboard mapping nominal assets to BoC M3 Money Supply.<br>
-      Inspired by inflationchart.com. Not financial advice.<br><br>
-      <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank">View Source</a>
-    </footer>
   </div>
 
   <script>
