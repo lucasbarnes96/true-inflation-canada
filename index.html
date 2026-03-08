@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>True Inflation Canada (M3)</title>
+  <title>True Inflation Canada</title>
   <meta name="description"
     content="A reliable macroeconomic dashboard tracking the true value of the Canadian Dollar against M3 money supply.">
   <link rel="icon" type="image/png" href="logo.png">
@@ -33,8 +33,8 @@
       --border: #27272a;
       --border-hover: #3f3f46;
 
-      --accent: #3b82f6;
-      --accent-glow: rgba(59, 130, 246, 0.2);
+      --accent: #ef4444;
+      --accent-glow: rgba(239, 68, 68, 0.15);
 
       --line-green: #22c55e;
       --line-blue: #3b82f6;
@@ -458,10 +458,10 @@
       position: absolute;
       top: 0;
       right: 0;
-      width: 80px;
-      height: 80px;
+      width: 120px;
+      height: 120px;
       background: var(--line-red);
-      filter: blur(50px);
+      filter: blur(60px);
       opacity: 0.15;
       border-radius: 50%;
       pointer-events: none;
@@ -573,15 +573,17 @@
         <div class="brand-logo-container">
           <img src="logo.png" alt="True Inflation Logo" onerror="this.style.display='none'">
         </div>
-        <div class="brand-info">
-          <div class="brand-title">True Inflation Canada</div>
-          <div class="brand-subtitle">Asset debasement vs Central Bank supply</div>
+        <div class="brand-info" style="justify-content: center;">
+          <div class="brand-title" style="font-size: 1.5rem;">True Inflation Canada</div>
         </div>
       </div>
 
       <div class="header-right">
-        <div class="timestamp" id="last-updated">Fetching latest...</div>
-        <div class="header-controls">
+        <div class="header-controls" style="padding-left: 1rem;">
+          <div class="timestamp" id="last-updated"
+            style="border: none; padding: 0; background: transparent; font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary);">
+            Fetching latest...</div>
+          <div class="separator"></div>
           <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank" class="header-link">
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path
@@ -614,86 +616,175 @@
 
     <main class="dashboard-grid">
       <!-- Chart Left Side -->
-      <div class="chart-container">
-        <div class="chart-controls">
-          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; width: 100%;">
-            <select id="asset-select" style="flex: 1; min-width: 150px;">
-              <!-- Populated via JS -->
-            </select>
-            <div
-              style="display: flex; align-items: center; font-family: var(--font-display); font-weight: 700; color: var(--text-tertiary);">
-              in</div>
-            <select id="adjuster-select" style="flex: 1; min-width: 150px;">
-              <!-- Populated via JS -->
-            </select>
-          </div>
-          <div class="legend-custom">
-            <div class="legend-item" id="toggle-nominal">
-              <div class="legend-color c-green"></div> Nominal Price
+      <div class="chart-container" style="padding-top: 1rem;">
+        <div class="chart-controls" style="border-bottom: none; padding-bottom: 0; flex-direction: column; gap: 1rem;">
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; flex: 1; width: 100%;">
+
+            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+              <span
+                style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-family: var(--font-mono); font-weight: 600;">Select
+                an indicator</span>
+              <select id="asset-select"
+                style="min-width: unset; width: auto; max-width: 320px; padding: 0 0 0.2rem 0; font-size: 1.25rem; font-weight: 700; background: transparent; border: none; border-bottom: 2px solid var(--line-green); color: var(--line-green); border-radius: 0;">
+                <!-- Populated via JS -->
+              </select>
             </div>
-            <div class="legend-item" id="toggle-adjuster">
+
+            <button id="flip-button" title="Flip Assets"
+              style="background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--text-secondary); padding: 0.3rem; margin-bottom: 0.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 32px; width: 32px; transition: color 0.2s;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 1l4 4-4 4" />
+                <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                <path d="M7 23l-4-4 4-4" />
+                <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+              </svg>
+            </button>
+
+            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+              <span
+                style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-family: var(--font-mono); font-weight: 600;">As
+                measured in</span>
+              <select id="adjuster-select"
+                style="min-width: unset; width: auto; max-width: 320px; padding: 0 0 0.2rem 0; font-size: 1.25rem; font-weight: 700; background: transparent; border: none; border-bottom: 2px solid var(--line-blue); color: var(--line-blue); border-radius: 0;">
+                <!-- Populated via JS -->
+              </select>
+            </div>
+
+            <div style="flex: 1;"></div>
+
+            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+              <span
+                style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-family: var(--font-mono); font-weight: 600;">In
+                Last</span>
+              <select id="time-select"
+                style="min-width: unset; width: auto; padding: 0 0 0.2rem 0; font-size: 1.25rem; font-weight: 700; background: transparent; border: none; border-bottom: 2px solid var(--text); color: var(--text); border-radius: 0;">
+                <option value="1">1 year</option>
+                <option value="5">5 years</option>
+                <option value="10" selected>10 years</option>
+                <option value="all">All time</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="legend-custom"
+            style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 1.2rem; justify-content: flex-start; padding-top: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; width: 100%;">
+            <div class="legend-item" id="toggle-nominal" style="margin: 0;">
+              <div class="legend-color c-green"></div> <span id="nominal-name-legend">Nominal Price</span>
+            </div>
+            <div class="legend-item" id="toggle-adjuster" style="margin: 0;">
               <div class="legend-color c-blue"></div> <span id="adjuster-name-legend">Adjuster</span>
             </div>
-            <div class="legend-item" id="toggle-adjusted">
-              <div class="legend-color c-red"></div> Adjusted Price
+            <div class="legend-item" id="toggle-adjusted" style="margin: 0;">
+              <div class="legend-color c-red"></div> <span id="adjusted-name-legend">Adjusted Price</span>
             </div>
+          </div>
+
+          <div
+            style="display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 1rem; flex-wrap: wrap; padding-top: 0.5rem; width: 100%;">
+            <label
+              style="font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.4rem; cursor: pointer; user-select: none; margin: 0;">
+              <input type="checkbox" id="log-toggle-check"
+                style="cursor: pointer; width: 14px; height: 14px; margin: 0;"> Logarithmic
+            </label>
+            <label
+              style="font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.4rem; cursor: pointer; user-select: none; margin: 0;">
+              <input type="checkbox" id="zero-toggle-check"
+                style="cursor: pointer; width: 14px; height: 14px; margin: 0;"> Begin at zero
+            </label>
+            <div style="flex: 1;"></div>
+            <button id="download-csv"
+              style="background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 0.4rem 0.8rem; border-radius: var(--radius-sm); font-size: 0.85rem; cursor: pointer; font-family: var(--font-body); font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0;">
+              <svg style="width:14px;height:14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+              </svg> Download
+            </button>
           </div>
         </div>
         <div class="canvas-wrapper">
+
           <canvas id="mainChart"></canvas>
         </div>
       </div>
 
+
       <!-- Narrative Right Side -->
       <div class="narrative-container">
+
+        <!-- Static CPI Box -->
         <div class="meme-container">
-          <img src="tiff_optimized.jpg" alt="Tiff Macklem inflation is transitory meme" class="meme-image">
+          <img src="tiff_optimized.jpg" alt="Tiff Macklem inflation is transitory" class="meme-image"
+            onerror="this.style.display='none'">
         </div>
-
-        <div class="dynamic-box">
-          <h1
-            style="font-size: 4rem; margin-bottom: 0.5rem; line-height: 1; font-family: var(--font-display); font-weight: 700; position: relative; z-index: 1;">
-            <span id="cpi-rate">...</span>
-          </h1>
-          <p
-            style="font-size: 1.1rem; font-weight: 600; color: var(--text); line-height: 1.5; position: relative; z-index: 1;">
-            Inflation is <span id="cpi-tone">...</span> at <span id="cpi-rate-text">...</span> per year. <span
-              id="cpi-meaning">...</span></p>
-          <br>
-          <p
-            style="font-size: 1.1rem; font-weight: 600; color: var(--text); line-height: 1.5; position: relative; z-index: 1;">
-            You're still losing <span id="cpi-rate-loss">...</span> of your money to inflation per year or <span
-              id="cpi-rate-monthly">...</span> per month. At this rate, in <span id="cpi-years-half">...</span> years
-            over 50% of your money has evaporated.</p>
-
-          <p
-            style="margin-top: 1.5rem; font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); position: relative; z-index: 1;">
-            💨 <a href="rates.html" style="color: var(--line-red); text-decoration: underline;">See historical inflation
-              rates</a> as measured by True Inflation Canada.</p>
-
-          <p
-            style="margin-top: 1.5rem; font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); position: relative; z-index: 1;">
-            📈 This website tracks the real inflation which sometimes happens that governments <span
-              style="color: var(--line-red);">don't like to tell you</span> about <span
-              style="color: var(--line-red);">in their official numbers</span>.</p>
+        <div class="dynamic-box" style="padding-bottom: 0;">
+          <h2
+            style="font-family: var(--font-display); font-size: 3.5rem; font-weight: 800; margin-bottom: 1rem; line-height: 1; letter-spacing: -2px;">
+            <span id="cpi-rate-display">2.3%</span>
+          </h2>
+          <p style="font-size: 1.05rem; color: var(--text); font-weight: 700; line-height: 1.5; margin-bottom: 1.5rem;">
+            Inflation is stable and low at <span id="cpi-rate-text1">2.3%</span> per year. This means your money is
+            currently not losing much value over time.
+          </p>
+          <p style="font-size: 1.05rem; color: var(--text); font-weight: 700; line-height: 1.5; margin-bottom: 2rem;">
+            You're still losing <span id="cpi-rate-text2">2.3%</span> of your money to inflation per year or <span
+              id="cpi-monthly">0.2%</span> per month. At this rate, in <span id="cpi-years-half">31</span> years over
+            50% of your money has evaporated.
+          </p>
+          <div style="height: 1px; background: var(--border); margin: 0 -1.5rem 1.5rem -1.5rem;"></div>
         </div>
 
         <div class="explainer-box">
-          <h4>Explain like I'm 5 years old?</h4>
-          <p>👶 Let's start: select [TSX Composite] from the dropdown. The TSX is the stock market index for Canadian
-            companies. M3 is all Canadian money in circulation.</p>
-          <p><span class="dot-green"></span> The <strong>green line</strong> is the actual nominal price of the asset
-            throughout history.</p>
-          <p><span class="dot-blue"></span> The <strong>blue line</strong> is the M3 money in circulation (scaled to
-            match the start date).</p>
-          <p><span class="dot-red"></span> The <strong>red line</strong> is the asset divided by M3.</p>
-          <p>Look at the <span class="dot-red" style="width:8px; height:8px"></span> red line during recent crises.
-            That's when the Bank of Canada and other central banks started printing money from thin air. You don't see
-            that in the green line—nominal prices look like they've never been higher. But if you look at the red line,
-            the true value of the asset has barely recovered. The official prices of stocks don't tell the whole story
-            of the economy.</p>
+          <h4>What is this?</h4>
+          <p>This chart shows <span class="dot-green"></span> the absolute price (like the price you see in the real
+            world) vs. <span class="dot-red"></span> the inflation-adjusted price of the stock market (or another market
+            indicator you select). You can inflation-adjust it by the U.S.-dollar money supply M1, M2 or MB (the money
+            base), CPI, Big Mac, Gold, BTC, ETH or many other adjusters.</p>
+          <p>📉 Combining data sets we can adjust the stock market, or home prices, or food prices, for inflation and
+            find that even if it looks like stock markets and home prices are going up, they may actually be going down
+            in real value.</p>
+
+          <h4 style="margin-top: 2rem;">Explain like I'm 5 years old? 👶</h4>
+          <p>Select [S&P 500 (CAD)] and [M3] at the top.</p>
+          <ul style="padding-left: 1.5rem; margin-bottom: 1rem;">
+            <li><span class="dot-green"></span> Green = normal S&P 500 price you see on TV (in CAD)</li>
+            <li><span class="dot-blue"></span> Blue = how much money the Bank of Canada has created (M3)</li>
+            <li><span class="dot-red"></span> Red = real S&P 500 value after adjusting for all that extra money</li>
+          </ul>
+          <p>When the Bank prints a lot (2008, 2020, 2021), the red line shows your purchasing power getting crushed —
+            even if the green line hits new highs. Official CPI misses a lot of this story.</p>
+
+          <h4 style="margin-top: 2rem;">Quick Explainer: Our Measures</h4>
+          <ul style="padding-left: 1.5rem; margin-bottom: 1rem;">
+            <li><strong>M1+ / M1++ / M3</strong>: Bank of Canada money supply (narrow to broad). Shows actual money
+              creation.</li>
+            <li><strong>CPI</strong>: Official Statistics Canada consumer price index (lagging, excludes houses/stocks).
+            </li>
+          </ul>
+
+          <h4 style="margin-top: 2rem; margin-bottom: 1rem;">Most popular comparisons</h4>
+          <div style="display: flex; flex-direction: column; gap: 0.8rem; font-size: 1rem; font-weight: 500;">
+            <a href="/tsx-in-house" style="color: var(--line-red); text-decoration: underline;">TSX in House
+              Prices</a>
+            <a href="/tsx-in-m3" style="color: var(--line-red); text-decoration: underline;">TSX in M3</a>
+            <a href="/income-in-m3" style="color: var(--line-red); text-decoration: underline;">Median Income in M3</a>
+            <a href="/house-in-m3" style="color: var(--line-red); text-decoration: underline;">House Prices in M3</a>
+            <a href="/tsx-in-gold" style="color: var(--line-red); text-decoration: underline;">TSX in Gold</a>
+            <a href="/btc-in-m3" style="color: var(--line-red); text-decoration: underline;">Bitcoin in M3</a>
+            <a href="/tsx-in-productivity" style="color: var(--line-red); text-decoration: underline;">TSX vs
+              Productivity</a>
+            <a href="/tsx-in-cpi" style="color: var(--line-red); text-decoration: underline;">TSX in CPI</a>
+          </div>
+
+          <p style="font-size: 0.9rem; color: var(--text-tertiary); margin-top: 3rem; line-height: 1.5;">
+            Made in Canada 🇨🇦 by <a href="https://x.com/BarnesLucas_" target="_blank"
+              style="color: inherit; text-decoration: underline;">Lucas Barnes</a>, inspired by <a
+              href="https://x.com/levelsio" target="_blank"
+              style="color: inherit; text-decoration: underline;">levelsio</a>
+          </p>
         </div>
       </div>
+
     </main>
   </div>
 
@@ -713,117 +804,224 @@
       }
     });
 
+
     let chartData = null;
     let windowChart = null;
     let visibility = { nominal: true, adjuster: true, adjusted: true };
+    let useLogScale = false;
+    let beginAtZero = false;
+    let currentAsset = '';
+    let currentAdjuster = '';
+    let currentTimeInterval = '10';
+    let currentDates = [];
+    let currentNominal = [];
+    let currentAdjusted = [];
+    let allIndicators = {};
 
-    function initCPI(chartData) {
-      try {
-        const cpiData = chartData.adjusters['CPI'];
-        if (cpiData && cpiData.values.length >= 13) {
-          // The arrays are chronological, so the last element is the newest
-          const recentVal = cpiData.values[cpiData.values.length - 1];
-          const oldVal = cpiData.values[cpiData.values.length - 13];
-          const rate = (recentVal / oldVal) - 1;
-          const ratePct = (rate * 100).toFixed(1);
+    // URL slug to full name mappings
+    const slugMap = {
+      'tsx': 'TSX',
+      'sp500': 'S&P 500 (CAD)',
+      'nasdaq': 'NASDAQ (CAD)',
+      'dowjones': 'Dow Jones (CAD)',
+      'reits': 'Canadian REITs',
+      'btc': 'Bitcoin (CAD)',
+      'eth': 'Ethereum (CAD)',
+      'oil': 'Crude Oil',
+      'gold': 'Gold (CAD)',
+      'silver': 'Silver (CAD)',
+      'house': 'Canadian House Prices (NHPI)',
+      'productivity': 'Labour Productivity',
+      'income': 'Median Household Income'
+    };
+    const reverseSlugMap = Object.entries(slugMap).reduce((acc, [k, v]) => { acc[v] = k; return acc; }, {});
 
-          document.getElementById('cpi-rate').innerText = ratePct + '%';
-          document.getElementById('cpi-rate-text').innerText = ratePct + '%';
-          document.getElementById('cpi-rate-loss').innerText = ratePct + '%';
-
-          const monthlyRate = (Math.pow(1 + rate, 1 / 12) - 1);
-          document.getElementById('cpi-rate-monthly').innerText = (monthlyRate * 100).toFixed(1) + '%';
-
-          let tone = "stable and low";
-          let meaning = "This means your money is currently not losing much value over time.";
-          if (rate < 0) {
-            tone = "negative";
-            meaning = "This means your money is actually gaining purchasing power.";
-          } else if (rate >= 0.05) {
-            tone = "very high";
-            meaning = "This means your money is rapidly losing its purchasing power.";
-          } else if (rate >= 0.03) {
-            tone = "high and concerning";
-            meaning = "This means your money is losing value at a noticeable pace.";
-          }
-
-          document.getElementById('cpi-tone').innerText = tone;
-          document.getElementById('cpi-meaning').innerText = meaning;
-
-          const yearsHalf = rate > 0 ? Math.round(Math.log(2) / Math.log(1 + rate)) : '∞';
-          document.getElementById('cpi-years-half').innerText = yearsHalf;
-        }
-      } catch (e) {
-        console.error("Failed to calculate CPI headline", e);
-      }
+    function nameToSlug(name) {
+      if (reverseSlugMap[name]) return reverseSlugMap[name];
+      return name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     }
+
+    // Toggles Logic
+    const logBtn = document.getElementById('log-toggle-check');
+    logBtn.addEventListener('change', (e) => {
+      useLogScale = e.target.checked;
+      if (windowChart) {
+        windowChart.options.scales.y.type = useLogScale ? 'logarithmic' : 'linear';
+        windowChart.update();
+      }
+    });
+
+    const zeroBtn = document.getElementById('zero-toggle-check');
+    zeroBtn.addEventListener('change', (e) => {
+      beginAtZero = e.target.checked;
+      if (windowChart) {
+        windowChart.options.scales.y.min = beginAtZero ? 0 : undefined;
+        windowChart.update();
+      }
+    });
+
+    // CSV Download
+    const dlBtn = document.getElementById('download-csv');
+    dlBtn.addEventListener('click', () => {
+      if (!currentDates.length) return;
+      let csv = "Date,Nominal Price,Adjusted Price\\n";
+      for (let i = 0; i < currentDates.length; i++) {
+        csv += `${currentDates[i]},${currentNominal[i]},${currentAdjusted[i]}\\n`;
+      }
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `true-inflation-${nameToSlug(currentAsset)}-in-${nameToSlug(currentAdjuster)}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+
+
 
     async function init() {
       try {
         const res = await fetch('data/chart_data.json');
         chartData = await res.json();
-        initCPI(chartData);
+        allIndicators = { ...chartData.assets, ...chartData.adjusters };
 
         const assetSelect = document.getElementById('asset-select');
         const adjusterSelect = document.getElementById('adjuster-select');
+        const timeSelect = document.getElementById('time-select');
+        const flipBtn = document.getElementById('flip-button');
 
-        Object.keys(chartData.assets).forEach(asset => {
-          const opt = document.createElement('option');
-          opt.value = asset;
-          opt.innerText = asset;
-          assetSelect.appendChild(opt);
+        Object.keys(allIndicators).forEach(ind => {
+          const opt1 = document.createElement('option');
+          opt1.value = ind;
+          opt1.innerText = ind;
+          assetSelect.appendChild(opt1);
+
+          const opt2 = document.createElement('option');
+          opt2.value = ind;
+          opt2.innerText = ind;
+          adjusterSelect.appendChild(opt2);
         });
 
-        Object.keys(chartData.adjusters).forEach(adj => {
-          const opt = document.createElement('option');
-          opt.value = adj;
-          opt.innerText = adj;
-          adjusterSelect.appendChild(opt);
-        });
-
-        // URL Routing
-        const params = new URLSearchParams(window.location.search);
-        if (params.has('asset')) assetSelect.value = params.get('asset');
-        if (params.has('adjuster')) adjusterSelect.value = params.get('adjuster');
-
-        // Current Date
         const now = new Date();
         document.getElementById('last-updated').innerText = `Last updated: ${now.toISOString().split('T')[0]}`;
+
+        // Handle URL Path like /tsx-in-m3
+        const path = window.location.pathname.replace(/^\/+|\/+$/g, '');
+        let initialAsset = 'TSX';
+        let initialAdjuster = 'M3';
+
+        if (path && path.includes('-in-')) {
+          const parts = path.split('-in-');
+          if (parts.length === 2) {
+            const pAsset = parts[0].toLowerCase();
+            const pAdj = parts[1].toLowerCase();
+
+            if (slugMap[pAsset]) initialAsset = slugMap[pAsset];
+            else {
+              let directMatch = Object.keys(allIndicators).find(k => k.toLowerCase().replace(/[^a-z0-9]+/g, '') === pAsset.replace(/[^a-z0-9]+/g, ''));
+              if (directMatch) initialAsset = directMatch;
+            }
+
+            if (slugMap[pAdj]) initialAdjuster = slugMap[pAdj];
+            else {
+              let directAdjMatch = Object.keys(allIndicators).find(k => k.toLowerCase().replace(/[^a-z0-9]+/g, '') === pAdj.replace(/[^a-z0-9]+/g, ''));
+              if (directAdjMatch) initialAdjuster = directAdjMatch;
+            }
+          }
+        }
+
+        assetSelect.value = initialAsset;
+        if (!assetSelect.value) assetSelect.selectedIndex = 0;
+        adjusterSelect.value = initialAdjuster;
+        if (!adjusterSelect.value) adjusterSelect.selectedIndex = 0;
 
         const update = () => {
           const asset = assetSelect.value;
           const adjuster = adjusterSelect.value;
+          currentTimeInterval = timeSelect.value;
 
-          // Update URL without reload
-          const url = new URL(window.location);
-          url.searchParams.set('asset', asset);
-          url.searchParams.set('adjuster', adjuster);
-          window.history.pushState({}, '', url);
+          // Update URL Path without reload
+          const aSlug = nameToSlug(asset);
+          const adjSlug = nameToSlug(adjuster);
+          const newPath = `/${aSlug}-in-${adjSlug}`;
+          window.history.pushState({}, '', newPath);
 
           drawChart(asset, adjuster);
         };
 
         assetSelect.addEventListener('change', update);
         adjusterSelect.addEventListener('change', update);
+        timeSelect.addEventListener('change', update);
 
+        flipBtn.addEventListener('click', () => {
+          const temp = assetSelect.value;
+          assetSelect.value = adjusterSelect.value;
+          adjusterSelect.value = temp;
+          update();
+        });
+
+        // Handle clicks on internal links
+        document.body.addEventListener('click', e => {
+          if (e.target.tagName === 'A' && e.target.getAttribute('href') && e.target.getAttribute('href').includes('-in-')) {
+            e.preventDefault();
+            const path = e.target.getAttribute('href').replace(/^\/+|\/+$/g, '');
+            const parts = path.split('-in-');
+            if (parts.length === 2) {
+              const pAsset = parts[0].toLowerCase();
+              const pAdj = parts[1].toLowerCase();
+
+              if (slugMap[pAsset]) assetSelect.value = slugMap[pAsset];
+              else {
+                let directMatch = Object.keys(allIndicators).find(k => k.toLowerCase().replace(/[^a-z0-9]+/g, '') === pAsset.replace(/[^a-z0-9]+/g, ''));
+                if (directMatch) assetSelect.value = directMatch;
+              }
+
+              if (slugMap[pAdj]) adjusterSelect.value = slugMap[pAdj];
+              else {
+                let directAdjMatch = Object.keys(allIndicators).find(k => k.toLowerCase().replace(/[^a-z0-9]+/g, '') === pAdj.replace(/[^a-z0-9]+/g, ''));
+                if (directAdjMatch) adjusterSelect.value = directAdjMatch;
+              }
+              update();
+            }
+          }
+        });
+
+        // Initialize display
         update();
 
       } catch (e) {
         console.error("Failed to load data", e);
-        document.getElementById('last-updated').innerText = "Data load error";
+        document.getElementById('last-updated').innerText = "Last updated: Error";
       }
     }
 
     function drawChart(assetName, adjusterName) {
-      const asset = chartData.assets[assetName];
-      const adjuster = chartData.adjusters[adjusterName];
+
+      const asset = allIndicators[assetName];
+      const adjuster = allIndicators[adjusterName];
       if (!asset || !adjuster) return;
 
-      document.getElementById('adjuster-name-legend').innerText = `${adjusterName} Supply`;
+      document.getElementById('nominal-name-legend').innerText = assetName;
+      document.getElementById('adjuster-name-legend').innerText = adjusterName;
+      document.getElementById('adjusted-name-legend').innerText = `${assetName} / ${adjusterName}`;
 
       // Align dates (Assets and Adjusters might have different ranges)
       // Find intersection of dates
-      const dates = asset.dates.filter(d => adjuster.dates.includes(d));
+      let dates = asset.dates.filter(d => adjuster.dates.includes(d));
+
+      // Filter by time interval
+      if (currentTimeInterval !== 'all') {
+        const years = parseInt(currentTimeInterval, 10);
+        const cutoffDate = new Date();
+        cutoffDate.setFullYear(cutoffDate.getFullYear() - years);
+        const cutoffStr = cutoffDate.toISOString().split('T')[0].substring(0, 7); // YYYY-MM
+        dates = dates.filter(d => d >= cutoffStr);
+      }
+
+      if (dates.length === 0) return;
+
       const assetValues = dates.map(d => asset.values[asset.dates.indexOf(d)]);
       const adjusterValues = dates.map(d => adjuster.values[adjuster.dates.indexOf(d)]);
 
@@ -836,6 +1034,12 @@
 
       // Calculate adjusted price (nominal / normalized_adjuster)
       const adjustedValues = assetValues.map((v, i) => v / adjNormalized[i]);
+
+      currentAsset = assetName;
+      currentAdjuster = adjusterName;
+      currentDates = dates;
+      currentNominal = assetValues;
+      currentAdjusted = adjustedValues;
 
       const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
       const textColor = isDark ? '#fafafa' : '#09090b';

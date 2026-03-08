@@ -3,13 +3,12 @@ import pandas as pd
 import requests
 import json
 import os
+import urllib.request
+import zipfile
+import io
 from datetime import datetime
 
 # Bank of Canada Valet API Series IDs
-# M1+: V41552785
-# M1++: V41552788
-# M2++: V41552792
-# M3: V41552794
 ADJUSTERS_CONFIG = {
     'M1+': 'V41552785',
     'M1++': 'V41552788',
@@ -18,17 +17,21 @@ ADJUSTERS_CONFIG = {
     'CPI': 'V41690973' # CPI All-items
 }
 
-ASSETS_CONFIG = {
-    'TSX Composite': '^GSPTSE',
-    'S&P 500': '^GSPC',
+ASSETS_YAHOO_DIRECT = {
+    'TSX': '^GSPTSE',
     'Canadian REITs': 'XRE.TO',
-    'Gold (USD)': 'GC=F',
-    'Bitcoin (USD)': 'BTC-USD',
+    'Bitcoin (CAD)': 'BTC-CAD',
+    'Ethereum (CAD)': 'ETH-CAD',
     'Crude Oil': 'CL=F'
 }
 
-# TODO: Add StatCan Housing, Income, Food indices if possible via direct API/CSV
-# For now, we'll start with these stable Yahoo/BoC ones.
+ASSETS_YAHOO_CALC_CAD = {
+    'S&P 500 (CAD)': '^GSPC',
+    'NASDAQ (CAD)': '^IXIC',
+    'Dow Jones (CAD)': '^DJI',
+    'Gold (CAD)': 'GC=F',
+    'Silver (CAD)': 'SI=F'
+}
 
 def fetch_valet_series(series_id):
     url = f"https://www.bankofcanada.ca/valet/observations/{series_id}/json"
@@ -45,6 +48,25 @@ def fetch_valet_series(series_id):
     df = pd.DataFrame(records).set_index('Date')
     return df.resample('ME').last().ffill()
 
+def fetch_statcan_csv(url, filter_func):
+    print(f"  Downloading StatCan {url}...")
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    with urllib.request.urlopen(req) as response:
+        with zipfile.ZipFile(io.BytesIO(response.read())) as z:
+            csv_filename = z.namelist()[0]
+            with z.open(csv_filename) as f:
+                df = pd.read_csv(f)
+                filtered = filter_func(df)
+                
+                # Format index to Date
+                if 'REF_DATE' in filtered.columns:
+                    # some are YYYY, some are YYYY-MM
+                    filtered['Date'] = pd.to_datetime(filtered['REF_DATE'], format="mixed", errors='coerce')
+                    filtered = filtered.set_index('Date')
+                    filtered = filtered[['VALUE']].rename(columns={'VALUE': 'Value'})
+                    return filtered
+    return pd.DataFrame()
+
 def generate_chart_data():
     output = {
         'metadata': {
@@ -60,8 +82,7 @@ def generate_chart_data():
         print(f"  Fetching {name}...")
         try:
             df = fetch_valet_series(s_id)
-            # Normalize to 1.0 at its own start for now (frontend will re-normalize as needed)
-            first_val = df['Value'].iloc[0]
+            first_val = df['Value'].dropna().iloc[0]
             output['adjusters'][name] = {
                 'dates': df.index.strftime('%Y-%m').tolist(),
                 'values': df['Value'].tolist(),
@@ -71,7 +92,7 @@ def generate_chart_data():
             print(f"  Error fetching {name}: {e}")
 
     print("Fetching Assets from Yahoo Finance...")
-    for name, ticker in ASSETS_CONFIG.items():
+    for name, ticker in ASSETS_YAHOO_DIRECT.items():
         print(f"  Fetching {name}...")
         try:
             t_obj = yf.Ticker(ticker)
@@ -82,12 +103,79 @@ def generate_chart_data():
             hist_monthly.index = hist_monthly.index.tz_localize(None)
             
             output['assets'][name] = {
-                'ticker': ticker,
                 'dates': hist_monthly.index.strftime('%Y-%m').tolist(),
                 'values': hist_monthly.round(2).tolist()
             }
         except Exception as e:
             print(f"  Error fetching {name}: {e}")
+
+    print("Fetching CAD exchange rate for calculations...")
+    try:
+        cad_ticker = yf.Ticker("CAD=X")
+        cad_hist = cad_ticker.history(period="max")['Close'].resample('ME').last()
+        cad_hist.index = cad_hist.index.tz_localize(None)
+        
+        for name, ticker in ASSETS_YAHOO_CALC_CAD.items():
+            print(f"  Fetching {name}...")
+            t_obj = yf.Ticker(ticker)
+            hist = t_obj.history(period="max")['Close'].resample('ME').last()
+            hist.index = hist.index.tz_localize(None)
+            
+            # Multiply by CAD=X
+            combined = (hist * cad_hist).dropna()
+            
+            output['assets'][name] = {
+                'dates': combined.index.strftime('%Y-%m').tolist(),
+                'values': combined.round(2).tolist()
+            }
+    except Exception as e:
+        print(f"  Error fetching Yahoo Calc: {e}")
+
+    print("Fetching StatCan Data...")
+    
+    # 1. NHPI
+    try:
+        def filter_nhpi(df):
+            return df[(df['GEO'] == 'Canada') & (df['New housing price indexes'] == 'Total (house and land)')]
+        df_nhpi = fetch_statcan_csv("https://www150.statcan.gc.ca/n1/en/tbl/csv/18100205-eng.zip", filter_nhpi)
+        if not df_nhpi.empty:
+            df_monthly = df_nhpi.resample('ME').last().ffill()
+            output['assets']['Canadian House Prices (NHPI)'] = {
+                'dates': df_monthly.index.strftime('%Y-%m').tolist(),
+                'values': df_monthly['Value'].round(2).tolist()
+            }
+    except Exception as e:
+         print(f"  Error fetching NHPI: {e}")
+
+    # 2. Labour Productivity
+    try:
+        def filter_prod(df):
+            return df[(df['GEO'] == 'Canada') & (df['Sector'] == 'Business sector') & (df['Labour productivity measures and related measures'] == 'Labour productivity')]
+        df_prod = fetch_statcan_csv("https://www150.statcan.gc.ca/n1/en/tbl/csv/36100206-eng.zip", filter_prod)
+        if not df_prod.empty:
+            df_monthly = df_prod.resample('ME').ffill() # forward fill quarters to months
+            output['assets']['Labour Productivity'] = {
+                'dates': df_monthly.index.strftime('%Y-%m').tolist(),
+                'values': df_monthly['Value'].round(2).tolist()
+            }
+    except Exception as e:
+         print(f"  Error fetching Labour Productivity: {e}")
+
+    # 3. Median Income
+    try:
+        def filter_inc(df):
+            return df[(df['GEO'] == 'Canada') & (df['Income concept'] == 'Median market income') & (df['Economic family type'] == 'Economic families and persons not in an economic family')]
+        df_inc = fetch_statcan_csv("https://www150.statcan.gc.ca/n1/en/tbl/csv/11100190-eng.zip", filter_inc)
+        if not df_inc.empty:
+            # Income is annual, forward fill to months
+            df_monthly = df_inc.resample('ME').ffill()
+            output['assets']['Median Household Income'] = {
+                'dates': df_monthly.index.strftime('%Y-%m').tolist(),
+                'values': df_monthly['Value'].round(2).tolist()
+            }
+    except Exception as e:
+         print(f"  Error fetching Median Income: {e}")
+
 
     print("Saving to data/chart_data.json...")
     os.makedirs('data', exist_ok=True)
