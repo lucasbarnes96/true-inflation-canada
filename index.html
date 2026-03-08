@@ -384,6 +384,21 @@
       gap: 1.5rem;
     }
 
+    .meme-container {
+      width: 100%;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .meme-image {
+      width: 100%;
+      height: auto;
+      display: block;
+      object-fit: cover;
+    }
+
     .dynamic-box {
       background: linear-gradient(145deg, var(--surface) 0%, var(--bg) 100%);
       border: 1px solid var(--border);
@@ -576,6 +591,10 @@
 
       <!-- Narrative Right Side -->
       <div class="narrative-container">
+        <div class="meme-container">
+          <img src="tiff_optimized.jpg" alt="Tiff Macklem inflation is transitory meme" class="meme-image">
+        </div>
+
         <div class="dynamic-box">
           <h3><span id="debasement-rate">...</span> loss per year</h3>
           <p>You're losing roughly <span id="debasement-value">...</span> of your purchasing power (measured via <span
