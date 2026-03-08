@@ -171,6 +171,7 @@
       color: var(--text-tertiary);
       font-size: 0.75rem;
       padding: 0.4rem 0 1rem;
+      margin-top: 2rem;
       line-height: 1.6;
     }
   </style>
@@ -184,6 +185,7 @@
     </div>
     <div class="nav-links">
       <a href="/">Dashboard</a>
+      <a href="/rates">Rates</a>
       <a href="/about">About</a>
       <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank"
         rel="noopener noreferrer">GitHub</a>
@@ -194,8 +196,7 @@
     <section class="card">
       <div class="section-title">Public Changelog</div>
       <p style="color:var(--text-secondary);font-size:0.9rem;max-width:72ch;">
-        This page tracks method updates, data-quality hardening, and interface contract changes that may affect
-        interpretation.
+        This page tracks major platform and methodology updates.
       </p>
     </section>
 
@@ -203,55 +204,29 @@
       <div class="section-title">Recent Entries</div>
 
       <article class="entry">
-        <div class="stamp">2026-02-23 · v1.3.3</div>
-        <h3>Post-Critique Hardening</h3>
+        <div class="stamp">2026-03-08 · v2.0.0</div>
+        <h3>Lean Macro Refactor</h3>
         <ul>
-          <li>Added explicit pending-state UX copy and tooltips for key cards.</li>
-          <li>Added live-history progress meter and sticky experimental disclaimer behavior.</li>
-          <li>Extended source health with structured `error_class`, `status_reason`, and `pending_reason` fields.</li>
-          <li>Added about-page runtime source status join (catalog + latest source health).</li>
-          <li>Added alert dedupe/severity logic in GitHub workflows to reduce issue noise.</li>
-        </ul>
-      </article>
-
-      <article class="entry">
-        <div class="stamp">2026-02-22 · v1.3.2</div>
-        <h3>Pre-Promo Cleanup</h3>
-        <ul>
-          <li>Pinned Chart.js version and replaced high-risk dynamic HTML rendering with safe DOM text rendering paths.
+          <li><strong>Complete Backend Rewrite:</strong> Deleted the entirety of the legacy FastAPI/Apify data pipeline
+            to focus purely on vast macro-economic indicators.</li>
+          <li><strong>Auto-Pilot Architecture:</strong> Introduced a fully autonomous GitHub Actions pipeline that
+            generates a static flat JSON file (`chart_data.json`) nightly, radically simplifying deployment and hosting.
           </li>
-          <li>Made nowcast chart live-only for non-seeded history while preserving official pre-live context.</li>
-          <li>Added category readiness fallback to avoid blank panels during short live history.</li>
-          <li>Published static methodology and source catalog artifacts for static-first hosting compatibility.</li>
+          <li><strong>Interactive Deep Charting:</strong> Added sophisticated dual-line charting capabilities allowing
+            users to plot any asset against any inflation adjuster (M1+, M3, CPI) dynamically.</li>
+          <li><strong>Dynamic Text Content:</strong> The application now computes accurate YoY percentages and metrics
+            entirely client-side based on the latest data inputs.</li>
+          <li><strong>Optimized Link Sharing:</strong> Injected full suites of Open Graph and Twitter Card tags to all
+            routing endpoints to guarantee perfect unfurling across social media platforms.</li>
         </ul>
       </article>
 
-      <article class="entry">
-        <div class="stamp">2026-02-17 · v1.3.0</div>
-        <h3>Calibration and Forecast Controls</h3>
-        <ul>
-          <li>Introduced calibration diagnostics and maturity tiers tied to live-history depth.</li>
-          <li>Enabled consensus/deviation/forecast guardrails to withhold weak signals.</li>
-          <li>Expanded public QA diagnostics and gate transparency fields.</li>
-        </ul>
-      </article>
     </section>
 
-    <section class="card">
-      <div class="section-title">Method/Data Contract Changes</div>
-      <article class="entry">
-        <h3>Current Contract Surface</h3>
-        <ul>
-          <li>`data/methodology.json` and `data/source_catalog.json` are primary static metadata artifacts.</li>
-          <li>`source_health` rows include ingestion semantics and structured failure metadata.</li>
-          <li>Seeded historical points are treated as official-only context, not live nowcast observations.</li>
-        </ul>
-      </article>
-    </section>
   </main>
 
   <footer class="footer">
-    Experimental open-source nowcast. Not official StatCan CPI.
+    Experimental open-source project. Not official StatCan CPI.
   </footer>
 </body>
 

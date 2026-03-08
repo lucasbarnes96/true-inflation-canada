@@ -61,8 +61,12 @@
       "destination": "/about.html"
     },
     {
-      "source": "/about.html",
-      "destination": "/about.html"
+      "source": "/changelog",
+      "destination": "/changelog.html"
+    },
+    {
+      "source": "/rates",
+      "destination": "/rates.html"
     },
     {
       "source": "/((?!data/).*)",

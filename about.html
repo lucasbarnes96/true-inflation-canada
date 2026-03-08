@@ -6,14 +6,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>About - True Inflation Canada</title>
   <meta name="description"
-    content="About True Inflation Canada: goals, methodology, source transparency, strengths, shortcomings, and long-term vision." />
+    content="About True Inflation Canada: The macroeconomic dashboard tracking the true value of the Canadian Dollar." />
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://trueinflation.ca/about">
   <meta property="og:title" content="About - True Inflation Canada">
   <meta property="og:description"
-    content="About True Inflation Canada: goals, methodology, source transparency, strengths, shortcomings, and long-term vision.">
+    content="About True Inflation Canada: The macroeconomic dashboard tracking the true value of the Canadian Dollar.">
   <meta property="og:image" content="https://trueinflation.ca/logo.png">
 
   <!-- Twitter -->
@@ -21,7 +21,7 @@
   <meta property="twitter:url" content="https://trueinflation.ca/about">
   <meta property="twitter:title" content="About - True Inflation Canada">
   <meta property="twitter:description"
-    content="About True Inflation Canada: goals, methodology, source transparency, strengths, shortcomings, and long-term vision.">
+    content="About True Inflation Canada: The macroeconomic dashboard tracking the true value of the Canadian Dollar.">
   <meta property="twitter:image" content="https://trueinflation.ca/logo.png">
 
   <link rel="icon" type="image/png" href="logo.png" />
@@ -125,6 +125,8 @@
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow-md);
       padding: 1.2rem;
+      max-width: 800px;
+      margin: 0 auto;
     }
 
     .hero h1 {
@@ -136,41 +138,6 @@
     .hero p {
       color: var(--text-secondary);
       max-width: 920px;
-    }
-
-    .kpi-grid {
-      margin-top: 0.85rem;
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 0.55rem;
-    }
-
-    @media (max-width: 800px) {
-      .kpi-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
-    .kpi {
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      background: var(--surface-2);
-      padding: 0.7rem 0.8rem;
-    }
-
-    .kpi .label {
-      font-size: 0.67rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-tertiary);
-      margin-bottom: 0.2rem;
-    }
-
-    .kpi .value {
-      font-size: 0.94rem;
-      font-weight: 700;
-      font-family: var(--font-mono);
-      color: var(--text);
     }
 
     .section-title {
@@ -218,115 +185,11 @@
       gap: 0.32rem;
     }
 
-    .formula-list code {
-      font-family: var(--font-mono);
-      font-size: 0.83rem;
-      background: #f1efec;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 0.08rem 0.35rem;
-    }
-
-    .timeline {
-      display: grid;
-      gap: 0.42rem;
-      margin-top: 0.55rem;
-    }
-
-    .timeline li {
-      list-style: none;
-      border-left: 2px solid rgba(0, 113, 227, 0.25);
-      padding-left: 0.65rem;
-    }
-
-    .table-wrap {
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border);
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 1320px;
-      font-size: 0.8rem;
-    }
-
-    th,
-    td {
-      text-align: left;
-      vertical-align: top;
-      border-bottom: 1px solid var(--border);
-      padding: 0.55rem 0.6rem;
-    }
-
-    th {
-      font-size: 0.68rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-tertiary);
-      background: #f9f8f6;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
-
-    td {
-      color: var(--text-secondary);
-      overflow-wrap: anywhere;
-    }
-
-    .status-pill {
-      display: inline-block;
-      border-radius: 999px;
-      font-size: 0.68rem;
-      font-weight: 700;
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
-      padding: 0.14rem 0.46rem;
-      border: 1px solid transparent;
-      font-family: var(--font-mono);
-    }
-
-    .status-pill.ok {
-      color: #1a7f2e;
-      border-color: rgba(47, 161, 68, 0.28);
-      background: rgba(47, 161, 68, 0.08);
-    }
-
-    .status-pill.warn {
-      color: #9a5800;
-      border-color: rgba(220, 134, 20, 0.28);
-      background: rgba(220, 134, 20, 0.08);
-    }
-
-    .status-pill.err {
-      color: #b1332b;
-      border-color: rgba(223, 59, 48, 0.28);
-      background: rgba(223, 59, 48, 0.08);
-    }
-
-    .mono {
-      font-family: var(--font-mono);
-      font-size: 0.73rem;
-      color: #5a524f;
-    }
-
-    td code {
-      font-family: var(--font-mono);
-      font-size: 0.72rem;
-      color: #5a524f;
-      background: #f1efec;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 0.06rem 0.3rem;
-    }
-
     .footer {
       text-align: center;
       color: var(--text-tertiary);
       font-size: 0.75rem;
+      margin-top: 2rem;
       padding: 0.4rem 0 1rem;
       line-height: 1.6;
     }
@@ -341,6 +204,7 @@
     </div>
     <div class="nav-links">
       <a href="/">Dashboard</a>
+      <a href="/rates">Rates</a>
       <a href="/changelog">Changelog</a>
       <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank"
         rel="noopener noreferrer">GitHub</a>
@@ -349,331 +213,57 @@
 
   <main class="page">
     <section class="card hero">
-      <h1>Transparent Inflation Nowcast Built on Public Data</h1>
-      <p>
-        True Inflation Canada is an experimental open-source project that estimates inflation pressure between official
-        CPI releases.
-        The goal is to provide transparent, auditable signal tracking using a monthly anchor plus a live high-frequency
-        pulse, while
-        clearly documenting caveats and uncertainty.
+      <h1>Transparent Inflation Tracking on Public Data</h1>
+      <p style="margin-bottom: 2rem;">
+        True Inflation Canada tracks the true value of the Canadian Dollar and various assets by adjusting them against
+        macro-economic parameters like Bank of Canada's M3 money supply and the official Consumer Price Index. The
+        project is designed to be lean, robust, and completely transparent.
       </p>
-      <div class="kpi-grid">
-        <div class="kpi">
-          <div class="label">Latest Snapshot</div>
-          <div id="kpi-asof" class="value">--</div>
-        </div>
-        <div class="kpi">
-          <div class="label">Nowcast YoY</div>
-          <div id="kpi-nowcast" class="value">--</div>
-        </div>
-        <div class="kpi">
-          <div class="label">Official CPI YoY</div>
-          <div id="kpi-official" class="value">--</div>
-        </div>
-        <div class="kpi">
-          <div class="label">Live Days</div>
-          <div id="kpi-live-days" class="value">--</div>
-        </div>
-      </div>
-    </section>
 
-    <section class="card">
-      <div class="section-title">Project Goal, Strengths, and Long-Term Vision</div>
+      <div class="section-title">Architecture</div>
       <div class="grid-2">
         <article class="panel">
-          <h3>Primary Goal</h3>
+          <h3>Fully Open Source</h3>
           <p>
-            Build a public, reproducible inflation nowcast that is useful before official release dates, without
-            requiring paid data feeds.
-            The project prioritizes transparency, auditability, and explicit quality gates over cosmetic precision.
+            The entire ingestion pipeline and rendering logic is publicly available on GitHub. You can audit every data
+            source and formula we use to calculate the charts.
           </p>
         </article>
         <article class="panel">
-          <h3>Core Strengths</h3>
-          <ul>
-            <li>Open-source ingestion and methodology; assumptions are inspectable.</li>
-            <li>Source-level diagnostics, motion-freshness checks, and publish gates.</li>
-            <li>Robust fallback behavior to avoid silent failures.</li>
-            <li>Explicit confidence and quality scoring tied to measurable inputs.</li>
-          </ul>
-        </article>
-        <article class="panel">
-          <h3>Known Shortcomings</h3>
-          <ul>
-            <li>Early live-history period is volatile and less statistically stable.</li>
-            <li>Some CPI components are omitted in v1 due to high-frequency data quality constraints.</li>
-            <li>Public source outages, anti-bot behavior, or certificate issues can temporarily degrade motion-eligible
-              freshness.</li>
-            <li>This is not an official CPI publication and should not be treated as a replacement.</li>
-          </ul>
-        </article>
-        <article class="panel">
-          <h3>Long-Term Vision</h3>
-          <ul>
-            <li>Expand source diversity and reduce single-source category dependence.</li>
-            <li>Increase tracked basket coverage and improve representativeness over time.</li>
-            <li>Improve calibration quality as live history accumulates.</li>
-            <li>Maintain an open, finance-grade public benchmark for high-frequency inflation tracking.</li>
-          </ul>
+          <h3>No Hidden Backends</h3>
+          <p>
+            We don't use proprietary databases or black-box APIs. All data is fetched directly from public sources (Bank
+            of Canada, StatCan, Yahoo Finance), compiled into a flat JSON payload by a transparent Github Action, and
+            rendered in your browser.
+          </p>
         </article>
       </div>
-    </section>
 
-    <section class="card">
-      <div class="section-title">How the Math Works</div>
+      <div class="section-title" style="margin-top:2rem;">Data Sources</div>
       <div class="grid-2">
         <article class="panel">
-          <h3>Core Formulas</h3>
-          <ul class="formula-list">
-            <li><code>anchor = monthly context from official-style CPI proxies</code></li>
-            <li><code>pulse = weighted aggregate of motion-eligible category deltas</code></li>
-            <li><code>projected_index = prior_index x (1 + (anchor_mom + pulse_mom) x prorate_factor)</code></li>
-            <li><code>headline_nowcast_yoy = anchor_yoy + calibrated_pulse_delta</code></li>
-          </ul>
-        </article>
-        <article class="panel">
-          <h3>Signal Lifecycle vs CPI</h3>
-          <ul class="timeline">
-            <li><strong>Stage 1:</strong> Official CPI history provides anchor context and denominator reference.</li>
-            <li><strong>Stage 2:</strong> Monthly public inputs anchor the level while daily/weekly inputs drive the
-              live pulse.</li>
-            <li><strong>Stage 3:</strong> As live days accumulate, nowcast series lengthens and error metrics stabilize.
-            </li>
-            <li><strong>Stage 4:</strong> Deviation and forecast outputs are published only when guardrails pass.</li>
-            <li><strong>Stage 5:</strong> Relative usefulness improves over time as non-seeded live history grows.</li>
-          </ul>
-        </article>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="section-title">Data Source Transparency (All Tracked Sources)</div>
-      <div class="table-wrap">
-        <table aria-label="Source transparency table">
-          <thead>
-            <tr>
-              <th>Source</th>
-              <th>Categories</th>
-              <th>Cadence</th>
-              <th>Proxy Type</th>
-              <th>Fallback Policy</th>
-              <th>Current Status</th>
-              <th>Age (hrs)</th>
-              <th>Ingestion State</th>
-              <th>Last Success</th>
-              <th>License/Terms</th>
-              <th>Proof URL</th>
-            </tr>
-          </thead>
-          <tbody id="source-table-body"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="section-title">Why Some Signals Use Fallback or Reused Data</div>
-      <div class="grid-2">
-        <article class="panel">
-          <h3>Why Reuse Happens</h3>
+          <h3>Monetary Adjusters</h3>
           <ul>
-            <li>Some public endpoints are intermittent (TLS chain issues, anti-bot controls, or temporary outages).</li>
-            <li>When a source fails in a run but has a recent successful timestamp, that value can be reused with
-              explicit disclosure.</li>
-            <li>Reused values are tagged in diagnostics and never hidden as motion-eligible fresh collection.</li>
+            <li><strong>M1+, M3:</strong> Sourced via the official Bank of Canada Valet API.</li>
+            <li><strong>CPI:</strong> Sourced via the official Bank of Canada Valet API (All-items).</li>
           </ul>
         </article>
         <article class="panel">
-          <h3>How Gate Policy Handles It</h3>
+          <h3>Assets & Equities</h3>
           <ul>
-            <li>Publish gates evaluate motion freshness, representativeness, and required-source availability before a
-              run is published.</li>
-            <li>Guardrails can withhold consensus/deviation/forecast outputs when quality criteria are not met.</li>
-            <li>This reduces overclaim risk during source degradation and early live-history calibration.</li>
+            <li><strong>Indices (TSX, S&P 500), Commodities, Crypto:</strong> Sourced via Yahoo Finance historical data.
+              Non-CAD assets are mathematically converted to CAD at run-time using current exchange rates.</li>
+            <li><strong>Housing & Labour:</strong> Sourced via Statistics Canada raw CSV dumps.</li>
           </ul>
         </article>
       </div>
-    </section>
 
-    <section class="card">
-      <div class="section-title">Methodology & Governance Notes</div>
-      <div class="grid-2">
-        <article class="panel">
-          <h3>Policy and QA</h3>
-          <ul id="policy-list"></ul>
-        </article>
-        <article class="panel">
-          <h3>Transparency Commitments</h3>
-          <ul>
-            <li>All published runs include source diagnostics and release gate status.</li>
-            <li>Confidence and quality are tied to explicit coverage/diversity/anomaly criteria.</li>
-            <li>Fallback usage is surfaced in notes rather than hidden.</li>
-            <li>Method limits are disclosed in the dashboard and this page.</li>
-          </ul>
-        </article>
-      </div>
     </section>
   </main>
 
   <footer class="footer">
-    Experimental open-source nowcast. Not official StatCan CPI.
+    Experimental open-source project. Not official StatCan CPI.
   </footer>
-
-  <script>
-    function el(tag, className, text) {
-      const node = document.createElement(tag);
-      if (className) node.className = className;
-      if (text !== undefined) node.textContent = text;
-      return node;
-    }
-
-    function pct(value, digits = 2) {
-      if (value === null || value === undefined || Number.isNaN(value)) return "--";
-      return `${Number(value).toFixed(digits)}%`;
-    }
-
-    function fetchFirstJson(urls) {
-      const list = (Array.isArray(urls) ? urls : []).filter(Boolean);
-      let chain = Promise.reject(new Error("no_urls"));
-      for (const url of list) {
-        chain = chain.catch(() =>
-          fetch(url).then((r) => {
-            if (!r.ok) throw new Error(`HTTP ${r.status} from ${url}`);
-            return r.text().then((text) => JSON.parse(text));
-          })
-        );
-      }
-      return chain.catch(() => ({}));
-    }
-
-    function safeHistoryItems(historical) {
-      if (Array.isArray(historical.items)) return historical.items;
-      return Object.keys(historical || {}).sort().map(day => ({ date: day, ...(historical[day] || {}) }));
-    }
-
-    function countLiveNowcastDays(items) {
-      return items.filter((d) => {
-        const seeded = Boolean(d.meta && d.meta.seeded);
-        const yoy = d.headline?.nowcast_yoy_pct;
-        return !seeded && yoy !== null && yoy !== undefined;
-      }).length;
-    }
-
-    function renderKpis(latest, liveDays) {
-      document.getElementById("kpi-asof").textContent = latest.as_of_date || "--";
-      document.getElementById("kpi-nowcast").textContent = pct(latest.headline?.nowcast_yoy_pct, 3);
-      document.getElementById("kpi-official").textContent = pct(latest.official_cpi?.yoy_display_pct ?? latest.official_cpi?.yoy_pct, 1);
-      document.getElementById("kpi-live-days").textContent = String(liveDays);
-    }
-
-    function statusClass(status) {
-      const normalized = String(status || "").toLowerCase();
-      if (normalized === "fresh") return "ok";
-      if (normalized === "stale") return "warn";
-      return "err";
-    }
-
-    function renderSourceTable(catalog, latestSnapshot) {
-      const body = document.getElementById("source-table-body");
-      body.innerHTML = "";
-      const items = Array.isArray(catalog?.items) ? catalog.items : [];
-      const sourceHealth = Array.isArray(latestSnapshot?.source_health) ? latestSnapshot.source_health : [];
-      const healthBySource = new Map(
-        sourceHealth
-          .filter((row) => row && row.source)
-          .map((row) => [row.source, row]),
-      );
-      if (items.length === 0) {
-        const tr = document.createElement("tr");
-        const td = el("td", null, "No source catalog available.");
-        td.colSpan = 11;
-        tr.appendChild(td);
-        body.appendChild(tr);
-        return;
-      }
-
-      items.forEach((item) => {
-        const health = healthBySource.get(item.source) || {};
-        const status = String(health.status || "missing").toLowerCase();
-        const tr = document.createElement("tr");
-        tr.appendChild(el("td", null, item.source || "--"));
-        tr.appendChild(el("td", null, Array.isArray(item.categories) ? item.categories.join(", ") : "--"));
-        tr.appendChild(el("td", null, item.cadence || "--"));
-        tr.appendChild(el("td", null, item.proxy_type || "--"));
-        tr.appendChild(el("td", null, item.fallback_policy || "--"));
-        const statusCell = document.createElement("td");
-        const statusNode = el("span", `status-pill ${statusClass(status)}`, status.toUpperCase());
-        statusNode.title = health.status_reason || health.pending_reason || health.detail || status;
-        statusCell.appendChild(statusNode);
-        tr.appendChild(statusCell);
-        tr.appendChild(el("td", "mono", health.run_age_hours === undefined || health.run_age_hours === null ? "--" : String(health.run_age_hours)));
-        tr.appendChild(el("td", "mono", health.ingestion_state || "--"));
-        tr.appendChild(el("td", "mono", health.last_success_timestamp || "No successful run"));
-        tr.appendChild(el("td", null, item.license || "--"));
-
-        const urlCell = document.createElement("td");
-        if (item.proof_url) {
-          const link = document.createElement("a");
-          link.href = item.proof_url;
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-          link.textContent = item.proof_url;
-          urlCell.appendChild(link);
-        } else {
-          urlCell.textContent = "--";
-        }
-        tr.appendChild(urlCell);
-
-        body.appendChild(tr);
-      });
-    }
-
-    function renderPolicy(methodology) {
-      const policyList = document.getElementById("policy-list");
-      policyList.innerHTML = "";
-      const gate = methodology?.gate_policy || {};
-      const representMin = Number(gate.representativeness_min_fresh_ratio ?? 0.85);
-      const addItem = (text) => policyList.appendChild(el("li", null, text));
-      addItem(`Method version: ${methodology?.method_version || "--"}`);
-      addItem(`Representativeness minimum: ${(representMin * 100).toFixed(0)}% fresh basket coverage.`);
-      addItem(`Food gate minimums: ${gate.food_gate?.min_fresh_sources ?? 1} fresh / ${gate.food_gate?.min_usable_sources ?? 2} usable sources.`);
-      addItem(`Required sources: ${(gate.required_sources || []).join(", ") || "--"}.`);
-      addItem("Cross-source disagreement checks are enforced per category before publish.");
-
-      const sourceUrl = methodology?.weights_reference?.source_url;
-      if (sourceUrl) {
-        const li = document.createElement("li");
-        li.append("Tracked basket share source: ");
-        const link = document.createElement("a");
-        link.href = sourceUrl;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        link.textContent = sourceUrl;
-        li.appendChild(link);
-        policyList.appendChild(li);
-      }
-    }
-
-    Promise.all([
-      fetchFirstJson(["data/latest.json", "data/published_latest.json", "/v1/nowcast/latest"]),
-      fetchFirstJson(["data/historical.json", "/v1/nowcast/history"]),
-      fetchFirstJson(["data/methodology.json", "/v1/methodology"]),
-      fetchFirstJson(["data/source_catalog.json", "/v1/sources/catalog"]),
-    ]).then(([latest, historical, methodology, sourceCatalog]) => {
-      const items = safeHistoryItems(historical).slice(-365);
-      const liveDays = countLiveNowcastDays(items);
-      renderKpis(latest || {}, liveDays);
-      renderSourceTable(sourceCatalog || {}, latest || {});
-      renderPolicy(methodology || {});
-    }).catch((err) => {
-      const fallback = document.getElementById("source-table-body");
-      fallback.innerHTML = "";
-      const tr = document.createElement("tr");
-      const td = el("td", null, `Failed to load about-page data: ${String(err)}`);
-      td.colSpan = 11;
-      tr.appendChild(td);
-      fallback.appendChild(tr);
-    });
-  </script>
 </body>
 
 </html>
