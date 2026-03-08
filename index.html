@@ -4,9 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>True Inflation (Proxy)</title>
+  <title>True Inflation Canada (M3)</title>
   <meta name="description"
-    content="A reliable, simplified macroeconomic dashboard tracking the true value of the Canadian Dollar.">
+    content="A reliable macroeconomic dashboard tracking the true value of the Canadian Dollar against M3 money supply.">
   <link rel="icon" type="image/png" href="logo.png">
 
   <!-- Fonts: Space Grotesk / Inter for the indie dev vibe -->
@@ -15,12 +15,13 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap"
     rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
-    /* =========================================================
-       DESIGN TOKENS — Indie / Open Source Cool
-    ========================================================= */
+    /* DESIGN TOKENS */
     :root {
-      /* Dark mode by default for that terminal/hacker feel */
       --bg: #09090b;
       --surface: #18181b;
       --surface-elevated: rgba(39, 39, 42, 0.7);
@@ -33,12 +34,11 @@
       --border-hover: #3f3f46;
 
       --accent: #3b82f6;
-      /* Blue tint */
       --accent-glow: rgba(59, 130, 246, 0.2);
 
-      --green: #22c55e;
-      --orange: #f59e0b;
-      --red: #ef4444;
+      --line-green: #22c55e;
+      --line-blue: #3b82f6;
+      --line-red: #ef4444;
 
       --radius-lg: 16px;
       --radius-sm: 8px;
@@ -50,7 +50,18 @@
       color-scheme: dark;
     }
 
-    /* Core Resets */
+    html[data-theme="light"] {
+      --bg: #ffffff;
+      --surface: #f4f4f5;
+
+      --text: #09090b;
+      --text-secondary: #52525b;
+      --text-tertiary: #a1a1aa;
+
+      --border: #e4e4e7;
+      --border-hover: #d4d4d8;
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -65,48 +76,140 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      background-image:
-        radial-gradient(circle at 50% 0%, var(--accent-glow) 0%, transparent 60%);
+      background-image: radial-gradient(circle at 50% 0%, var(--accent-glow) 0%, transparent 40%);
       background-repeat: no-repeat;
+      transition: background-color 0.3s, color 0.3s;
     }
 
-    /* Layout */
     .app-container {
       width: 100%;
-      max-width: 640px;
+      max-width: 1100px;
       padding: 2rem 1.5rem 6rem;
       display: flex;
       flex-direction: column;
       gap: 2rem;
     }
 
-    /* Nav */
+    /* Indie Header */
     header {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      flex-direction: column;
+      gap: 1.5rem;
       padding-bottom: 2rem;
       border-bottom: 1px solid var(--border);
+    }
+
+    @media (min-width: 600px) {
+      header {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      }
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .brand-logo-container {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    .brand-info {
+      display: flex;
+      flex-direction: column;
     }
 
     .brand-title {
       font-family: var(--font-display);
       font-size: 1.25rem;
       font-weight: 700;
-      letter-spacing: -0.02em;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
     }
 
-    .brand-title::before {
-      content: '';
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      background-color: var(--accent);
+    .brand-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: var(--surface);
+      padding: 0.4rem 0.8rem;
+      border-radius: 9999px;
+      border: 1px solid var(--border);
+    }
+
+    .header-link {
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .header-link svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    .separator {
+      width: 1px;
+      height: 16px;
+      background-color: var(--border);
+    }
+
+    .theme-toggle {
+      background: none;
+      border: none;
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      padding: 0.2rem;
       border-radius: 50%;
-      box-shadow: 0 0 10px var(--accent);
+    }
+
+    .theme-toggle svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    #icon-sun {
+      display: none;
+    }
+
+    #icon-moon {
+      display: block;
+    }
+
+    html[data-theme="light"] #icon-sun {
+      display: block;
+    }
+
+    html[data-theme="light"] #icon-moon {
+      display: none;
     }
 
     .timestamp {
@@ -119,155 +222,199 @@
       border: 1px solid var(--border);
     }
 
-    /* Hero Debasement */
-    .hero {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .section-title {
-      font-family: var(--font-mono);
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      color: var(--text-tertiary);
-      letter-spacing: 0.05em;
-    }
-
-    .debasement-grid {
+    /* Dashboard Layout */
+    .dashboard-grid {
       display: grid;
-      grid-template-columns: repeat(1, 1fr);
-      gap: 1rem;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+      align-items: start;
     }
 
-    @media (min-width: 480px) {
-      .debasement-grid {
-        grid-template-columns: repeat(3, 1fr);
+    @media (min-width: 900px) {
+      .dashboard-grid {
+        grid-template-columns: 2.5fr 1fr;
       }
     }
 
-    .card {
+    /* Chart Section */
+    .chart-container {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       padding: 1.5rem;
-      transition: border-color 0.2s, transform 0.2s;
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
+      gap: 1.5rem;
     }
 
-    .card:hover {
-      border-color: var(--border-hover);
-      transform: translateY(-2px);
+    .chart-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
     }
 
-    .card-label {
-      font-family: var(--font-display);
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-      font-weight: 500;
-    }
-
-    .card-value {
-      font-size: 1.5rem;
-      font-weight: 700;
-      font-family: var(--font-mono);
+    select {
+      background: var(--bg);
       color: var(--text);
+      border: 1px solid var(--border);
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      outline: none;
     }
 
-    .card-subtext {
-      font-size: 0.75rem;
-      color: var(--text-tertiary);
+    .legend-custom {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.85rem;
+      font-family: var(--font-mono);
+      flex-wrap: wrap;
     }
 
-    /* Proxy Nowcast Widget */
-    .nowcast-box {
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+      user-select: none;
+      opacity: 1;
+      transition: opacity 0.2s;
+    }
+
+    .legend-item.disabled {
+      opacity: 0.4;
+    }
+
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+    }
+
+    .c-green {
+      background-color: var(--line-green);
+    }
+
+    .c-blue {
+      background-color: var(--line-blue);
+    }
+
+    .c-red {
+      background-color: var(--line-red);
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      height: 60vh;
+      min-height: 400px;
+      width: 100%;
+    }
+
+    /* Narrative Section */
+    .narrative-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .dynamic-box {
       background: linear-gradient(145deg, var(--surface) 0%, var(--bg) 100%);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 2rem;
-      text-align: center;
+      padding: 1.5rem;
       position: relative;
       overflow: hidden;
     }
 
-    .nowcast-box::before {
+    .dynamic-box::before {
       content: '';
       position: absolute;
-      top: -50px;
-      right: -50px;
-      width: 100px;
-      height: 100px;
-      background: var(--accent);
-      filter: blur(80px);
-      opacity: 0.3;
+      top: -20px;
+      right: -20px;
+      width: 60px;
+      height: 60px;
+      background: var(--line-red);
+      filter: blur(40px);
+      opacity: 0.2;
       border-radius: 50%;
     }
 
-    .nowcast-value {
+    .dynamic-box h3 {
       font-family: var(--font-display);
-      font-size: 3.5rem;
-      font-weight: 700;
-      letter-spacing: -0.05em;
-      margin: 1rem 0;
+      font-size: 1.5rem;
       color: var(--text);
+      margin-bottom: 0.5rem;
     }
 
-    .nowcast-description {
+    .dynamic-box h3 span {
+      color: var(--line-red);
+    }
+
+    .dynamic-box p {
       font-size: 0.9rem;
       color: var(--text-secondary);
       line-height: 1.5;
-      max-width: 80%;
-      margin: 0 auto;
     }
 
-    /* Diagnostics Table */
-    .table-container {
+    .dynamic-box p span {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .explainer-box {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      overflow-x: auto;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-    }
-
-    th,
-    td {
-      padding: 1rem;
-      border-bottom: 1px solid var(--border);
-    }
-
-    th {
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      color: var(--text-tertiary);
-      font-weight: 500;
-    }
-
-    td {
+      padding: 1.5rem;
       font-size: 0.9rem;
-      font-weight: 500;
-      font-family: var(--font-mono);
+      color: var(--text-secondary);
+      line-height: 1.6;
     }
 
-    tr:last-child td {
-      border-bottom: none;
+    .explainer-box h4 {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      color: var(--text);
+      margin-bottom: 1rem;
     }
 
-    .badge {
+    .explainer-box p {
+      margin-bottom: 1rem;
+    }
+
+    .explainer-box p:last-child {
+      margin-bottom: 0;
+    }
+
+    .dot-green {
       display: inline-block;
-      padding: 0.2rem 0.5rem;
-      background: rgba(34, 197, 94, 0.1);
-      color: var(--green);
-      font-size: 0.7rem;
-      border-radius: 9999px;
-      font-family: var(--font-mono);
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--line-green);
+    }
+
+    .dot-blue {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--line-blue);
+    }
+
+    .dot-red {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--line-red);
     }
 
     footer {
@@ -277,6 +424,7 @@
       color: var(--text-tertiary);
       font-family: var(--font-mono);
       border-top: 1px solid var(--border);
+      margin-top: 2rem;
     }
 
     footer a {
@@ -284,180 +432,289 @@
       text-decoration: underline;
       text-underline-offset: 4px;
     }
-
-    /* Loading state */
-    .skeleton {
-      background: var(--border);
-      height: 24px;
-      border-radius: 4px;
-      animation: pulse 1.5s infinite;
-    }
-
-    @keyframes pulse {
-      0% {
-        opacity: 0.5;
-      }
-
-      50% {
-        opacity: 1;
-      }
-
-      100% {
-        opacity: 0.5;
-      }
-    }
   </style>
+  <script>
+    (function () {
+      const savedTheme = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (savedTheme === 'dark' || (!savedTheme && prefersDark)) document.documentElement.setAttribute('data-theme', 'dark');
+      else document.documentElement.setAttribute('data-theme', 'light');
+    })();
+  </script>
 </head>
 
 <body>
 
   <div class="app-container">
     <header>
-      <div class="brand-title">True Inflation</div>
-      <div class="timestamp" id="last-updated">Fetching latest...</div>
+      <div class="header-left">
+        <div class="brand-logo-container">
+          <img src="logo.png" alt="True Inflation Logo" onerror="this.style.display='none'">
+        </div>
+        <div class="brand-info">
+          <div class="brand-title">True Inflation (M3)</div>
+          <div class="brand-subtitle">Asset debasement vs Central Bank supply</div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="timestamp" id="last-updated">Fetching latest...</div>
+        <div class="header-controls">
+          <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank" class="header-link">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+            </svg>
+            GitHub
+          </a>
+          <div class="separator"></div>
+          <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+            <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
     </header>
 
-    <!-- The Debasement Problem -->
-    <section class="hero">
-      <div class="section-title">Purchasing Power (CAD)</div>
-      <div class="debasement-grid">
-        <div class="card">
-          <div class="card-label">Bitcoin</div>
-          <div class="card-value" id="val-btc">
-            <div class="skeleton"></div>
-          </div>
-          <div class="card-subtext">BTC per $1000 CAD</div>
-        </div>
-        <div class="card">
-          <div class="card-label">Gold</div>
-          <div class="card-value" id="val-gold">
-            <div class="skeleton"></div>
-          </div>
-          <div class="card-subtext">Ounces per $1000 CAD</div>
-        </div>
-        <div class="card">
-          <div class="card-label">S&P 500</div>
-          <div class="card-value" id="val-sp500">
-            <div class="skeleton"></div>
-          </div>
-          <div class="card-subtext">Shares per $1000 CAD</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- The Proxy Nowcast -->
-    <section class="hero">
-      <div class="section-title">Cost of Living Proxy</div>
-      <div class="nowcast-box">
-        <div class="card-label" style="text-transform: uppercase; font-family: var(--font-mono); color: var(--accent);">
-          Composite Index</div>
-        <div class="nowcast-value" id="val-proxy">
-          <div class="skeleton" style="height: 60px; width: 50%; margin: 1rem auto; border-radius: 8px;"></div>
-        </div>
-        <div class="nowcast-description">
-          A zero-maintenance indicator blending Crude Oil, Wheat, and Real Estate proxies (priced in CAD). Higher means
-          raw living costs are inflating.
-        </div>
-      </div>
-    </section>
-
-    <!-- Diagnostics -->
-    <section class="hero">
-      <div class="section-title">Raw Data Feed</div>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Asset</th>
-              <th>Ticker</th>
-              <th>Spot Price</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="raw-data-body">
+    <main class="dashboard-grid">
+      <!-- Chart Left Side -->
+      <div class="chart-container">
+        <div class="chart-controls">
+          <select id="asset-select">
             <!-- Populated via JS -->
-          </tbody>
-        </table>
+          </select>
+          <div class="legend-custom">
+            <div class="legend-item" id="toggle-nominal">
+              <div class="legend-color c-green"></div> Nominal Price
+            </div>
+            <div class="legend-item" id="toggle-m3">
+              <div class="legend-color c-blue"></div> M3 Supply
+            </div>
+            <div class="legend-item" id="toggle-adjusted">
+              <div class="legend-color c-red"></div> Priced in M3
+            </div>
+          </div>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="mainChart"></canvas>
+        </div>
       </div>
-    </section>
+
+      <!-- Narrative Right Side -->
+      <div class="narrative-container">
+        <div class="dynamic-box">
+          <h3><span id="debasement-rate">...</span> loss per year</h3>
+          <p>You're losing roughly <span id="debasement-value">...</span> of your purchasing power (measured via <span
+              id="asset-name">Asset</span>) to M3 supply expansion per year over the last decade.</p>
+          <p style="margin-top: 1rem; font-size: 0.8rem;">💨 See historical debasement as measured by True Inflation
+            Canada. This tracks the real inflation that often goes unreported in official CPI numbers.</p>
+        </div>
+
+        <div class="explainer-box">
+          <h4>Explain like I'm 5 years old?</h4>
+          <p>👶 Let's start: select [TSX Composite] from the dropdown. The TSX is the stock market index for Canadian
+            companies. M3 is all Canadian money in circulation.</p>
+          <p><span class="dot-green"></span> The <strong>green line</strong> is the actual nominal price of the asset
+            throughout history.</p>
+          <p><span class="dot-blue"></span> The <strong>blue line</strong> is the M3 money in circulation (scaled to
+            match the start date).</p>
+          <p><span class="dot-red"></span> The <strong>red line</strong> is the asset divided by M3.</p>
+          <p>Look at the <span class="dot-red" style="width:8px; height:8px"></span> red line during recent crises.
+            That's when the Bank of Canada and other central banks started printing money from thin air. You don't see
+            that in the green line—nominal prices look like they've never been higher. But if you look at the red line,
+            the true value of the asset has barely recovered. The official prices of stocks don't tell the whole story
+            of the economy.</p>
+        </div>
+      </div>
+    </main>
 
     <footer>
-      True Inflation CA <span>—</span> A temporary proxy dashboard.<br>
-      Market data via Yahoo Finance. Not official CPI.<br><br>
+      True Inflation CA <span>—</span> A macroeconomic dashboard mapping nominal assets to BoC M3 Money Supply.<br>
+      Inspired by inflationchart.com. Not financial advice.<br><br>
       <a href="https://github.com/lucasbarnes96/true-inflation-canada" target="_blank">View Source</a>
     </footer>
-
   </div>
 
   <script>
-    async function loadData() {
+    // Theme logic
+    const themeBtn = document.getElementById('theme-toggle');
+    themeBtn.addEventListener('click', () => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      localStorage.setItem('theme', isDark ? 'light' : 'dark');
+      // Update chart axes colors
+      if (window.myChart) {
+        const textColor = isDark ? '#09090b' : '#fafafa';
+        window.myChart.options.scales.x.ticks.color = textColor;
+        window.myChart.options.scales.y.ticks.color = textColor;
+        window.myChart.update();
+      }
+    });
+
+    let historyData = null;
+    let windowChart = null;
+    let visibility = { nominal: true, m3: true, adjusted: true };
+
+    async function init() {
       try {
-        const res = await fetch('data/latest.json');
-        if (!res.ok) throw new Error("Failed to load");
-        const data = await res.json();
+        const res = await fetch('data/history.json');
+        historyData = await res.json();
 
-        // 1. Update Timestamp
-        const d = new Date(data.timestamp);
-        const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-        document.getElementById('last-updated').innerText = d.toLocaleDateString('en-US', options) + ' EST';
+        const select = document.getElementById('asset-select');
+        Object.keys(historyData.assets).forEach(asset => {
+          const opt = document.createElement('option');
+          opt.value = asset;
+          opt.innerText = asset;
+          select.appendChild(opt);
+        });
 
-        // 2. Debasement (Scaled by 1000 CAD for readability)
-        const d_btc = data.debasement.btc_per_cad * 1000;
-        const d_gold = data.debasement.gold_oz_per_cad * 1000;
-        const d_sp = data.debasement.sp500_shares_per_cad * 1000;
+        // Current Date
+        const now = new Date();
+        document.getElementById('last-updated').innerText = `Last updated: ${now.toISOString().split('T')[0]}`;
 
-        document.getElementById('val-btc').innerText = `₿ ` + d_btc.toFixed(4);
-        document.getElementById('val-gold').innerText = d_gold.toFixed(3) + ' oz';
-        document.getElementById('val-sp500').innerText = d_sp.toFixed(2) + ' sh';
-
-        // 3. Proxy Nowcast
-        const proxy_val = data.proxy_nowcast.basket_value_cad;
-        document.getElementById('val-proxy').innerText = `$${Math.round(proxy_val).toLocaleString()}`;
-
-        // 4. Raw Data Table
-        const tbody = document.getElementById('raw-data-body');
-        tbody.innerHTML = '';
-        const tickers = {
-          "cad_usd": "CAD/USD",
-          "gold": "Gold (USD)",
-          "btc": "Bitcoin (USD)",
-          "sp500": "S&P 500",
-          "wheat": "Wheat",
-          "oil": "Crude Oil",
-          "reit": "Capped REIT (CAD)"
-        };
-
-        for (const [key, label] of Object.entries(tickers)) {
-          const val = data.raw_prices[key];
-          if (val === undefined) continue;
-
-          const tr = document.createElement('tr');
-
-          tr.innerHTML = `
-            <td>${label}</td>
-            <td style="color: var(--text-tertiary);">${key.toUpperCase()}</td>
-            <td>${val.toFixed(2)}</td>
-            <td><span class="badge">LIVE</span></td>
-          `;
-          tbody.appendChild(tr);
-        }
+        select.addEventListener('change', () => drawChart(select.value));
+        drawChart(select.value);
 
       } catch (e) {
-        console.error("Error drawing dashboard:", e);
-        document.getElementById('last-updated').innerText = "Data Error";
+        console.error("Failed to load data", e);
+        document.getElementById('last-updated').innerText = "Data load error";
       }
     }
 
-    loadData();
+    function drawChart(assetName) {
+      const data = historyData.assets[assetName];
+      if (!data) return;
 
-    // Theme Toggle Logic
-    const themeToggleBtn = document.getElementById('theme-toggle');
-    themeToggleBtn.addEventListener('click', () => {
-      const currentTheme = document.documentElement.getAttribute('data-theme');
-      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', newTheme);
-      localStorage.setItem('theme', newTheme);
+      // Update Narrative Box (calculate 10-year annualized return diff)
+      const n = data.nominal.length;
+      if (n > 120) {
+        const nom10yAgo = data.nominal[n - 120];
+        const nomNow = data.nominal[n - 1];
+        const nomCagr = Math.pow(nomNow / nom10yAgo, 1 / 10) - 1;
+
+        const adj10yAgo = data.adjusted[n - 120];
+        const adjNow = data.adjusted[n - 1];
+        const adjCagr = Math.pow(adjNow / adj10yAgo, 1 / 10) - 1;
+
+        // Loss to inflation is roughly Nominal Return - Adjusted Return
+        // But let's express it as the M3 expansion drag
+        const m3_10yAgo = data.m3_normalized[n - 120];
+        const m3_Now = data.m3_normalized[n - 1];
+        const m3_Cagr = Math.pow(m3_Now / m3_10yAgo, 1 / 10) - 1;
+
+        const lossPct = (m3_Cagr * 100).toFixed(1);
+        document.getElementById('debasement-rate').innerText = `${lossPct}%`;
+        document.getElementById('debasement-value').innerText = `${lossPct}%`;
+      } else {
+        document.getElementById('debasement-rate').innerText = `N/A`;
+        document.getElementById('debasement-value').innerText = `N/A`;
+      }
+      document.getElementById('asset-name').innerText = assetName;
+
+      // Draw Chart.js
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const textColor = isDark ? '#fafafa' : '#09090b';
+
+      const ctx = document.getElementById('mainChart').getContext('2d');
+      if (windowChart) windowChart.destroy();
+
+      windowChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.dates,
+          datasets: [
+            {
+              label: 'Nominal Price',
+              data: data.nominal,
+              borderColor: '#22c55e',
+              borderWidth: 2,
+              tension: 0.1,
+              pointRadius: 0,
+              yAxisID: 'y',
+              hidden: !visibility.nominal
+            },
+            {
+              label: 'M3 Supply (Scaled)',
+              // We multiply the normalized M3 by the first nominal price so it shares the same starting y-axis point securely
+              data: data.m3_normalized.map(v => v * data.nominal[0]),
+              borderColor: '#3b82f6',
+              borderWidth: 2,
+              borderDash: [5, 5],
+              tension: 0.1,
+              pointRadius: 0,
+              yAxisID: 'y',
+              hidden: !visibility.m3
+            },
+            {
+              label: 'Priced in M3',
+              data: data.adjusted,
+              borderColor: '#ef4444',
+              borderWidth: 2,
+              tension: 0.1,
+              pointRadius: 0,
+              yAxisID: 'y',
+              hidden: !visibility.adjusted
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(24, 24, 27, 0.9)',
+              titleColor: '#fff',
+              bodyColor: '#fff',
+              borderColor: '#3f3f46',
+              borderWidth: 1
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: textColor, maxTicksLimit: 10 },
+              grid: { color: 'rgba(161, 161, 170, 0.1)' }
+            },
+            y: {
+              type: 'logarithmic',
+              position: 'left',
+              ticks: { color: textColor },
+              grid: { color: 'rgba(161, 161, 170, 0.1)' }
+            }
+          }
+        }
+      });
+    }
+
+    // Custom Legend Bindings
+    ['nominal', 'm3', 'adjusted'].forEach((key, idx) => {
+      const el = document.getElementById(`toggle-${key}`);
+      el.addEventListener('click', () => {
+        visibility[key] = !visibility[key];
+        el.classList.toggle('disabled', !visibility[key]);
+        if (windowChart) {
+          windowChart.setDatasetVisibility(idx, visibility[key]);
+          windowChart.update();
+        }
+      });
     });
+
+    init();
   </script>
 </body>
 
