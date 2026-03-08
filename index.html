@@ -616,18 +616,26 @@
       <!-- Chart Left Side -->
       <div class="chart-container">
         <div class="chart-controls">
-          <select id="asset-select">
-            <!-- Populated via JS -->
-          </select>
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; width: 100%;">
+            <select id="asset-select" style="flex: 1; min-width: 150px;">
+              <!-- Populated via JS -->
+            </select>
+            <div
+              style="display: flex; align-items: center; font-family: var(--font-display); font-weight: 700; color: var(--text-tertiary);">
+              in</div>
+            <select id="adjuster-select" style="flex: 1; min-width: 150px;">
+              <!-- Populated via JS -->
+            </select>
+          </div>
           <div class="legend-custom">
             <div class="legend-item" id="toggle-nominal">
               <div class="legend-color c-green"></div> Nominal Price
             </div>
-            <div class="legend-item" id="toggle-m3">
-              <div class="legend-color c-blue"></div> M3 Supply
+            <div class="legend-item" id="toggle-adjuster">
+              <div class="legend-color c-blue"></div> <span id="adjuster-name-legend">Adjuster</span>
             </div>
             <div class="legend-item" id="toggle-adjusted">
-              <div class="legend-color c-red"></div> Priced in M3
+              <div class="legend-color c-red"></div> Adjusted Price
             </div>
           </div>
         </div>
@@ -643,11 +651,31 @@
         </div>
 
         <div class="dynamic-box">
-          <h3><span id="debasement-rate">...</span> loss per year</h3>
-          <p>You're losing roughly <span id="debasement-value">...</span> of your purchasing power (measured via <span
-              id="asset-name">Asset</span>) to M3 supply expansion per year over the last decade.</p>
-          <p style="margin-top: 1rem; font-size: 0.8rem;">💨 See historical debasement as measured by True Inflation
-            Canada. This tracks the real inflation that often goes unreported in official CPI numbers.</p>
+          <h1
+            style="font-size: 4rem; margin-bottom: 0.5rem; line-height: 1; font-family: var(--font-display); font-weight: 700; position: relative; z-index: 1;">
+            <span id="cpi-rate">...</span>
+          </h1>
+          <p
+            style="font-size: 1.1rem; font-weight: 600; color: var(--text); line-height: 1.5; position: relative; z-index: 1;">
+            Inflation is <span id="cpi-tone">...</span> at <span id="cpi-rate-text">...</span> per year. <span
+              id="cpi-meaning">...</span></p>
+          <br>
+          <p
+            style="font-size: 1.1rem; font-weight: 600; color: var(--text); line-height: 1.5; position: relative; z-index: 1;">
+            You're still losing <span id="cpi-rate-loss">...</span> of your money to inflation per year or <span
+              id="cpi-rate-monthly">...</span> per month. At this rate, in <span id="cpi-years-half">...</span> years
+            over 50% of your money has evaporated.</p>
+
+          <p
+            style="margin-top: 1.5rem; font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); position: relative; z-index: 1;">
+            💨 <a href="rates.html" style="color: var(--line-red); text-decoration: underline;">See historical inflation
+              rates</a> as measured by True Inflation Canada.</p>
+
+          <p
+            style="margin-top: 1.5rem; font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); position: relative; z-index: 1;">
+            📈 This website tracks the real inflation which sometimes happens that governments <span
+              style="color: var(--line-red);">don't like to tell you</span> about <span
+              style="color: var(--line-red);">in their official numbers</span>.</p>
         </div>
 
         <div class="explainer-box">
@@ -685,29 +713,102 @@
       }
     });
 
-    let historyData = null;
+    let chartData = null;
     let windowChart = null;
-    let visibility = { nominal: true, m3: true, adjusted: true };
+    let visibility = { nominal: true, adjuster: true, adjusted: true };
+
+    async function initCPI() {
+      try {
+        const res = await fetch('https://www.bankofcanada.ca/valet/observations/v41690973/json?recent=13');
+        const data = await res.json();
+        const obs = data.observations;
+        if (obs && obs.length >= 13) {
+          obs.sort((a, b) => new Date(b.d) - new Date(a.d));
+          const recentVal = parseFloat(obs[0].V41690973.v);
+          const oldVal = parseFloat(obs[12].V41690973.v);
+          const rate = (recentVal / oldVal) - 1;
+          const ratePct = (rate * 100).toFixed(1);
+
+          document.getElementById('cpi-rate').innerText = ratePct + '%';
+          document.getElementById('cpi-rate-text').innerText = ratePct + '%';
+          document.getElementById('cpi-rate-loss').innerText = ratePct + '%';
+
+          const monthlyRate = (Math.pow(1 + rate, 1 / 12) - 1);
+          document.getElementById('cpi-rate-monthly').innerText = (monthlyRate * 100).toFixed(1) + '%';
+
+          let tone = "stable and low";
+          let meaning = "This means your money is currently not losing much value over time.";
+          if (rate < 0) {
+            tone = "negative";
+            meaning = "This means your money is actually gaining purchasing power.";
+          } else if (rate >= 0.05) {
+            tone = "very high";
+            meaning = "This means your money is rapidly losing its purchasing power.";
+          } else if (rate >= 0.03) {
+            tone = "high and concerning";
+            meaning = "This means your money is losing value at a noticeable pace.";
+          }
+
+          document.getElementById('cpi-tone').innerText = tone;
+          document.getElementById('cpi-meaning').innerText = meaning;
+
+          const yearsHalf = rate > 0 ? Math.round(Math.log(2) / Math.log(1 + rate)) : '∞';
+          document.getElementById('cpi-years-half').innerText = yearsHalf;
+        }
+      } catch (e) {
+        console.error("Failed to fetch CPI", e);
+      }
+    }
 
     async function init() {
       try {
-        const res = await fetch('data/history.json');
-        historyData = await res.json();
+        initCPI();
+        const res = await fetch('data/chart_data.json');
+        chartData = await res.json();
 
-        const select = document.getElementById('asset-select');
-        Object.keys(historyData.assets).forEach(asset => {
+        const assetSelect = document.getElementById('asset-select');
+        const adjusterSelect = document.getElementById('adjuster-select');
+
+        Object.keys(chartData.assets).forEach(asset => {
           const opt = document.createElement('option');
           opt.value = asset;
           opt.innerText = asset;
-          select.appendChild(opt);
+          assetSelect.appendChild(opt);
         });
+
+        Object.keys(chartData.adjusters).forEach(adj => {
+          const opt = document.createElement('option');
+          opt.value = adj;
+          opt.innerText = adj;
+          adjusterSelect.appendChild(opt);
+        });
+
+        // URL Routing
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('asset')) assetSelect.value = params.get('asset');
+        if (params.has('adjuster')) adjusterSelect.value = params.get('adjuster');
 
         // Current Date
         const now = new Date();
         document.getElementById('last-updated').innerText = `Last updated: ${now.toISOString().split('T')[0]}`;
 
-        select.addEventListener('change', () => drawChart(select.value));
-        drawChart(select.value);
+        const update = () => {
+          const asset = assetSelect.value;
+          const adjuster = adjusterSelect.value;
+
+          // Update URL without reload
+          const url = new URL(window.location);
+          url.searchParams.set('asset', asset);
+          url.searchParams.set('adjuster', adjuster);
+          window.history.pushState({}, '', url);
+
+          drawChart(asset, adjuster);
+        };
+
+        assetSelect.addEventListener('change', update);
+        adjusterSelect.addEventListener('change', update);
+
+        update();
 
       } catch (e) {
         console.error("Failed to load data", e);
@@ -715,37 +816,29 @@
       }
     }
 
-    function drawChart(assetName) {
-      const data = historyData.assets[assetName];
-      if (!data) return;
+    function drawChart(assetName, adjusterName) {
+      const asset = chartData.assets[assetName];
+      const adjuster = chartData.adjusters[adjusterName];
+      if (!asset || !adjuster) return;
 
-      // Update Narrative Box (calculate 10-year annualized return diff)
-      const n = data.nominal.length;
-      if (n > 120) {
-        const nom10yAgo = data.nominal[n - 120];
-        const nomNow = data.nominal[n - 1];
-        const nomCagr = Math.pow(nomNow / nom10yAgo, 1 / 10) - 1;
+      document.getElementById('adjuster-name-legend').innerText = `${adjusterName} Supply`;
 
-        const adj10yAgo = data.adjusted[n - 120];
-        const adjNow = data.adjusted[n - 1];
-        const adjCagr = Math.pow(adjNow / adj10yAgo, 1 / 10) - 1;
+      // Align dates (Assets and Adjusters might have different ranges)
+      // Find intersection of dates
+      const dates = asset.dates.filter(d => adjuster.dates.includes(d));
+      const assetValues = dates.map(d => asset.values[asset.dates.indexOf(d)]);
+      const adjusterValues = dates.map(d => adjuster.values[adjuster.dates.indexOf(d)]);
 
-        // Loss to inflation is roughly Nominal Return - Adjusted Return
-        // But let's express it as the M3 expansion drag
-        const m3_10yAgo = data.m3_normalized[n - 120];
-        const m3_Now = data.m3_normalized[n - 1];
-        const m3_Cagr = Math.pow(m3_Now / m3_10yAgo, 1 / 10) - 1;
+      // Normalize adjuster to 1.0 at the first overlapping date
+      const firstAdjVal = adjusterValues[0];
+      const adjNormalized = adjusterValues.map(v => v / firstAdjVal);
 
-        const lossPct = (m3_Cagr * 100).toFixed(1);
-        document.getElementById('debasement-rate').innerText = `${lossPct}%`;
-        document.getElementById('debasement-value').innerText = `${lossPct}%`;
-      } else {
-        document.getElementById('debasement-rate').innerText = `N/A`;
-        document.getElementById('debasement-value').innerText = `N/A`;
-      }
-      document.getElementById('asset-name').innerText = assetName;
+      // Scale adjuster to match asset starting point for the blue line visual
+      const adjScaled = adjNormalized.map(v => v * assetValues[0]);
 
-      // Draw Chart.js
+      // Calculate adjusted price (nominal / normalized_adjuster)
+      const adjustedValues = assetValues.map((v, i) => v / adjNormalized[i]);
+
       const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
       const textColor = isDark ? '#fafafa' : '#09090b';
 
@@ -755,11 +848,11 @@
       windowChart = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: data.dates,
+          labels: dates,
           datasets: [
             {
               label: 'Nominal Price',
-              data: data.nominal,
+              data: assetValues,
               borderColor: '#22c55e',
               borderWidth: 2,
               tension: 0.1,
@@ -768,20 +861,19 @@
               hidden: !visibility.nominal
             },
             {
-              label: 'M3 Supply (Scaled)',
-              // We multiply the normalized M3 by the first nominal price so it shares the same starting y-axis point securely
-              data: data.m3_normalized.map(v => v * data.nominal[0]),
+              label: `${adjusterName} (Scaled)`,
+              data: adjScaled,
               borderColor: '#3b82f6',
               borderWidth: 2,
               borderDash: [5, 5],
               tension: 0.1,
               pointRadius: 0,
               yAxisID: 'y',
-              hidden: !visibility.m3
+              hidden: !visibility.adjuster
             },
             {
-              label: 'Priced in M3',
-              data: data.adjusted,
+              label: `Priced in ${adjusterName}`,
+              data: adjustedValues,
               borderColor: '#ef4444',
               borderWidth: 2,
               tension: 0.1,
@@ -822,7 +914,7 @@
     }
 
     // Custom Legend Bindings
-    ['nominal', 'm3', 'adjusted'].forEach((key, idx) => {
+    ['nominal', 'adjuster', 'adjusted'].forEach((key, idx) => {
       const el = document.getElementById(`toggle-${key}`);
       el.addEventListener('click', () => {
         visibility[key] = !visibility[key];
