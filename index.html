@@ -368,6 +368,11 @@
       }
     }
 
+    option {
+      background-color: var(--surface);
+      color: var(--text);
+    }
+
     .legend-custom {
       display: flex;
       gap: 1rem;
@@ -805,18 +810,23 @@
   </div>
 
   <script>
-    // Theme logic
     const themeBtn = document.getElementById('theme-toggle');
     themeBtn.addEventListener('click', () => {
       const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
       document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
       localStorage.setItem('theme', isDark ? 'light' : 'dark');
       // Update chart axes colors
-      if (window.myChart) {
+      if (windowChart) {
         const textColor = isDark ? '#09090b' : '#fafafa';
-        window.myChart.options.scales.x.ticks.color = textColor;
-        window.myChart.options.scales.y.ticks.color = textColor;
-        window.myChart.update();
+        windowChart.options.scales.x.ticks.color = textColor;
+        windowChart.options.scales.y.ticks.color = textColor;
+
+        windowChart.options.plugins.tooltip.backgroundColor = isDark ? 'rgba(255, 255, 255, 0.9)' : 'rgba(24, 24, 27, 0.9)';
+        windowChart.options.plugins.tooltip.titleColor = isDark ? '#000' : '#fff';
+        windowChart.options.plugins.tooltip.bodyColor = isDark ? '#000' : '#fff';
+        windowChart.options.plugins.tooltip.borderColor = isDark ? '#e4e4e7' : '#3f3f46';
+
+        windowChart.update();
       }
     });
 
@@ -1136,10 +1146,10 @@
           plugins: {
             legend: { display: false },
             tooltip: {
-              backgroundColor: 'rgba(24, 24, 27, 0.9)',
-              titleColor: '#fff',
-              bodyColor: '#fff',
-              borderColor: '#3f3f46',
+              backgroundColor: isDark ? 'rgba(24, 24, 27, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+              titleColor: isDark ? '#fff' : '#000',
+              bodyColor: isDark ? '#fff' : '#000',
+              borderColor: isDark ? '#3f3f46' : '#e4e4e7',
               borderWidth: 1
             }
           },
