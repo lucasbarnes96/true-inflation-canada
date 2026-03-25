@@ -852,6 +852,17 @@
     let currentAdjusted = [];
     let allIndicators = {};
 
+    function formatUpdatedAt(updatedAt) {
+      if (!updatedAt) return null;
+      const parsed = new Date(updatedAt);
+      if (Number.isNaN(parsed.getTime())) return null;
+      return parsed.toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+
     // URL slug to full name mappings
     const slugMap = {
       'tsx': 'TSX',
@@ -937,8 +948,10 @@
           adjusterSelect.appendChild(opt2);
         });
 
-        const now = new Date();
-        document.getElementById('last-updated').innerText = `Last updated: ${now.toISOString().split('T')[0]}`;
+        const updatedLabel = formatUpdatedAt(chartData.metadata && chartData.metadata.updated_at);
+        document.getElementById('last-updated').innerText = updatedLabel
+          ? `Last updated: ${updatedLabel}`
+          : 'Last updated: Unknown';
 
         // Handle URL Path like /tsx-in-m3
         const path = window.location.pathname.replace(/^\/+|\/+$/g, '');
@@ -1069,15 +1082,16 @@
       document.getElementById('adjuster-name-legend').innerText = adjusterName;
       document.getElementById('adjusted-name-legend').innerText = `${assetName} / ${adjusterName}`;
 
-      // Align dates (Assets and Adjusters might have different ranges)
-      // Find intersection of dates
+      // Align dates (assets and adjusters might have different ranges).
       let dates = asset.dates.filter(d => adjuster.dates.includes(d));
 
-      // Filter by time interval
-      if (currentTimeInterval !== 'all') {
+      // Anchor bounded time windows to the latest overlapping month so lagging series
+      // still show the most recent shared data.
+      if (currentTimeInterval !== 'all' && dates.length > 0) {
         const years = parseInt(currentTimeInterval, 10);
-        const cutoffDate = new Date();
-        cutoffDate.setFullYear(cutoffDate.getFullYear() - years);
+        const latestCommonDate = new Date(`${dates[dates.length - 1]}-01T00:00:00`);
+        const cutoffDate = new Date(latestCommonDate);
+        cutoffDate.setMonth(cutoffDate.getMonth() - (years * 12) + 1);
         const cutoffStr = cutoffDate.toISOString().split('T')[0].substring(0, 7); // YYYY-MM
         dates = dates.filter(d => d >= cutoffStr);
       }
@@ -1167,7 +1181,7 @@
               grid: { color: 'rgba(161, 161, 170, 0.1)' }
             },
             y: {
-              type: 'logarithmic',
+              type: useLogScale ? 'logarithmic' : 'linear',
               position: 'left',
               ticks: { color: textColor },
               grid: { color: 'rgba(161, 161, 170, 0.1)' }
