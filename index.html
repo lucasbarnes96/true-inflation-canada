@@ -26,13 +26,6 @@
 
   <link rel="icon" type="image/png" href="logo.png">
 
-  <!-- Fonts: Space Grotesk / Inter for the indie dev vibe -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap"
-    rel="stylesheet">
-
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -60,8 +53,8 @@
       --radius-lg: 16px;
       --radius-sm: 8px;
 
-      --font-display: 'Space Grotesk', sans-serif;
-      --font-body: 'Inter', sans-serif;
+      --font-display: "Trebuchet MS", "Avenir Next", "Segoe UI", sans-serif;
+      --font-body: "Helvetica Neue", Helvetica, Arial, sans-serif;
       --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
       color-scheme: dark;
@@ -576,6 +569,22 @@
       text-decoration: underline;
       text-underline-offset: 4px;
     }
+
+    .data-status {
+      display: none;
+      margin-top: 1rem;
+      padding: 0.9rem 1rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      background: rgba(239, 68, 68, 0.08);
+      color: var(--text);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .data-status.is-visible {
+      display: block;
+    }
   </style>
   <script>
     (function () {
@@ -736,6 +745,9 @@
 
           <canvas id="mainChart"></canvas>
         </div>
+        <div id="data-status" class="data-status" role="alert">
+          Live data is currently unavailable. The chart could not load the latest published dataset.
+        </div>
       </div>
 
 
@@ -852,6 +864,20 @@
     let currentAdjusted = [];
     let allIndicators = {};
 
+    function setDataStatus(message) {
+      const statusEl = document.getElementById('data-status');
+      if (!statusEl) return;
+      statusEl.textContent = message;
+      statusEl.classList.add('is-visible');
+    }
+
+    function clearDataStatus() {
+      const statusEl = document.getElementById('data-status');
+      if (!statusEl) return;
+      statusEl.classList.remove('is-visible');
+      statusEl.textContent = '';
+    }
+
     function formatUpdatedAt(updatedAt) {
       if (!updatedAt) return null;
       const parsed = new Date(updatedAt);
@@ -928,8 +954,12 @@
     async function init() {
       try {
         const res = await fetch('data/chart_data.json');
+        if (!res.ok) {
+          throw new Error(`Unexpected response status: ${res.status}`);
+        }
         chartData = await res.json();
         allIndicators = { ...chartData.assets, ...chartData.adjusters };
+        clearDataStatus();
 
         const assetSelect = document.getElementById('asset-select');
         const adjusterSelect = document.getElementById('adjuster-select');
@@ -1069,6 +1099,7 @@
       } catch (e) {
         console.error("Failed to load data", e);
         document.getElementById('last-updated').innerText = "Last updated: Error";
+        setDataStatus("Live data is currently unavailable. The chart could not load the latest published dataset.");
       }
     }
 

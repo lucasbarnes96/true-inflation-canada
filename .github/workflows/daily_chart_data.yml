@@ -29,6 +29,9 @@ jobs:
       - name: Run Chart Data Generation
         run: python scripts/generate_chart_data.py
 
+      - name: Validate Generated Payload
+        run: python scripts/validate_chart_data.py
+
       - name: Commit and Push Changes
         run: |
           git config --local user.email "action@github.com"

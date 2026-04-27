@@ -15,11 +15,7 @@ True Inflation Canada tracks the true value of the Canadian Dollar and various a
    - If the script successfully fetches and parses new data, the GitHub Action automatically commits the updated `chart_data.json` back to the `main` branch.
    - You do not need to intervene.
 
-3. **Frontend Application (`index.html` & `rates.html`)**:
+3. **Frontend Application (`index.html`)**:
    - A static, vanilla HTML/JS setup customized for maximum aesthetics.
    - Fetches the compiled `data/chart_data.json`.
    - **Dynamic CPI Headline**: The headline CPI "2.3%" text box dynamically reads the latest Official CPI values from the dataset, calculates the exact Year-over-Year inflation percentage, calculates the monthly evaporation rate, and computes the inflation half-life automatically. The narrative adjusts as the data drops.
-
-## Legacy Cleanup
-- Previously, this repository contained a massive internal `api/` and `pipeline/` infrastructure built to manage a daily web scrape of Apify Loblaws pricing.
-- This bloat has been completely scrubbed from the repository. The project is now lightweight and extremely simple to follow, focusing fully on macro-level analysis.
